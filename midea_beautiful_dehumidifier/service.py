@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from midea_client_command import base_command
+from midea_beautiful_dehumidifier.command import base_command
 
 VERSION = '0.1.40'
 

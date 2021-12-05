@@ -5,9 +5,9 @@ import logging
 import socket
 import time
 
-from midea_client_command import base_command
-from midea_client_service import midea_service
-from midea_client_util import MSGTYPE_ENCRYPTED_REQUEST, MSGTYPE_HANDSHAKE_REQUEST, hex4logging, packet_time, Security
+from midea_beautiful_dehumidifier.command import base_command
+from midea_beautiful_dehumidifier.service import midea_service
+from midea_beautiful_dehumidifier.util import MSGTYPE_ENCRYPTED_REQUEST, MSGTYPE_HANDSHAKE_REQUEST, hex4logging, packet_time, Security
 
 VERSION = '0.1.40'
 

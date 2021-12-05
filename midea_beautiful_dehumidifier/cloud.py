@@ -8,9 +8,9 @@ from typing import Any
 
 import requests
 
-from midea_client_command import base_command
-from midea_client_service import midea_service
-from midea_client_util import hex4logging, packet_time, Security
+from midea_beautiful_dehumidifier.command import base_command
+from midea_beautiful_dehumidifier.service import midea_service
+from midea_beautiful_dehumidifier.util import hex4logging, packet_time, Security
 
 # The Midea cloud client is by far the more obscure part of this library,
 # and without some serious reverse engineering this would not have been possible.

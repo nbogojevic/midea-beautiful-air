@@ -10,23 +10,23 @@ import logging
 import argparse
 import asyncio
 
-from midea_client_scanner import async_find_devices
+from midea_beautiful_dehumidifier.scanner import async_find_devices
 
 VERSION = '0.1.40'
 
 _LOGGER = logging.getLogger(__name__)
 
 
-account = "SOME_ACCOUNT"
-password = "SOME_USER"
+account = ""
+password = ""
 app_key = "3742e9e5842d4ad59c2db887e12449f9"
 use_midea_cloud = False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Discover Midea dehumidifiers.')
     parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--account')
-    parser.add_argument('--password')
+    parser.add_argument('--account', required=True)
+    parser.add_argument('--password', required=True)
 
     args = parser.parse_args()
     try:

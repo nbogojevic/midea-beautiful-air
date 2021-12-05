@@ -8,10 +8,10 @@ import ifaddr
 import logging
 import socket
 
-from midea_client_cloud import cloud
-from midea_client_lan import lan
-from midea_client_device import midea_device, unknown_device, device_from_type, device_name_from_type
-from midea_client_util import hex4logging, get_udpid, Security
+from midea_beautiful_dehumidifier.cloud import cloud
+from midea_beautiful_dehumidifier.lan import lan
+from midea_beautiful_dehumidifier.device import midea_device, unknown_device, device_from_type, device_name_from_type
+from midea_beautiful_dehumidifier.util import hex4logging, get_udpid, Security
 try:
     import xml.etree.cElementTree as ET
 except ImportError:
