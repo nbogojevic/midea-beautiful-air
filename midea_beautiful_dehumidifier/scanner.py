@@ -18,7 +18,6 @@ except ImportError:
     import xml.etree.ElementTree as ET
 
 
-
 _LOGGER = logging.getLogger(__name__)
 
 BROADCAST_MSG: Final = bytearray([
@@ -252,7 +251,7 @@ class MideaDiscovery:
                 )
             except:
                 _LOGGER.debug("Unable to send broadcast to: %s",
-                            str(broadcast_address))
+                              str(broadcast_address))
 
     def _get_networks(self) -> list[str]:
         if self.networks is None:
@@ -274,9 +273,10 @@ class MideaDiscovery:
             else:
                 for net in nets:
                     _LOGGER.debug("Network %s, boradcast address %s",
-                          net.network_address, net.broadcast_address)
+                                  net.network_address, net.broadcast_address)
                     self.networks.append(str(net.broadcast_address))
         return self.networks
+
 
 async def _async_find_devices_on_lan(
         cloud_service: cloud,
@@ -286,7 +286,8 @@ async def _async_find_devices_on_lan(
         broadcast_networks: list[str] | None,
         devices: list[midea_device]):
 
-    discovery = MideaDiscovery(cloud_service=cloud_service, packets=packets, broadcast_timeout=broadcast_timeout, broadcast_networks=broadcast_networks)
+    discovery = MideaDiscovery(cloud_service=cloud_service, packets=packets,
+                               broadcast_timeout=broadcast_timeout, broadcast_networks=broadcast_networks)
     _LOGGER.debug("Starting LAN discovery")
 
     scanned_devices = list(await discovery.async_get_all())

@@ -4,7 +4,6 @@ import logging
 from midea_beautiful_dehumidifier.util import crc8, hex4logging
 
 
-
 _LOGGER = logging.getLogger(__name__)
 
 _order = 0
@@ -428,10 +427,12 @@ class dehumidifier_status_command(base_command):
     def __init__(self, device_type: int = 0xA1):
         super().__init__(device_type)
 
+
 class ac_status_command(base_command):
 
     def __init__(self, device_type: int = 0xAC):
         super().__init__(device_type)
+
 
 class dehumidifier_set_command(base_command):
 

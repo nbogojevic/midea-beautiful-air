@@ -4,13 +4,12 @@ import logging
 from enum import Enum
 
 from midea_beautiful_dehumidifier.command import (ac_response, ac_set_command,
-                                  ac_status_command, base_command,
-                                  dehumidifier_response,
-                                  dehumidifier_set_command,
-                                  dehumidifier_status_command)
+                                                  ac_status_command, base_command,
+                                                  dehumidifier_response,
+                                                  dehumidifier_set_command,
+                                                  dehumidifier_status_command)
 from midea_beautiful_dehumidifier.service import midea_service
 from midea_beautiful_dehumidifier.util import hex4logging
-
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -212,7 +211,7 @@ class ac_device(midea_device):
                 if data[0xa] == 0xa1 or data[0xa] == 0xa0:
                     # only update indoor_temperature and outdoor_temperature
                     _LOGGER.debug("Update - Special Respone. %s %s",
-                                  self.id, 
+                                  self.id,
                                   hex4logging(data[0xa:], _LOGGER))
                     pass
                     # self.update_special(response)

@@ -144,7 +144,7 @@ class cloud(midea_service):
             _LOGGER.error(
                 "Got error response, length was %d, should be at least 80",
                 len(res))
-            return 
+            return
 
         return res[50:]
 
@@ -245,7 +245,7 @@ class cloud(midea_service):
         self._session = self.api_request('user/login', {
             'loginAccount': self._login_account,
             'password': self._security.encrypt_password(self._login_id,
-                                                       self._password)
+                                                        self._password)
         })
 
         self._security.access_token = self._session['accessToken']
@@ -263,7 +263,7 @@ class cloud(midea_service):
             _LOGGER.debug("Midea home group query result=%s", response)
             if not response or response.get('list') is None:
                 _LOGGER.error(
-                    "Unable to get home groups from Midea Cloud. response=%s", 
+                    "Unable to get home groups from Midea Cloud. response=%s",
                     response)
                 return []
             self._home_groups = response['list']

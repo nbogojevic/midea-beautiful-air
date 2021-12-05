@@ -14,8 +14,6 @@ from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.Util.strxor import strxor
 
 
-
-
 _LOGGER = logging.getLogger(__name__)
 
 MSGTYPE_HANDSHAKE_REQUEST: Final = 0x0
@@ -23,6 +21,7 @@ MSGTYPE_HANDSHAKE_RESPONSE: Final = 0x1
 MSGTYPE_ENCRYPTED_RESPONSE: Final = 0x3
 MSGTYPE_ENCRYPTED_REQUEST: Final = 0x6
 MSGTYPE_TRANSPARENT: Final = 0xf
+
 
 def hex4logging(data: bytes | bytearray, logger: logging.Logger = logging.getLogger(), level=logging.DEBUG) -> str:
     """
@@ -40,6 +39,7 @@ def packet_time() -> bytearray:
         d = int(t[i:i+2])
         b.insert(0, d)
     return b
+
 
 crc8_854_table = [
     0x00, 0x5E, 0xBC, 0xE2, 0x61, 0x3F, 0xDD, 0x83,
