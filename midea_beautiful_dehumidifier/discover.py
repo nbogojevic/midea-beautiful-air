@@ -12,7 +12,7 @@ import asyncio
 
 from midea_beautiful_dehumidifier.scanner import async_find_devices
 
-VERSION = '0.1.40'
+
 
 _LOGGER = logging.getLogger(__name__)
 

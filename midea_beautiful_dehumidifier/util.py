@@ -14,7 +14,7 @@ from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.Util.strxor import strxor
 
 
-VERSION = '0.1.40'
+
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from midea_beautiful_dehumidifier.util import crc8, hex4logging
 
-VERSION = '0.1.40'
+
 
 _LOGGER = logging.getLogger(__name__)
 

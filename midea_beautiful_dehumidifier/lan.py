@@ -9,7 +9,7 @@ from midea_beautiful_dehumidifier.command import base_command
 from midea_beautiful_dehumidifier.service import midea_service
 from midea_beautiful_dehumidifier.util import MSGTYPE_ENCRYPTED_REQUEST, MSGTYPE_HANDSHAKE_REQUEST, hex4logging, packet_time, Security
 
-VERSION = '0.1.40'
+
 
 _LOGGER = logging.getLogger(__name__)
 

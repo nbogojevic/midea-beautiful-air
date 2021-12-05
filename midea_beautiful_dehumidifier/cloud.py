@@ -16,8 +16,6 @@ from midea_beautiful_dehumidifier.util import hex4logging, packet_time, Security
 # and without some serious reverse engineering this would not have been possible.
 # Thanks Yitsushi for the ruby implementation. This is an adaptation to Python 3
 
-VERSION = '0.1.40'
-
 _LOGGER = logging.getLogger(__name__)
 
 

@@ -9,3 +9,10 @@ This inspired from the repo at [mac-zhou/midea-msmart](https://github.com/mac-zh
 This library principally allows communicating to a Midea Dehumidifier via the Local area network, .
 
 Thanks for [yitsushi's project](https://github.com/yitsushi/midea-air-condition), [NeoAcheron's project](https://github.com/NeoAcheron/midea-ac-py), [andersonshatch's project](https://github.com/andersonshatch/midea-ac-py).
+
+## Usage
+
+```shell
+pip install -e .
+python -m midea_beautiful_dehumidifier.discover --account ACCOUNT --password PASSWORD
+```

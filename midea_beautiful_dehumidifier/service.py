@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from midea_beautiful_dehumidifier.command import base_command
 
-VERSION = '0.1.40'
+
 
 class midea_service:
     """ Base class for cloud and lan service"""

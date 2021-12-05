@@ -1,11 +1,11 @@
 from platform import python_branch
 from setuptools import setup, find_packages
 
-from midea_beautiful_dehumidifier import VERSION
+from midea_beautiful_dehumidifier import __version__ 
 
 setup(
     name='midea-beautiful-dehumidifier',
-    version=VERSION,
+    version=__version__ ,
 
     url='https://github.com/nbogojevic/midea-beautiful-dehumidifier',
     author='Nenad Bogojevic',

@@ -11,7 +11,7 @@ from midea_beautiful_dehumidifier.command import (ac_response, ac_set_command,
 from midea_beautiful_dehumidifier.service import midea_service
 from midea_beautiful_dehumidifier.util import hex4logging
 
-VERSION = '0.1.40'
+
 
 _LOGGER = logging.getLogger(__name__)
 
