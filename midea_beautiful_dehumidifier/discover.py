@@ -7,10 +7,9 @@ except:
     def coloredlogs_install(level):
         pass
 import argparse
-import asyncio
 import logging
 
-from midea_beautiful_dehumidifier.scanner import async_find_devices
+from midea_beautiful_dehumidifier.scanner import find_devices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,12 +34,6 @@ if __name__ == "__main__":
             level=logging.DEBUG if args.debug else logging.INFO)
     account = args.account
     password = args.password
-    _LOGGER.debug("Allocating new event loop")
-    loop = asyncio.new_event_loop()
-    try:
-        devices = loop.run_until_complete(async_find_devices(
-            app_key=app_key, account=account, password=password))
-        for device in devices:
-            _LOGGER.debug("Device: %s", device)
-    finally:
-        loop.close()
+    devices = find_devices(app_key=app_key, account=account, password=password)
+    for device in devices:
+        _LOGGER.debug("Device: %s", device)

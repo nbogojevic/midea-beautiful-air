@@ -53,7 +53,6 @@ class midea_device:
         responses = self._service.status(
             cmd, id=self._id, protocol=self._protocol_version)
         for response in responses:
-            _LOGGER.debug("Processing response: %s", response)
             self.process_response(response)
 
     def refresh_command(self) -> midea_command:
@@ -423,18 +422,14 @@ class dehumidifier_device(midea_device):
         self._tank_full = False
 
     def process_response(self: dehumidifier_device, data: bytearray):
-        _LOGGER.debug("Processing response for dehumidifier %s", data)
+        _LOGGER.debug("Processing response for dehumidifier id=%s data=%s", self._id, hex4logging(data, _LOGGER))
         if len(data) > 0:
             self._online = True
             self._active = True
             self._support = True
 
-            if not self._defer_update:
-                _LOGGER.debug("process_response: %s",
-                              hex4logging(data, _LOGGER))
-                response = dehumidifier_response(data)
-                self._update(response)
-                self._defer_update = False
+            response = dehumidifier_response(data)
+            self._update(response)
         elif not self._keep_last_known_online_state:
             self._online = False
 
@@ -455,7 +450,6 @@ class dehumidifier_device(midea_device):
             self.process_response(data)
         finally:
             self._updating = False
-            self._defer_update = False
 
     def _update(self: dehumidifier_device, response: dehumidifier_response):
         self._is_on = response.is_on
@@ -510,11 +504,3 @@ def device_from_type(type: str | int, service: midea_service) -> midea_device:
     if str(type).lower() == 'a1' or str(type).lower() == '0xa1' or type == 161:
         return dehumidifier_device(service)
     return unknown_device(service)
-
-
-def device_name_from_type(type: str | int) -> str:
-    if str(type).lower() == 'ac' or str(type).lower() == '0xac' or type == 172:
-        return 'air_conditioning'
-    if str(type).lower() == 'a1' or str(type).lower() == '0xa1' or type == 161:
-        return 'dehumidifier'
-    return f"unknown({type})"

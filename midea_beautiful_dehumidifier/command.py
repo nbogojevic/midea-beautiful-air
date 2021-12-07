@@ -506,10 +506,6 @@ class dehumidifier_set_command(midea_command):
 class dehumidifier_response:
 
     def __init__(self: dehumidifier_response, data: bytearray):
-        # The response data from the appliance includes
-        # a packet header which we don't want
-        _LOGGER.debug("dehumidifier_response: payload: %s",
-                      hex4logging(data, _LOGGER))
 
         # self.faultFlag = (data[1] & 0x80) >> 7
 

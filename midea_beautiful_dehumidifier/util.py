@@ -228,7 +228,6 @@ class Security:
         if sha256(plain).digest() != sign:
             _LOGGER.error("sign does not match")
             return b'', False
-        _LOGGER.debug("plain key=%s", hex4logging(plain, _LOGGER))
         self._tcp_key = strxor(plain, key)
         self._request_count = 0
         self._response_count = 0

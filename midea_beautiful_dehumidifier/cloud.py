@@ -5,7 +5,7 @@ import datetime
 import json
 import logging
 from threading import Lock
-from typing import Any
+from typing import Any, Final
 
 import requests
 
@@ -74,7 +74,7 @@ class cloud_packet_builder:
         return self.packet
 
 
-SERVER_URL = 'https://mapp.appsmb.com/v1/'
+SERVER_URL: Final = 'https://mapp.appsmb.com/v1/'
 
 
 class cloud(midea_service):
@@ -194,17 +194,17 @@ class cloud(midea_service):
             url = self._server_url + endpoint
 
             data['sign'] = self._security.sign(url, data)
-            _LOGGER.debug("HTTP request = %s", data)
+            # _LOGGER.debug("HTTP request = %s", data)
             # POST the endpoint with the payload
             r = requests.post(url=url, data=data, timeout=9)
             r.raise_for_status()
-            _LOGGER.debug("HTTP response text = %s", r.text)
+            # _LOGGER.debug("HTTP response text = %s", r.text)
 
             response = json.loads(r.text)
         finally:
             self._api_lock.release()
 
-        _LOGGER.debug("HTTP response = %s", response)
+        # _LOGGER.debug("HTTP response = %s", response)
 
         # Check for errors, raise if there are any
         if response['errorCode'] != '0':

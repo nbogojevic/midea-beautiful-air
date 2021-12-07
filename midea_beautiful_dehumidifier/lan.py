@@ -120,8 +120,7 @@ class lan(midea_service):
         if self._socket is None:
             _LOGGER.debug("Socket is None: %s:%s", self.ip, self.port)
             return bytearray(0), False
-        _LOGGER.debug("Socket %s tcp_key: %s",
-                      self._socket_info(), self._tcp_key)
+
         # Send data
         try:
             _LOGGER.debug("Sending %s message: %s",
@@ -204,14 +203,14 @@ class lan(midea_service):
             response, binascii.unhexlify(self._key))
         if success:
             self._tcp_key = tcp_key.hex()
-            _LOGGER.debug("Got TCP key for %s %s",
-                          self._socket_info(level=logging.DEBUG),
-                          self._tcp_key)
+            # _LOGGER.debug("Got TCP key for %s %s",
+            #               self._socket_info(level=logging.DEBUG),
+            #               self._tcp_key)
             # After authentication, don’t send data immediately,
             # so sleep 1s.
             time.sleep(1)
         else:
-            _LOGGER.info("Failed to get TCP key for %s",
+            _LOGGER.warning("Failed to get TCP key for %s",
                          self._socket_info(level=logging.INFO))
         return success
 
@@ -222,17 +221,14 @@ class lan(midea_service):
         pkt_builder.set_command(cmd)
 
         data = pkt_builder.finalize()
-        _LOGGER.debug("Packet for: %s(%s) data: %s", self.id, self.ip,
-                      hex4logging(data, _LOGGER))
-        send_time = time.time()
+        # _LOGGER.debug("Packet for: %s(%s) data: %s", self.id, self.ip,
+        #               hex4logging(data, _LOGGER))
         responses = self._appliance_send(data, protocol=protocol)
-        request_time = round(time.time() - send_time, 2)
-        _LOGGER.debug("Got responses from: %s(%s) len: %d time: %d",
-                      self.id, self.ip, len(responses), request_time)
+        # _LOGGER.debug("Got response(s) from: %s(%s)",
+        #               self.id, self.ip)
 
         if len(responses) == 0:
-            _LOGGER.warning("Got Null from: %s(%s) time: %d",
-                            self.id, self.ip, request_time)
+            _LOGGER.warning("Got Null from: %s(%s)", self.id, self.ip)
             self._active = False
             self._support = False
         return responses
@@ -243,7 +239,7 @@ class lan(midea_service):
         # socket_time = time.time() - self._timestamp
         # _LOGGER.debug("Data: %s msgtype: %s len: %s socket time: %s", hex4logging(data), msgtype, len(data), socket_time))
         if self._socket is None or self._tcp_key is None:
-            _LOGGER.debug("Socket %s Closed, Create New Socket",
+            _LOGGER.debug("Socket %s Closed, Creating new socket",
                           self._socket_info())
             self._disconnect()
             if not self._authenticate():
@@ -269,20 +265,15 @@ class lan(midea_service):
         # copy from data in order to resend data
         original_data = bytearray.copy(data)
         data = self._security.encode_8370(data, msgtype)
-        _LOGGER.debug("Data to send: %s %s",
-                      hex4logging(data, _LOGGER), msgtype)
 
         # time sleep retries second befor send data, default is 0
         time.sleep(self._retries)
         responses, b = self._request(data)
-        _LOGGER.debug("Got responses len: %d", len(responses))
         if responses == bytearray(0) and self._retries < self._max_retries and b:
-            packets = self._appliance_send_8370(
-                original_data, msgtype)
+            packets = self._appliance_send_8370(original_data, msgtype)
             self._retries = 0
             return packets
-        responses, self._buffer = self._security.decode_8370(
-            self._buffer + responses)
+        responses, self._buffer = self._security.decode_8370(self._buffer + responses)
         for response in responses:
             if len(response) > 40 + 16:
                 response = self._security.aes_decrypt(response[40:-16])
@@ -297,7 +288,7 @@ class lan(midea_service):
         # time sleep retries second befor send data, default is 0
         time.sleep(self._retries)
         responses, b = self._request(data)
-        _LOGGER.debug("Get responses len: %d", len(responses))
+        # _LOGGER.debug("Get responses len: %d", len(responses))
         if responses == bytearray(0) and self._retries < self._max_retries and b:
             packets = self._appliance_send(data)
             self._retries = 0
