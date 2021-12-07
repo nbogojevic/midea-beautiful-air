@@ -1,15 +1,16 @@
+""" Commands for Midea devices """
 from __future__ import annotations
 
 import logging
-from midea_beautiful_dehumidifier.util import crc8, hex4logging
 
+from midea_beautiful_dehumidifier.util import crc8, hex4logging, midea_command
 
 _LOGGER = logging.getLogger(__name__)
 
 _order = 0
 
 
-class base_command:
+class base_midea_command(midea_command):
 
     def __init__(self, device_type=0xAC):
         # Command structure
@@ -79,10 +80,10 @@ class base_command:
         return self.data
 
 
-class ac_set_command(base_command):
+class ac_set_command(base_midea_command):
 
     def __init__(self, device_type):
-        base_command.__init__(self, device_type)
+        super().__init__(device_type)
         self.data[0x01] = 0x23
         self.data[0x09] = 0x02
         # Set up Mode
@@ -422,19 +423,19 @@ def getBits(pBytes, pIndex, pStartIndex, pEndIndex):
     return tempVal
 
 
-class dehumidifier_status_command(base_command):
+class dehumidifier_status_command(base_midea_command):
 
     def __init__(self, device_type: int = 0xA1):
         super().__init__(device_type)
 
 
-class ac_status_command(base_command):
+class ac_status_command(base_midea_command):
 
     def __init__(self, device_type: int = 0xAC):
         super().__init__(device_type)
 
 
-class dehumidifier_set_command(base_command):
+class dehumidifier_set_command(midea_command):
 
     def __init__(self: dehumidifier_set_command):
         self.data: bytearray = bytearray([

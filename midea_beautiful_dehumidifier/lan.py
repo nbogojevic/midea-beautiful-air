@@ -1,3 +1,4 @@
+"""Connects to Midea devices on local network."""
 from __future__ import annotations
 
 import binascii
@@ -5,10 +6,11 @@ import logging
 import socket
 import time
 
-from midea_beautiful_dehumidifier.command import base_command
-from midea_beautiful_dehumidifier.service import midea_service
-from midea_beautiful_dehumidifier.util import MSGTYPE_ENCRYPTED_REQUEST, MSGTYPE_HANDSHAKE_REQUEST, hex4logging, packet_time, Security
-
+from midea_beautiful_dehumidifier.util import (MSGTYPE_ENCRYPTED_REQUEST,
+                                               MSGTYPE_HANDSHAKE_REQUEST,
+                                               Security, hex4logging,
+                                               midea_command, midea_service,
+                                               packet_time)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +44,7 @@ class lan_packet_builder:
         self.packet[12:20] = packet_time()
         self.packet[20:28] = int(id).to_bytes(8, 'little')
 
-    def set_command(self, command: base_command):
+    def set_command(self, command: midea_command):
         self.command = command.finalize()
 
     def finalize(self):
@@ -165,10 +167,11 @@ class lan(midea_service):
                 return response, True
 
     def authenticate(self, args: dict) -> bool:
-        self._token = args.get('token')
-        self._key = args.get('key')
-        self._token = _to_hex(self._token)
-        self._key = _to_hex(self._key)
+        if args is not None:
+            self._token = args.get('token')
+            self._key = args.get('key')
+            self._token = _to_hex(self._token)
+            self._key = _to_hex(self._key)
         return self._authenticate()
 
     def _authenticate(self) -> bool:
@@ -212,7 +215,7 @@ class lan(midea_service):
                          self._socket_info(level=logging.INFO))
         return success
 
-    def status(self, cmd: base_command,
+    def status(self, cmd: midea_command,
                id: str | int = None,
                protocol: int = None) -> list[bytearray]:
         pkt_builder = lan_packet_builder(int(self.id))

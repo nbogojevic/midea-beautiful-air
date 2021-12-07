@@ -1,4 +1,3 @@
-from platform import python_branch
 from setuptools import setup, find_packages
 
 from midea_beautiful_dehumidifier import __version__ 
@@ -28,9 +27,8 @@ setup(
          "Topic :: Home Automation",
     ],
     install_requires=[
-        'pycryptodome>=3.12.0',
-        'pycryptodomex>=3.12.0'
-        'requests>=2.26.0',
+        'pycryptodomex',
+        'requests',
         'ifaddr'
     ],
 )

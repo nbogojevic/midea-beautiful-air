@@ -1,3 +1,4 @@
+""" Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
 try:
@@ -5,13 +6,11 @@ try:
 except:
     def coloredlogs_install(level):
         pass
-import logging
-
 import argparse
 import asyncio
+import logging
 
 from midea_beautiful_dehumidifier.scanner import async_find_devices
-
 
 _LOGGER = logging.getLogger(__name__)
 

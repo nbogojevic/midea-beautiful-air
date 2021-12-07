@@ -1,16 +1,17 @@
+""" Model for midea devices """
 from __future__ import annotations
 
 import logging
 from enum import Enum
 
 from midea_beautiful_dehumidifier.command import (ac_response, ac_set_command,
-                                                  ac_status_command, base_command,
+                                                  ac_status_command,
+                                                  base_midea_command,
                                                   dehumidifier_response,
                                                   dehumidifier_set_command,
                                                   dehumidifier_status_command)
-from midea_beautiful_dehumidifier.service import midea_service
-from midea_beautiful_dehumidifier.util import hex4logging
-
+from midea_beautiful_dehumidifier.util import (hex4logging, midea_command,
+                                               midea_service)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +44,10 @@ class midea_device:
         self._active = device_detail['activeStatus'] == '1'
         self._online = device_detail['onlineStatus'] == '1'
 
+    def set_device_token(self, token, key):
+        self._token = token
+        self._key = key
+
     def refresh(self):
         cmd = self.refresh_command()
         responses = self._service.status(
@@ -51,8 +56,8 @@ class midea_device:
             _LOGGER.debug("Processing response: %s", response)
             self.process_response(response)
 
-    def refresh_command(self) -> base_command:
-        return base_command()
+    def refresh_command(self) -> midea_command:
+        return midea_command()
 
     def process_response(self, response: bytearray):
         pass
@@ -371,7 +376,7 @@ class unknown_device(midea_device):
         super().__init__(service)
 
     def refresh_command(self):
-        return base_command(self.type)
+        return base_midea_command(self.type)
 
     def process_response(self, data: bytearray):
         if len(data) > 0:
@@ -433,7 +438,7 @@ class dehumidifier_device(midea_device):
         elif not self._keep_last_known_online_state:
             self._online = False
 
-    def refresh_command(self) -> base_command:
+    def refresh_command(self) -> midea_command:
         return dehumidifier_status_command()
 
     def apply(self: dehumidifier_device):

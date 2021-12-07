@@ -1,17 +1,21 @@
+"""Searches for Midea devices on local network."""
 from __future__ import annotations
 
-from typing import Final
-
 import asyncio
-from ipaddress import IPv4Network
-import ifaddr
 import logging
 import socket
+from ipaddress import IPv4Network
+from typing import Final
+
+import ifaddr
 
 from midea_beautiful_dehumidifier.cloud import cloud
+from midea_beautiful_dehumidifier.device import (device_from_type,
+                                                 device_name_from_type,
+                                                 midea_device, unknown_device)
 from midea_beautiful_dehumidifier.lan import lan
-from midea_beautiful_dehumidifier.device import midea_device, unknown_device, device_from_type, device_name_from_type
-from midea_beautiful_dehumidifier.util import hex4logging, get_udpid, Security
+from midea_beautiful_dehumidifier.util import Security, get_udpid, hex4logging
+
 try:
     import xml.etree.cElementTree as ET
 except ImportError:
@@ -65,7 +69,7 @@ class scandevice:
         lan_service = lan(id=self.id, ip=self.ip, port=self.port)
         self._device = unknown_device(service=lan_service)
         if self.version == 3:
-            self._device = await self.async_support_testv3(self._device)
+            await self._async_support_testv3(lan_service)
 
         if self.type == 'ac' or self.type == 'a1':
             self._device = device_from_type(self.type, service=lan_service)
@@ -75,21 +79,20 @@ class scandevice:
         _LOGGER.debug("Found a device: %s", self)
         return self
 
-    async def async_support_testv3(self, _device: midea_device):
+    async def _async_support_testv3(self, lan_service: lan):
         for udpid in [
             get_udpid(self.id.to_bytes(6, 'little')),
             get_udpid(self.id.to_bytes(6, 'big'))
         ]:
             token, key = self.cloud_service.get_token(udpid)
-            auth = _device.get_service().authenticate(
-                {'key': key, 'token': token})
+            auth = lan_service.authenticate({'key': key, 'token': token})
             if auth:
                 self.token, self.key = token, key
-                return _device
-        return _device
+                return {'key': key, 'token': token}
+        return None
 
     @staticmethod
-    async def async_load(ip, data: bytes | bytearray, cloud_service: cloud):
+    async def _async_load(ip, data: bytes | bytearray, cloud_service: cloud):
         if len(data) >= 104 and (data[:2] == b'ZZ' or data[8:10] == b'ZZ'):
             return scandeviceV2V3(data, cloud_service=cloud_service)
         if data[:6] == b'<?xml ':
@@ -99,9 +102,6 @@ class scandevice:
 class scandeviceV2V3(scandevice):
     def __init__(self, data: bytes | bytearray, cloud_service: cloud):
         super().__init__(cloud_service=cloud_service)
-        self.insert(data)
-
-    def insert(self, data: bytes | bytearray):
         data = bytearray(data)
         if data[:2] == b'ZZ':    # 5a5a
             self.version = 2
@@ -230,7 +230,7 @@ class MideaDiscovery:
                 _LOGGER.debug("Local reply %s %s", ip,
                               hex4logging(data, _LOGGER))
                 self.found_devices.add(ip)
-                device = await scandevice.async_load(ip=ip, data=data,
+                device = await scandevice._async_load(ip=ip, data=data,
                                                      cloud_service=self.cloud_service)
                 if device is None:
                     _LOGGER.error("Unable to load data from device %s", ip)
@@ -313,7 +313,7 @@ async def _async_find_devices_on_lan(
                             scanned.id, scanned.ip, scanned.type)
 
 
-async def async_find_devices(app_key, account, password, use_midea_cloud: bool = False, packets=5, retries=4, broadcast_timeout=5, broadcast_networks=None):
+async def async_find_devices(app_key, account, password, packets=5, retries=4, broadcast_timeout=5, broadcast_networks=None):
     cloud_service = cloud(app_key=app_key, account=account, password=password)
     cloud_service.authenticate()
     appliances = cloud_service.list_appliances()
@@ -324,41 +324,30 @@ async def async_find_devices(app_key, account, password, use_midea_cloud: bool =
 
     devices: list[midea_device] = []
 
-    if use_midea_cloud:
 
-        for appliance in appliances:
-            if device_name_from_type(appliance['type']).startswith('unknown'):
-                continue
-            device: midea_device = device_from_type(
-                appliance['type'], cloud_service)
-            device.set_device_detail(appliance)
-            device.refresh()
-            _LOGGER.info("Found %s: id=%s", device_name_from_type(
-                device.type), device.id)
-    else:
-        _LOGGER.info("Scanning for midea appliances")
-        for i in range(retries):
-            if i > 0:
-                _LOGGER.info(
-                    "Re-scanning network for midea appliances %d of %d", i+1, retries)
-            await _async_find_devices_on_lan(
-                appliances=appliances,
-                devices=devices,
-                cloud_service=cloud_service,
-                packets=packets,
-                broadcast_timeout=broadcast_timeout,
-                broadcast_networks=broadcast_networks)
-            if len(devices) >= appliances_count:
-                break
-            if i == 0:
-                _LOGGER.warning("Some appliance(s) where not discovered on local LAN: %d discovered out of %d",
-                                len(devices), appliances_count)
+    _LOGGER.info("Scanning for midea appliances")
+    for i in range(retries):
+        if i > 0:
+            _LOGGER.info(
+                "Re-scanning network for midea appliances %d of %d", i+1, retries)
+        await _async_find_devices_on_lan(
+            appliances=appliances,
+            devices=devices,
+            cloud_service=cloud_service,
+            packets=packets,
+            broadcast_timeout=broadcast_timeout,
+            broadcast_networks=broadcast_networks)
+        if len(devices) >= appliances_count:
+            break
+        if i == 0:
+            _LOGGER.warning("Some appliance(s) where not discovered on local LAN: %d discovered out of %d",
+                            len(devices), appliances_count)
 
-                for appliance in appliances:
-                    if not any(True for d in devices if str(d.id) == str(appliance['id'])):
-                        _LOGGER.info("Missing appliance id=%s, type=%s",
-                                     appliance['id'],
-                                     device_name_from_type(appliance['type']))
+            for appliance in appliances:
+                if not any(True for d in devices if str(d.id) == str(appliance['id'])):
+                    _LOGGER.info("Missing appliance id=%s, type=%s",
+                                    appliance['id'],
+                                    device_name_from_type(appliance['type']))
 
     _LOGGER.info("Found %d of %d device(s)", len(devices), appliances_count)
     return devices

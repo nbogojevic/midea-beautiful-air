@@ -1,3 +1,4 @@
+"""Connects to Midea cloud."""
 from __future__ import annotations
 
 import datetime
@@ -8,9 +9,9 @@ from typing import Any
 
 import requests
 
-from midea_beautiful_dehumidifier.command import base_command
-from midea_beautiful_dehumidifier.service import midea_service
-from midea_beautiful_dehumidifier.util import hex4logging, packet_time, Security
+from midea_beautiful_dehumidifier.util import (Security, hex4logging,
+                                               midea_command, midea_service,
+                                               packet_time)
 
 # The Midea cloud client is by far the more obscure part of this library,
 # and without some serious reverse engineering this would not have been possible.
@@ -55,7 +56,7 @@ class cloud_packet_builder:
         self.packet[12:20] = packet_time()
         self.packet[20:28] = int(device_id).to_bytes(8, 'little')
 
-    def set_command(self: cloud_packet_builder, command: base_command):
+    def set_command(self: cloud_packet_builder, command: midea_command):
         self.command = command.finalize()
 
     def finalize(self: cloud_packet_builder):
@@ -111,7 +112,7 @@ class cloud(midea_service):
 
         self._security = Security(app_key=self._app_key)
 
-    def status(self, cmd: base_command, id: str | int) -> list[bytearray]:
+    def status(self, cmd: midea_command, id: str | int) -> list[bytearray]:
         """
         Retrieves device status
         """
@@ -129,7 +130,7 @@ class cloud(midea_service):
 
         return [res[50:]]
 
-    def apply(self, cmd: base_command,
+    def apply(self, cmd: midea_command,
               id: str | int, protocol: int = None) -> bytearray | None:
         """
         Sets device status

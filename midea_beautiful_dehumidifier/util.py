@@ -1,18 +1,16 @@
+""" Helpers for Midea Dehumidifier """
 from __future__ import annotations
-
-from typing import Final
 
 import datetime
 import logging
 from hashlib import md5, sha256
-from typing import Any
+from typing import Any, Final
 from urllib.parse import unquote_plus, urlencode, urlparse
 
 from Cryptodome.Cipher import AES
 from Cryptodome.Random import get_random_bytes
 from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.Util.strxor import strxor
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -326,3 +324,31 @@ def get_udpid(data):
         b3[i] = b1[i] ^ b2[i]
         i += 1
     return b3.hex()
+
+""" Base command interface """
+class midea_command:
+    def finalize(self):
+        pass
+
+class midea_service:
+    """ Base class for cloud and lan service"""
+
+    def status(self,
+               cmd: midea_command,
+               id: str | int = None, protocol: int = None) -> list[bytearray]:
+        """ Retrieves appliance status """
+
+        return []
+
+    def apply(self,
+              cmd: midea_command,
+              id: str | int = None, protocol: int = None) -> bytearray:
+        """ Applies settings to appliance """
+
+        return bytearray()
+
+    def authenticate(self, args) -> bool:
+        return False
+
+    def target(self) -> str:
+        return "None"
