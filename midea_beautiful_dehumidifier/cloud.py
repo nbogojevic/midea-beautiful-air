@@ -9,8 +9,9 @@ from typing import Any, Final
 
 import requests
 
-from midea_beautiful_dehumidifier.util import (Security, hex4logging,
-                                               midea_command, midea_service,
+from midea_beautiful_dehumidifier.crypto import Security
+from midea_beautiful_dehumidifier.util import (hex4logging,
+                                               MideaCommand, MideaService,
                                                packet_time)
 
 # The Midea cloud client is by far the more obscure part of this library,
@@ -19,10 +20,9 @@ from midea_beautiful_dehumidifier.util import (Security, hex4logging,
 
 _LOGGER = logging.getLogger(__name__)
 
+class CloudPacketBuilder:
 
-class cloud_packet_builder:
-
-    def __init__(self: cloud_packet_builder, device_id: int | str):
+    def __init__(self: CloudPacketBuilder, device_id: int | str):
         self.command = None
 
         # Init the packet with the header data. Weird magic numbers,
@@ -56,10 +56,10 @@ class cloud_packet_builder:
         self.packet[12:20] = packet_time()
         self.packet[20:28] = int(device_id).to_bytes(8, 'little')
 
-    def set_command(self: cloud_packet_builder, command: midea_command):
+    def set_command(self: CloudPacketBuilder, command: MideaCommand):
         self.command = command.finalize()
 
-    def finalize(self: cloud_packet_builder):
+    def finalize(self: CloudPacketBuilder):
         if self.command is None:
             raise Exception("Command was not specified")
         # Append the command data to the packet
@@ -77,7 +77,7 @@ class cloud_packet_builder:
 SERVER_URL: Final = 'https://mapp.appsmb.com/v1/'
 
 
-class cloud(midea_service):
+class Cloud(MideaService):
 
     CLIENT_TYPE = 1                 # Android
     FORMAT = 2                      # JSON
@@ -112,11 +112,11 @@ class cloud(midea_service):
 
         self._security = Security(app_key=self._app_key)
 
-    def status(self, cmd: midea_command, id: str | int) -> list[bytearray]:
+    def status(self, cmd: MideaCommand, id: str | int) -> list[bytearray]:
         """
         Retrieves device status
         """
-        pkt_builder = cloud_packet_builder(id)
+        pkt_builder = CloudPacketBuilder(id)
         pkt_builder.set_command(cmd)
         data = pkt_builder.finalize()
         res: bytearray = self._appliance_transparent_send_with_retry(data, id)
@@ -130,12 +130,12 @@ class cloud(midea_service):
 
         return [res[50:]]
 
-    def apply(self, cmd: midea_command,
+    def apply(self, cmd: MideaCommand,
               id: str | int, protocol: int = None) -> bytearray | None:
         """
         Sets device status
         """
-        pkt_builder = cloud_packet_builder(id)
+        pkt_builder = CloudPacketBuilder(id)
         pkt_builder.set_command(cmd)
         data = pkt_builder.finalize()
         res: bytearray = self._appliance_transparent_send_with_retry(data, id)
@@ -149,7 +149,7 @@ class cloud(midea_service):
 
         return res[50:]
 
-    def _appliance_transparent_send_with_retry(self: cloud,
+    def _appliance_transparent_send_with_retry(self: Cloud,
                                                data, id) -> bytearray:
         """
         Retries sending appliance/transparent/send if it timeouts on 
@@ -380,3 +380,4 @@ class cloud(midea_service):
 
     def __str__(self) -> str:
         return str(__dict__)
+

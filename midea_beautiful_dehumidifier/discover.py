@@ -9,7 +9,7 @@ except:
 import argparse
 import logging
 
-from midea_beautiful_dehumidifier.scanner import find_devices
+from midea_beautiful_dehumidifier import find_devices
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -6,16 +6,17 @@ import logging
 import socket
 import time
 
+from midea_beautiful_dehumidifier.crypto import Security
 from midea_beautiful_dehumidifier.util import (MSGTYPE_ENCRYPTED_REQUEST,
                                                MSGTYPE_HANDSHAKE_REQUEST,
-                                               Security, hex4logging,
-                                               midea_command, midea_service,
+                                               hex4logging,
+                                               MideaCommand, MideaService,
                                                packet_time)
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class lan_packet_builder:
+class LanPacketBuilder:
 
     def __init__(self, id: int | str):
         self.command = None
@@ -44,7 +45,7 @@ class lan_packet_builder:
         self.packet[12:20] = packet_time()
         self.packet[20:28] = int(id).to_bytes(8, 'little')
 
-    def set_command(self, command: midea_command):
+    def set_command(self, command: MideaCommand):
         self.command = command.finalize()
 
     def finalize(self):
@@ -56,12 +57,11 @@ class lan_packet_builder:
         self.packet.extend(self.security.encode32_data(self.packet))
         return self.packet
 
-
+        
 def _to_hex(value: str | bytes | None):
     return binascii.hexlify(value) if isinstance(value, bytes) else value
 
-
-class lan(midea_service):
+class Lan(MideaService):
     def __init__(self, id: int | str,
                  ip: str, port: int | str = 6444,
                  token: str | bytes = None, key: str | bytes = None,
@@ -77,6 +77,7 @@ class lan(midea_service):
         self._timestamp = time.time()
         self._tcp_key = None
         self._local = None
+        self._connection_retries = 3
 
         self._max_retries = int(max_retries)
 
@@ -177,26 +178,24 @@ class lan(midea_service):
         if not self._token or not self._key:
             raise Exception("missing token key pair")
         byte_token = binascii.unhexlify(self._token)
-        request = self._security.encode_8370(byte_token,
-                                             MSGTYPE_HANDSHAKE_REQUEST)
-        response, success = self._request(request)
-        if not success:
-            # Retry handshake
-            _LOGGER.info("Unable to perform handshake, retrying 2 of 3")
-            time.sleep(1)
+
+        response, success = None, False
+        for i in range(self._connection_retries):
             request = self._security.encode_8370(byte_token,
-                                                 MSGTYPE_HANDSHAKE_REQUEST)
+                                                MSGTYPE_HANDSHAKE_REQUEST)
             response, success = self._request(request)
+
             if not success:
-                # Retry handshake
-                _LOGGER.warning("Unable to perform handshake, retrying 3 of 3")
-                time.sleep(2)
-                request = self._security.encode_8370(byte_token,
-                                                     MSGTYPE_HANDSHAKE_REQUEST)
-                response, success = self._request(request)
-                if not success:
-                    _LOGGER.error("Failed to perform handshake")
-                    return False
+                if i > 0:
+                    # Retry handshake
+                    _LOGGER.info("Unable to perform handshake, retrying %d of 3", i+1, self._connection_retries)
+                    time.sleep(i+1)
+            else:
+                break
+
+        if not success or response is None:
+            _LOGGER.error("Failed to perform handshake")
+            return False
         response = response[8:72]
 
         tcp_key, success = self._security.tcp_key(
@@ -211,13 +210,13 @@ class lan(midea_service):
             time.sleep(1)
         else:
             _LOGGER.warning("Failed to get TCP key for %s",
-                         self._socket_info(level=logging.INFO))
+                            self._socket_info(level=logging.INFO))
         return success
 
-    def status(self, cmd: midea_command,
+    def status(self, cmd: MideaCommand,
                id: str | int = None,
                protocol: int = None) -> list[bytearray]:
-        pkt_builder = lan_packet_builder(int(self.id))
+        pkt_builder = LanPacketBuilder(int(self.id))
         pkt_builder.set_command(cmd)
 
         data = pkt_builder.finalize()
@@ -239,29 +238,31 @@ class lan(midea_service):
         # socket_time = time.time() - self._timestamp
         # _LOGGER.debug("Data: %s msgtype: %s len: %s socket time: %s", hex4logging(data), msgtype, len(data), socket_time))
         if self._socket is None or self._tcp_key is None:
-            _LOGGER.debug("Socket %s Closed, Creating new socket",
+            _LOGGER.debug("Socket %s closed, Creating new socket",
                           self._socket_info())
             self._disconnect()
-            if not self._authenticate():
-                _LOGGER.info("Retry authenticate 2 out of 3: %s",
-                             self._socket_info())
-                self._disconnect()
-                time.sleep(2)
-                if not self._authenticate():
-                    _LOGGER.warning(
-                        "Retry authenticate 3 out of 3: %s", self._socket_info())
 
-                    self._disconnect()
-                    time.sleep(4)
-                    if not self._authenticate():
+            for i in range(self._connection_retries):
+                if not self._authenticate():
+                    if i == self._connection_retries-1:
                         _LOGGER.error("Failed to authenticate %s",
                                       self._socket_info(logging.WARNING))
-                        return []
+                        return []                        
+                    _LOGGER.info("Retrying authenticate, %d out of %d: %s",
+                                i+2, self._connection_retries,
+                                self._socket_info())
+                    self._disconnect()
+                    
+                    time.sleep((i+1)*2)
+                else:
+                    break
+
+
+        if self._tcp_key is None:
+            return []
 
         packets = []
 
-        if self._tcp_key is None:
-            return packets
         # copy from data in order to resend data
         original_data = bytearray.copy(data)
         data = self._security.encode_8370(data, msgtype)
@@ -273,7 +274,8 @@ class lan(midea_service):
             packets = self._appliance_send_8370(original_data, msgtype)
             self._retries = 0
             return packets
-        responses, self._buffer = self._security.decode_8370(self._buffer + responses)
+        responses, self._buffer = self._security.decode_8370(
+            self._buffer + responses)
         for response in responses:
             if len(response) > 40 + 16:
                 response = self._security.aes_decrypt(response[40:-16])

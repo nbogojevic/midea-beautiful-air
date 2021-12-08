@@ -27,7 +27,7 @@ setup(
          "Topic :: Home Automation",
     ],
     install_requires=[
-        'pycryptodomex',
+        'cryptography',
         'requests',
         'ifaddr'
     ],
