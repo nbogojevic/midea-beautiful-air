@@ -8,11 +8,12 @@ from urllib.parse import unquote_plus, urlencode, urlparse
 
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from midea_beautiful_dehumidifier.util import hex4logging, MSGTYPE_ENCRYPTED_REQUEST, MSGTYPE_ENCRYPTED_RESPONSE
+from midea_beautiful_dehumidifier.util import hex4log
+from midea_beautiful_dehumidifier.midea import MSGTYPE_ENCRYPTED_REQUEST, MSGTYPE_ENCRYPTED_RESPONSE
 
 _LOGGER = logging.getLogger(__name__)
 
-def strxor(plain_text, key):
+def _strxor(plain_text, key):
     # returns plain text by repeatedly xoring it with key
     pt = plain_text
     len_key = len(key)
@@ -68,9 +69,9 @@ def crc8(data):
         crc_value = crc8_854_table[k]
     return crc_value
 
+
 _default_app_key: Final = '434a209a5ce141c3b726de067835d7f0'
 _default_sign_key: Final = 'xhdiwjnchekd4d512chdjx5d8e4c394D2D7S'
-
 
 
 class Security:
@@ -100,7 +101,7 @@ class Security:
             return decrypted
         except ValueError as e:
             _LOGGER.error(
-                "Error during AES decryption: %s - data: %s", repr(e), hex4logging(raw, _LOGGER, logging.ERROR))
+                "Error during AES decryption: %s - data: %s", repr(e), hex4log(raw, _LOGGER, logging.ERROR))
             return bytearray(0)
 
     def aes_encrypt(self, raw):
@@ -110,76 +111,8 @@ class Security:
         cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
         encryptor = cipher.encryptor()
         encrypted = encryptor.update(bytes(raw)) + encryptor.finalize()
-        # cipher = AES.new(self._enc_key, AES.MODE_ECB)
-        # encrypted = cipher.encrypt(bytes(raw))
 
         return encrypted
-
-    def aes_encrypt_cloud(self, raw, key=None):
-        # If the key is not set, then use the data_key from the access_token that comes from the current session
-        if not key:
-            key = self._data_key()
-
-        # Make sure to pad the data
-        self._pad(raw)
-
-        # Break up the data into blockSize sized blocks
-        blocks = [raw[i:i+self._block_size]
-                  for i in range(0, len(raw), self._block_size)]
-        final = bytearray([])
-
-        # Encrypt each block with a new Cipher. There doesn't seem to be a reset in Python for the Cipher object
-        for block in blocks:
-            cipher = Cipher(algorithms.AES(self._enc_key), modes.CBC(self._iv))
-            encryptor = cipher.encryptor()
-            encrypted = encryptor.update(bytes(block)) + encryptor.finalize()
-            final.extend(encrypted)
-
-        return final
-
-    def aes_decrypt_cloud(self, raw, key=None):
-        # If the key is not set, then use the data_key from the access_token that comes from the current session
-        if not key:
-            key = self._data_key()
-
-        final = bytearray([])
-        # Break up the data into blockSize sized blocks
-        blocks = [raw[i:i+self._block_size]
-                  for i in range(0, len(raw), self._block_size)]
-
-        # Decrypt each block with a new Cipher. There doesn't seem to be a reset in Python for the Cipher object
-        for block in blocks:
-            cipher = Cipher(algorithms.AES(self._enc_key), modes.CBC(self._iv))
-            decryptor = cipher.decryptor()
-            decrypted = decryptor.update(bytes(block)) + decryptor.finalize()
-            # cipher = AES.new(key, AES.MODE_CBC, self._iv)
-            # decrypted = cipher.decrypt(bytes(block))
-            final.extend(decrypted)
-
-        # Remove the padding
-        final = self._unpad(final)
-
-        return bytes(final)
-
-    def _pad(self, s):
-        pad = self._block_size - (len(s) % self._block_size)
-        s.extend([pad] * pad)
-
-    def _unpad(self, s):
-        return s[:-s[-1]]
-
-    def _data_key(self) -> bytes:
-
-        # MD5 sum, yay
-        m = md5()
-        # Hash the appKey
-        m.update(self._app_key_str.encode('ascii'))
-        # Use only half the HEX output of the hash
-        key_hash = m.hexdigest().encode('ascii')[0:16]
-        # Decrypt the access token with that weird key
-        key = self.aes_decrypt_cloud(
-            bytearray.fromhex(self.access_token), key_hash)
-        return key
 
     def aes_cbc_decrypt(self, raw, key):
         cipher = Cipher(algorithms.AES(key), modes.CBC(self._iv))
@@ -193,20 +126,6 @@ class Security:
 
     def encode32_data(self, raw):
         return md5(raw + self._sign_key).digest()
-
-    def local_key(self, mac: str, ssid: str, pw: str):
-        mac_bytes = bytes.fromhex(mac.replace(':', ''))
-        if len(mac_bytes) != 6:
-            raise Exception('Invalid MAC address')
-        return sha256(ssid.encode() + pw.encode() + mac_bytes).digest()
-
-    def token_key_pair(self, mac: str, ssid: str, pw: str):
-        local_key = self.local_key(mac, ssid, pw)
-        rand = urandom(32)
-        key = strxor(rand, local_key)
-        token = self.aes_cbc_encrypt(key, local_key)
-        sign = sha256(key).digest()
-        return (token + sign, key)
 
     def tcp_key(self, response, key):
         if response == b'ERROR':
@@ -222,7 +141,7 @@ class Security:
         if sha256(plain).digest() != sign:
             _LOGGER.error("sign does not match")
             return b'', False
-        self._tcp_key = strxor(plain, key)
+        self._tcp_key = _strxor(plain, key)
         self._request_count = 0
         self._response_count = 0
         return self._tcp_key, True

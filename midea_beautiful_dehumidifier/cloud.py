@@ -10,9 +10,6 @@ from typing import Any, Final
 import requests
 
 from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.util import (hex4logging,
-                                               MideaCommand, MideaService,
-                                               packet_time)
 
 # The Midea cloud client is by far the more obscure part of this library,
 # and without some serious reverse engineering this would not have been possible.
@@ -20,64 +17,11 @@ from midea_beautiful_dehumidifier.util import (hex4logging,
 
 _LOGGER = logging.getLogger(__name__)
 
-class CloudPacketBuilder:
-
-    def __init__(self: CloudPacketBuilder, device_id: int | str):
-        self.command = None
-
-        # Init the packet with the header data. Weird magic numbers,
-        # I'm not sure what they all do, but they have to be there (packet length at 0x4)
-        # self.packet: bytearray = bytearray([
-        #     0x5a, 0x5a, 0x01, 0x00, 0x5b, 0x00, 0x20, 0x00,
-        #     0x01, 0x00, 0x00, 0x00, 0x27, 0x24, 0x11, 0x09,
-        #     0x0d, 0x0a, 0x12, 0x14, 0xda, 0x49, 0x00, 0x00,
-        #     0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        #     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-        # ])
-        self.packet: bytearray = bytearray([
-            # 2 bytes - StaticHeader
-            0x5a, 0x5a,
-            # 2 bytes - mMessageType
-            0x01, 0x00,
-            # 2 bytes - PacketLenght
-            0x00, 0x00,
-            # 2 bytes
-            0x20, 0x00,
-            # 4 bytes - MessageId
-            0x00, 0x00, 0x00, 0x00,
-            # 8 bytes - Date&Time
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            # 8 bytes - mDeviceID
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            # 12 bytes
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-        ])
-        self.packet[12:20] = packet_time()
-        self.packet[20:28] = int(device_id).to_bytes(8, 'little')
-
-    def set_command(self: CloudPacketBuilder, command: MideaCommand):
-        self.command = command.finalize()
-
-    def finalize(self: CloudPacketBuilder):
-        if self.command is None:
-            raise Exception("Command was not specified")
-        # Append the command data to the packet
-        self.packet.extend(self.command)
-
-        # Pad with 0's
-        self.packet.extend([0] * (49 - len(self.command)))
-        # Set the packet length in the packet!
-        self.packet[0x04] = len(self.packet)
-        _LOGGER.debug("Cloud packet: %s",
-                      hex4logging(self.packet, _LOGGER))
-        return self.packet
-
 
 SERVER_URL: Final = 'https://mapp.appsmb.com/v1/'
 
 
-class Cloud(MideaService):
+class CloudService:
 
     CLIENT_TYPE = 1                 # Android
     FORMAT = 2                      # JSON
@@ -112,57 +56,6 @@ class Cloud(MideaService):
 
         self._security = Security(app_key=self._app_key)
 
-    def status(self, cmd: MideaCommand, id: str | int) -> list[bytearray]:
-        """
-        Retrieves device status
-        """
-        pkt_builder = CloudPacketBuilder(id)
-        pkt_builder.set_command(cmd)
-        data = pkt_builder.finalize()
-        res: bytearray = self._appliance_transparent_send_with_retry(data, id)
-        _LOGGER.debug("Got status response from '%s': %s",
-                      id, hex4logging(res, _LOGGER))
-        if len(res) < 0x50:
-            _LOGGER.error(
-                "Got error response, length was %d, should be at least 80",
-                len(res))
-            return []
-
-        return [res[50:]]
-
-    def apply(self, cmd: MideaCommand,
-              id: str | int, protocol: int = None) -> bytearray | None:
-        """
-        Sets device status
-        """
-        pkt_builder = CloudPacketBuilder(id)
-        pkt_builder.set_command(cmd)
-        data = pkt_builder.finalize()
-        res: bytearray = self._appliance_transparent_send_with_retry(data, id)
-        _LOGGER.debug("Got status response after apply from '%s': %s",
-                      id, hex4logging(res, _LOGGER))
-        if len(res) < 0x50:
-            _LOGGER.error(
-                "Got error response, length was %d, should be at least 80",
-                len(res))
-            return
-
-        return res[50:]
-
-    def _appliance_transparent_send_with_retry(self: Cloud,
-                                               data, id) -> bytearray:
-        """
-        Retries sending appliance/transparent/send if it timeouts on 
-        first request 
-        """
-        try:
-            res = self._appliance_transparent_send(data, id=id)
-        except requests.exceptions.ReadTimeout as e:
-            # retry once
-            _LOGGER.debug("Retrying after time-out exception: %s %s", e, id)
-            res = self._appliance_transparent_send(data, id=id)
-
-        return res
 
     def api_request(self, endpoint: str, args: dict[str, Any]):
         """
@@ -282,43 +175,6 @@ class Cloud(MideaService):
         self._appliance_list = response['list']
         _LOGGER.debug("Midea appliance list results=%s", self._appliance_list)
         return self._appliance_list
-
-    def _encode(self, data: bytearray):
-        normalized = []
-        for b in data:
-            if b >= 128:
-                b = b - 256
-            normalized.append(str(b))
-
-        string = ','.join(normalized)
-        return bytearray(string.encode('ascii'))
-
-    def _decode(self, data: bytes | bytearray):
-        datas = [int(a) for a in data.decode('ascii').split(',')]
-        for i in range(len(datas)):
-            if datas[i] < 0:
-                datas[i] = datas[i] + 256
-        return bytearray(datas)
-
-    def _appliance_transparent_send(self, data: bytearray,
-                                    id: str | int) -> bytearray:
-        if not self._session:
-            self.authenticate()
-
-        _LOGGER.debug("Sending to %s: %s", id,  hex4logging(data, _LOGGER))
-        encoded = self._encode(data)
-        order = self._security.aes_encrypt(encoded)
-        response = self.api_request('appliance/transparent/send', {
-            'order': order.hex(),
-            'funId': '0000',
-            'applianceId': id
-        })
-
-        reply = self._decode(self._security.aes_decrypt(
-            bytearray.fromhex(response['reply'])))
-
-        _LOGGER.debug("Recieved from %s: %s", id, hex4logging(reply, _LOGGER))
-        return reply
 
     def list_homegroups(self):
         """

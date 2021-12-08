@@ -1,8 +1,13 @@
 """ Commands for Midea devices """
 from __future__ import annotations
 
-from midea_beautiful_dehumidifier.util import MideaCommand
+from midea_beautiful_dehumidifier.midea import MideaCommand
 from midea_beautiful_dehumidifier.crypto import crc8
+
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
 _order = 0
 
 
@@ -190,6 +195,8 @@ class DehumidifierResponse:
         # self.leftandrightSwing = (data[19] & 32) >> 4
         # self.lightValue = data[20]
         self._err_code = data[0x15]
+        for i in range(len(data)):
+            _LOGGER.info("%2d %2x %3d", i, data[i], data[i])
 
     @property
     def is_on(self):
@@ -250,3 +257,6 @@ class DehumidifierResponse:
             'off_timer_value': self.off_timer_value,
             'off_timer_minutes': self.off_timer_minutes
         }
+
+    def __str__(self):
+        return str(self.__dict__)

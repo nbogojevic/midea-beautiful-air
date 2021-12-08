@@ -6,8 +6,8 @@ import logging
 from midea_beautiful_dehumidifier.command import (DehumidifierResponse,
                                                   DehumidifierSetCommand,
                                                   DehumidifierStatusCommand)
-from midea_beautiful_dehumidifier.util import (hex4logging, MideaCommand,
-                                               MideaService)
+from midea_beautiful_dehumidifier.util import hex4log
+from midea_beautiful_dehumidifier.midea import MideaCommand
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,21 +16,14 @@ def is_supported_device(type: str | int) -> bool:
 
 class DehumidifierDevice:
 
-    def __init__(self, service: MideaService):
-        self._clear_device_data()
-        self._service = service
-
-    def _clear_device_data(self):
-        self._id = None
+    def __init__(self, id):
+        self._id = id
         self._keep_last_known_online_state = False
         self._updating = False
         self._defer_update = False
-        self._support = False
-        self._online = True
-        self._active = True
-        self._protocol_version = 3
-        self._support = False
-        self._type = 0xA1
+        self._online = False
+        self._active = False
+        self._type = "0xA1"
         self._is_on = False
         self._ion_mode = False
         self._mode = 0
@@ -43,21 +36,9 @@ class DehumidifierDevice:
     def set_device_detail(self, device_detail: dict):
         self._id = device_detail['id']
         self._name = device_detail['name']
-        self._model_number = device_detail['modelNumber']
-        self._serial_number = device_detail['sn']
-        self._type = int(device_detail['type'], 0)
+        self._type = device_detail['type']
         self._active = device_detail['activeStatus'] == '1'
         self._online = device_detail['onlineStatus'] == '1'
-
-    def refresh(self):
-        cmd = self.refresh_command()
-        responses = self._service.status(
-            cmd, id=self._id, protocol=self._protocol_version)
-        for response in responses:
-            self.process_response(response)
-
-    def target(self) -> str:
-        return self._service.target()
 
     @property
     def id(self):
@@ -65,19 +46,7 @@ class DehumidifierDevice:
 
     @property
     def name(self):
-        return self._name
-
-    @property
-    def support(self):
-        return self._support
-
-    @property
-    def model_number(self):
-        return self._model_number
-
-    @property
-    def serial_number(self):
-        return self._serial_number
+        return self._name if hasattr(self, "_name") else self._id
 
     @property
     def type(self):
@@ -102,13 +71,14 @@ class DehumidifierDevice:
 
     def process_response(self: DehumidifierDevice, data: bytearray):
         _LOGGER.debug("Processing response for dehumidifier id=%s data=%s",
-                      self._id, hex4logging(data, _LOGGER))
+                      self._id, hex4log(data, _LOGGER))
         if len(data) > 0:
             self._online = True
             self._active = True
-            self._support = True
 
             response = DehumidifierResponse(data)
+            _LOGGER.debug("Decoded response %s", response)
+        
             self._update(response)
         elif not self._keep_last_known_online_state:
             self._online = False
@@ -116,20 +86,13 @@ class DehumidifierDevice:
     def refresh_command(self) -> MideaCommand:
         return DehumidifierStatusCommand()
 
-    def apply(self: DehumidifierDevice):
-        self._updating = True
-        try:
-            cmd = DehumidifierSetCommand()
-            cmd.is_on = self._is_on
-            cmd.target_humidity = self._target_humidity
-            cmd.mode = self._mode
-            cmd.fan_speed = self._fan_speed
-
-            data: bytearray = self._service.apply(
-                cmd, id=self._id, protocol=self._protocol_version)
-            self.process_response(data)
-        finally:
-            self._updating = False
+    def apply_command(self) -> MideaCommand:
+        cmd = DehumidifierSetCommand()
+        cmd.is_on = self._is_on
+        cmd.target_humidity = self._target_humidity
+        cmd.mode = self._mode
+        cmd.fan_speed = self._fan_speed
+        return cmd
 
     def _update(self: DehumidifierDevice, response: DehumidifierResponse):
         self._is_on = response.is_on
