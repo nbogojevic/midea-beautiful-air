@@ -4,6 +4,9 @@ from midea_beautiful_dehumidifier.scanner import find_appliances
 from midea_beautiful_dehumidifier.lan import get_appliance_state
 
 
+__version__ = "0.0.1"
+
+
 def discover_appliances(
     app_key,
     account,
