@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-from midea_beautiful_dehumidifier import __version__
+__version__ = "0.0.1"
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -29,8 +29,8 @@ setup(
         "Topic :: Home Automation",
     ],
     install_requires=[
-        "cryptography>=3.4.8",
-        "requests>=2.26.0",
+        "cryptography>=3.4",
+        "requests>=2.25.1",
         "ifaddr>=0.1.7",
     ],
 )
