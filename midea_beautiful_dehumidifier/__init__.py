@@ -21,7 +21,6 @@ def discover_appliances(
         account,
         password,
         broadcast_retries=broadcast_retries,
-        retries=retries,
         broadcast_timeout=broadcast_timeout,
         broadcast_networks=broadcast_networks,
     )

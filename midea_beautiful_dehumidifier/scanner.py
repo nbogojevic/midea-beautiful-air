@@ -146,7 +146,7 @@ def find_appliances_on_lan(
             scanned.refresh()
             appliances.append(scanned)
             _LOGGER.info(
-                "*** Found dehumidifier id=%s, ip=%s:%d",
+                "Found dehumidifier id=%s, ip=%s:%d",
                 scanned.id,
                 scanned.ip,
                 scanned.port,
@@ -167,9 +167,8 @@ def find_appliances(
     app_key,
     account,
     password,
-    broadcast_retries=2,
-    retries=4,
-    broadcast_timeout=3,
+    broadcast_retries: int = 2,
+    broadcast_timeout: int = 3,
     broadcast_networks=None,
 ) -> list[LanDevice]:
     cloud_service = CloudService(
@@ -189,47 +188,43 @@ def find_appliances(
     appliances: list[LanDevice] = []
 
     _LOGGER.debug("Scanning for midea dehumidifier appliances")
-    for i in range(retries):
-        if i > 0:
-            _LOGGER.info(
-                (
-                    "Re-scanning network for midea dehumidifier appliances"
-                    " %d of %d"
-                ),
-                i + 1,
-                retries,
-            )
-        find_appliances_on_lan(
-            appliances=appliances,
-            appliances_from_cloud=appliances_from_cloud,
-            cloud_service=cloud_service,
-            broadcast_retries=broadcast_retries,
-            broadcast_timeout=broadcast_timeout,
-            broadcast_networks=broadcast_networks,
+    find_appliances_on_lan(
+        appliances=appliances,
+        appliances_from_cloud=appliances_from_cloud,
+        cloud_service=cloud_service,
+        broadcast_retries=broadcast_retries,
+        broadcast_timeout=broadcast_timeout,
+        broadcast_networks=broadcast_networks,
+    )
+    if len(appliances) >= appliances_count:
+        _LOGGER.info(
+            "Found %d of %d appliance(s)",
+            len(appliances),
+            appliances_count,
         )
-        if len(appliances) >= appliances_count:
-            break
-        if i == 0:
-            _LOGGER.warning(
-                (
-                    "Some appliance(s) where not discovered on local LAN:"
-                    " %d discovered out of %d"
-                ),
-                len(appliances),
-                appliances_count,
-            )
+    else:
+        _LOGGER.warning(
+            (
+                "Some appliance(s) where not discovered on local LAN:"
+                " %d discovered out of %d"
+            ),
+            len(appliances),
+            appliances_count,
+        )
 
-            for c in appliances_from_cloud:
-                if not any(
-                    True for d in appliances if str(d.id) == str(c["id"])
-                ):
-                    _LOGGER.warning(
-                        "Unable to find appliance id=%s, type=%s",
-                        c["id"],
-                        c["type"],
+        for c in appliances_from_cloud:
+            if not any(True for d in appliances if str(d.id) == str(c["id"])):
+                _LOGGER.warning(
+                    "Unable to find appliance id=%s, type=%s",
+                    c["id"],
+                    c["type"],
+                )
+                if is_supported_appliance(c["type"]):
+                    _LOGGER.info(
+                        "Adding placeholder for appliance id=%s", c["id"]
+                    )
+                    appliances.append(
+                        LanDevice(id=c["id"], device_type=c["type"])
                     )
 
-    _LOGGER.info(
-        "Found %d of %d appliance(s)", len(appliances), appliances_count
-    )
     return appliances

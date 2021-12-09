@@ -210,7 +210,8 @@ class LanDevice:
         token: str | bytes = None,
         key: str | bytes = None,
         max_retries: int = 2,
-        discovery_data=None,
+        device_type: str = "",
+        discovery_data=None
     ):
         self._security = Security()
 
@@ -242,6 +243,7 @@ class LanDevice:
             self.id = int(id)
             self.ip = ip
             self.port = int(port)
+            self.type = device_type
 
         self._retries = 0
         self._socket = None
@@ -274,7 +276,6 @@ class LanDevice:
             self._socket.settimeout(2)
             try:
                 self._socket.connect((self.ip, self.port))
-                self._timestamp = time.time()
                 self._local = ":".join(
                     "%s" % i for i in self._socket.getsockname()
                 )
