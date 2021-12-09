@@ -125,7 +125,10 @@ if __name__ == "__main__":
 
     if args.command == "discover":
         appliances = find_appliances(
-            app_key=args.appkey, account=args.account, password=args.password
+            app_key=args.appkey, account=args.account, password=args.password,
+            broadcast_retries=2,
+            broadcast_timeout=3
+
         )
         for appliance in appliances:
             output(appliance, args.credentials)
