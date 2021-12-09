@@ -1,21 +1,25 @@
-""" Model for midea devices """
+""" Model for midea dehumidifier appliances """
 from __future__ import annotations
 
 import logging
 
-from midea_beautiful_dehumidifier.command import (DehumidifierResponse,
-                                                  DehumidifierSetCommand,
-                                                  DehumidifierStatusCommand)
+from midea_beautiful_dehumidifier.command import (
+    DehumidifierResponse,
+    DehumidifierSetCommand,
+    DehumidifierStatusCommand,
+)
 from midea_beautiful_dehumidifier.util import hex4log
 from midea_beautiful_dehumidifier.midea import MideaCommand
 
 _LOGGER = logging.getLogger(__name__)
 
-def is_supported_device(type: str | int) -> bool:
-    return str(type).lower() == 'a1' or str(type).lower() == '0xa1' or type == 161
 
-class DehumidifierDevice:
+def is_supported_appliance(type: str | int) -> bool:
+    lcase = str(type).lower()
+    return lcase == "a1" or lcase == "0xa1" or type == 161
 
+
+class DehumidifierAppliance:
     def __init__(self, id):
         self._id = id
         self._keep_last_known_online_state = False
@@ -24,21 +28,21 @@ class DehumidifierDevice:
         self._online = False
         self._active = False
         self._type = "0xA1"
-        self._is_on = False
-        self._ion_mode = False
-        self._mode = 0
-        self._target_humidity = 50
+        self.is_on = False
+        self.ion_mode = False
+        self.mode = 0
+        self.target_humidity = 50
         self._current_humidity = 45
-        self._fan_speed = 40
+        self.fan_speed = 40
         self._err_code = 0
         self._tank_full = False
 
-    def set_device_detail(self, device_detail: dict):
-        self._id = device_detail['id']
-        self._name = device_detail['name']
-        self._type = device_detail['type']
-        self._active = device_detail['activeStatus'] == '1'
-        self._online = device_detail['onlineStatus'] == '1'
+    def set_appliance_detail(self, details: dict):
+        self._id = details["id"]
+        self._name = details["name"]
+        self._type = details["type"]
+        self._active = details["activeStatus"] == "1"
+        self._online = details["onlineStatus"] == "1"
 
     @property
     def id(self):
@@ -68,17 +72,19 @@ class DehumidifierDevice:
     def keep_last_known_online_state(self, feedback: bool):
         self._keep_last_known_online_state = feedback
 
-
-    def process_response(self: DehumidifierDevice, data: bytearray):
-        _LOGGER.debug("Processing response for dehumidifier id=%s data=%s",
-                      self._id, hex4log(data, _LOGGER))
+    def process_response(self: DehumidifierAppliance, data: bytearray):
+        _LOGGER.debug(
+            "Processing response for dehumidifier id=%s data=%s",
+            self._id,
+            hex4log(data, _LOGGER),
+        )
         if len(data) > 0:
             self._online = True
             self._active = True
 
             response = DehumidifierResponse(data)
             _LOGGER.debug("Decoded response %s", response)
-        
+
             self._update(response)
         elif not self._keep_last_known_online_state:
             self._online = False
@@ -88,50 +94,31 @@ class DehumidifierDevice:
 
     def apply_command(self) -> MideaCommand:
         cmd = DehumidifierSetCommand()
-        cmd.is_on = self._is_on
-        cmd.target_humidity = self._target_humidity
-        cmd.mode = self._mode
-        cmd.fan_speed = self._fan_speed
+        cmd.is_on = self.is_on
+        cmd.target_humidity = self.target_humidity
+        cmd.mode = self.mode
+        cmd.fan_speed = self.fan_speed
+        cmd.ion_mode = self.ion_mode
         return cmd
 
-    def _update(self: DehumidifierDevice, response: DehumidifierResponse):
-        self._is_on = response.is_on
+    def _update(self: DehumidifierAppliance, response: DehumidifierResponse):
+        self.is_on = response.is_on
 
-        self._ion_mode = response.ion_mode
-        self._mode = response.mode
-        self._target_humidity = response.target_humidity
+        self.ion_mode = response.ion_mode
+        self.mode = response.mode
+        self.target_humidity = response.target_humidity
         self._current_humidity = response.current_humidity
-        self._fan_speed = response.fan_speed
+        self.fan_speed = response.fan_speed
         self._err_code = response.err_code
         self._tank_full = response.tank_full
-
-    @property
-    def is_on(self):
-        return self._is_on
-
-    @property
-    def fan_speed(self):
-        return self._fan_speed
-
-    @property
-    def mode(self):
-        return self._mode
 
     @property
     def tank_full(self):
         return self._tank_full
 
     @property
-    def ion_mode(self):
-        return self._ion_mode
-
-    @property
     def current_humidity(self):
         return self._current_humidity
-
-    @property
-    def target_humidity(self):
-        return self._target_humidity
 
     @property
     def err_code(self):

@@ -12,24 +12,32 @@ import requests
 from midea_beautiful_dehumidifier.crypto import Security
 
 # The Midea cloud client is by far the more obscure part of this library,
-# and without some serious reverse engineering this would not have been possible.
-# Thanks Yitsushi for the ruby implementation. This is an adaptation to Python 3
+# and without some serious reverse engineering this would not
+# have been possible.
+# Thanks Yitsushi for the ruby implementation.
+# This is an adaptation to Python 3
 
 _LOGGER = logging.getLogger(__name__)
 
 
-SERVER_URL: Final = 'https://mapp.appsmb.com/v1/'
+SERVER_URL: Final = "https://mapp.appsmb.com/v1/"
 
 
 class CloudService:
 
-    CLIENT_TYPE = 1                 # Android
-    FORMAT = 2                      # JSON
-    LANGUAGE = 'en_US'
+    CLIENT_TYPE = 1  # Android
+    FORMAT = 2  # JSON
+    LANGUAGE = "en_US"
     APP_ID = 1017
     SRC = 17
 
-    def __init__(self, app_key: str, account: str, password: str, server_url: str = SERVER_URL):
+    def __init__(
+        self,
+        app_key: str,
+        account: str,
+        password: str,
+        server_url: str = SERVER_URL,
+    ):
         # Get this from any of the Midea based apps, you can find one on
         # Yitsushi's github page
         self._app_key = app_key
@@ -56,37 +64,36 @@ class CloudService:
 
         self._security = Security(app_key=self._app_key)
 
-
     def api_request(self, endpoint: str, args: dict[str, Any]):
         """
-        Sends an API request to the Midea cloud service and returns the 
+        Sends an API request to the Midea cloud service and returns the
         results or raises ValueError if there is an error
         """
         self._api_lock.acquire()
         response = {}
         try:
-            if endpoint == 'user/login' and self._session and self._login_id:
+            if endpoint == "user/login" and self._session and self._login_id:
                 return self._session
 
             # Set up the initial data payload with the global variable set
             data = {
-                'appId': self.APP_ID,
-                'format': self.FORMAT,
-                'clientType': self.CLIENT_TYPE,
-                'language': self.LANGUAGE,
-                'src': self.SRC,
-                'stamp': datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+                "appId": self.APP_ID,
+                "format": self.FORMAT,
+                "clientType": self.CLIENT_TYPE,
+                "language": self.LANGUAGE,
+                "src": self.SRC,
+                "stamp": datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
             }
             # Add the method parameters for the endpoint
             data.update(args)
 
             # Add the sessionId if there is a valid session
             if self._session:
-                data['sessionId'] = self._session['sessionId']
+                data["sessionId"] = self._session["sessionId"]
 
             url = self._server_url + endpoint
 
-            data['sign'] = self._security.sign(url, data)
+            data["sign"] = self._security.sign(url, data)
             # _LOGGER.debug("HTTP request = %s", data)
             # POST the endpoint with the payload
             r = requests.post(url=url, data=data, timeout=9)
@@ -100,51 +107,62 @@ class CloudService:
         # _LOGGER.debug("HTTP response = %s", response)
 
         # Check for errors, raise if there are any
-        if response['errorCode'] != '0':
-            self.handle_api_error(int(response['errorCode']), response['msg'])
+        if response["errorCode"] != "0":
+            self.handle_api_error(int(response["errorCode"]), response["msg"])
             # If no exception, then retry
             self._retries += 1
-            if(self._retries < 3):
-                _LOGGER.debug("Retrying API call: '%s' %d",
-                              endpoint, self._retries)
+            if self._retries < 3:
+                _LOGGER.debug(
+                    "Retrying API call: '%s' %d", endpoint, self._retries
+                )
                 return self.api_request(endpoint, args)
             else:
                 raise RecursionError()
 
         self._retries = 0
-        return response['result']
+        return response["result"]
 
     def get_login_id(self):
         """
         Get the login ID from the email address
         """
-        response = self.api_request('user/login/id/get', {
-            'loginAccount': self._login_account
-        })
-        self._login_id: str = response['loginId']
+        response = self.api_request(
+            "user/login/id/get", {"loginAccount": self._login_account}
+        )
+        self._login_id: str = response["loginId"]
 
     def authenticate(self) -> bool:
         """
-        Performs a user login with the credentials supplied to the 
+        Performs a user login with the credentials supplied to the
         constructor
         """
         if len(self._login_id) == 0:
             self.get_login_id()
 
-        if self._session is not None and self._session.get('sessionId') is not None:
+        if (
+            self._session is not None
+            and self._session.get("sessionId") is not None
+        ):
             # Don't try logging in again, someone beat this thread to it
             return True
 
         # Log in and store the session
-        self._session = self.api_request('user/login', {
-            'loginAccount': self._login_account,
-            'password': self._security.encrypt_password(self._login_id,
-                                                        self._password)
-        })
+        self._session = self.api_request(
+            "user/login",
+            {
+                "loginAccount": self._login_account,
+                "password": self._security.encrypt_password(
+                    self._login_id, self._password
+                ),
+            },
+        )
 
-        self._security.access_token = self._session['accessToken']
+        self._security.access_token = self._session["accessToken"]
 
-        return self._session is not None and self._session.get('sessionId') is not None
+        return (
+            self._session is not None
+            and self._session.get("sessionId") is not None
+        )
 
     def list_appliances(self):
         """
@@ -153,26 +171,28 @@ class CloudService:
 
         # Get all home groups
         if not self._home_groups:
-            response = self.api_request('homegroup/list/get', {})
+            response = self.api_request("homegroup/list/get", {})
             _LOGGER.debug("Midea home group query result=%s", response)
-            if not response or response.get('list') is None:
+            if not response or response.get("list") is None:
                 _LOGGER.error(
                     "Unable to get home groups from Midea Cloud. response=%s",
-                    response)
+                    response,
+                )
                 return []
-            self._home_groups = response['list']
+            self._home_groups = response["list"]
 
         # Find default home group
         home_group_id = next(
-            x for x in self._home_groups if x['isDefault'] == '1')['id']
+            x for x in self._home_groups if x["isDefault"] == "1"
+        )["id"]
 
         # TODO error if no home groups
         # Get list of appliances in selected home group
-        response = self.api_request('appliance/list/get', {
-            'homegroupId': home_group_id
-        })
+        response = self.api_request(
+            "appliance/list/get", {"homegroupId": home_group_id}
+        )
 
-        self._appliance_list = response['list']
+        self._appliance_list = response["list"]
         _LOGGER.debug("Midea appliance list results=%s", self._appliance_list)
         return self._appliance_list
 
@@ -186,33 +206,33 @@ class CloudService:
         Get tokenlist with udpid
         """
 
-        response = self.api_request('iot/secure/getToken', {
-            'udpid': udpid
-        })
-        for token in response['tokenlist']:
-            if token['udpId'] == udpid:
-                return token['token'], token['key']
+        response = self.api_request("iot/secure/getToken", {"udpid": udpid})
+        for token in response["tokenlist"]:
+            if token["udpId"] == udpid:
+                return token["token"], token["key"]
         return None, None
 
     def handle_api_error(self, error_code, message: str):
-
         def restart_full():
             _LOGGER.debug(
-                "Restarting full connection session: '%s' - '%s", error_code, message)
+                "Restarting full connection session: '%s' - '%s",
+                error_code,
+                message,
+            )
             self._session = None
             self.get_login_id()
             self.authenticate()
             self.list_appliances()
 
         def session_restart():
-            _LOGGER.debug("Restarting session: '%s' - '%s",
-                          error_code, message)
+            _LOGGER.debug(
+                "Restarting session: '%s' - '%s", error_code, message
+            )
             self._session = None
             self.authenticate()
 
         def retry_later():
-            _LOGGER.debug("Retry later: '%s' - '%s",
-                          error_code, message)
+            _LOGGER.debug("Retry later: '%s' - '%s", error_code, message)
             raise Exception(error_code, message)
 
         def throw():
@@ -223,7 +243,7 @@ class CloudService:
 
         error_handlers = {
             3101: restart_full,
-            3176: ignore,          # The asyn reply does not exist.
+            3176: ignore,  # The asyn reply does not exist.
             3106: session_restart,  # invalidSession.
             3144: restart_full,
             3004: session_restart,  # value is illegal.
@@ -235,5 +255,4 @@ class CloudService:
         handler()
 
     def __str__(self) -> str:
-        return str(__dict__)
-
+        return str(self.__dict__)

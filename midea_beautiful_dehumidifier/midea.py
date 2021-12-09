@@ -7,13 +7,11 @@ MSGTYPE_HANDSHAKE_REQUEST: Final = 0x0
 MSGTYPE_HANDSHAKE_RESPONSE: Final = 0x1
 MSGTYPE_ENCRYPTED_RESPONSE: Final = 0x3
 MSGTYPE_ENCRYPTED_REQUEST: Final = 0x6
-MSGTYPE_TRANSPARENT: Final = 0xf
+MSGTYPE_TRANSPARENT: Final = 0xF
 
 
 class MideaCommand:
-    """ Base command interface """
+    """Base command interface"""
 
-    def finalize(self):
-        pass
-
-
+    def finalize(self) -> bytearray:
+        return bytearray()
