@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from midea_beautiful_dehumidifier.scanner import find_appliances
 from midea_beautiful_dehumidifier.lan import get_appliance_state
+from midea_beautiful_dehumidifier.__version__ import __version__
 
-
-__version__ = "0.0.1"
+__version__ = __version__
 
 
 def discover_appliances(
