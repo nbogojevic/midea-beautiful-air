@@ -6,8 +6,15 @@ import json
 import logging
 from threading import Lock
 from typing import Any, Final
+from midea_beautiful_dehumidifier.exceptions import (
+    AuthenticationError,
+    CloudError,
+    CloudRequestError,
+    RetryLaterError,
+)
 
 import requests
+from requests.exceptions import RequestException
 
 from midea_beautiful_dehumidifier.crypto import Security
 
@@ -40,11 +47,11 @@ class CloudService:
     ):
         # Get this from any of the Midea based apps, you can find one on
         # Yitsushi's github page
-        self._app_key = app_key
+        self.app_key = app_key
         # Your email address for your Midea account
-        self._login_account = account
-        self._password = password
-        self._server_url = server_url
+        self.login_account = account
+        self.password = password
+        self.server_url = server_url
 
         # An obscure log in ID that is seperate to the email address
         self._login_id: str = ""
@@ -62,14 +69,19 @@ class CloudService:
         self._api_lock = Lock()
         self._retries = 0
 
-        self._security = Security(app_key=self._app_key)
+        self._security = Security(app_key=self.app_key)
 
-    def api_request(self, endpoint: str, args: dict[str, Any]):
+    def api_request(
+        self, endpoint: str, args: dict[str, Any], authenticate=True
+    ):
         """
         Sends an API request to the Midea cloud service and returns the
         results or raises ValueError if there is an error
         """
         self._api_lock.acquire()
+        if authenticate:
+            self.authenticate()
+
         response = {}
         try:
             if endpoint == "user/login" and self._session and self._login_id:
@@ -91,7 +103,7 @@ class CloudService:
             if self._session:
                 data["sessionId"] = self._session["sessionId"]
 
-            url = self._server_url + endpoint
+            url = self.server_url + endpoint
 
             data["sign"] = self._security.sign(url, data)
             # _LOGGER.debug("HTTP request = %s", data)
@@ -101,6 +113,8 @@ class CloudService:
             # _LOGGER.debug("HTTP response text = %s", r.text)
 
             response = json.loads(r.text)
+        except RequestException as exc:
+            raise CloudRequestError(endpoint) from exc
         finally:
             self._api_lock.release()
 
@@ -127,11 +141,13 @@ class CloudService:
         Get the login ID from the email address
         """
         response = self.api_request(
-            "user/login/id/get", {"loginAccount": self._login_account}
+            "user/login/id/get",
+            {"loginAccount": self.login_account},
+            authenticate=False,
         )
         self._login_id: str = response["loginId"]
 
-    def authenticate(self) -> bool:
+    def authenticate(self):
         """
         Performs a user login with the credentials supplied to the
         constructor
@@ -144,25 +160,27 @@ class CloudService:
             and self._session.get("sessionId") is not None
         ):
             # Don't try logging in again, someone beat this thread to it
-            return True
+            return
 
         # Log in and store the session
         self._session = self.api_request(
             "user/login",
             {
-                "loginAccount": self._login_account,
+                "loginAccount": self.login_account,
                 "password": self._security.encrypt_password(
-                    self._login_id, self._password
+                    self._login_id, self.password
                 ),
             },
+            authenticate=False
         )
 
         self._security.access_token = self._session["accessToken"]
 
-        return (
+        if not (
             self._session is not None
             and self._session.get("sessionId") is not None
-        )
+        ):
+            raise AuthenticationError()
 
     def list_appliances(self):
         """
@@ -233,10 +251,10 @@ class CloudService:
 
         def retry_later():
             _LOGGER.debug("Retry later: '%s' - '%s", error_code, message)
-            raise Exception(error_code, message)
+            raise RetryLaterError(error_code, message)
 
         def throw():
-            raise ValueError(error_code, message)
+            raise CloudError(error_code, message)
 
         def ignore():
             _LOGGER.debug("Error ignored: '%s' - '%s", error_code, message)

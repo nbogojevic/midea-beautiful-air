@@ -1,9 +1,9 @@
 from __future__ import annotations
-from midea_beautiful_dehumidifier.cloud import CloudService
 
-from midea_beautiful_dehumidifier.scanner import find_appliances
-from midea_beautiful_dehumidifier.lan import get_appliance_state
 from midea_beautiful_dehumidifier.__version__ import __version__
+from midea_beautiful_dehumidifier.cloud import CloudService
+from midea_beautiful_dehumidifier.lan import get_appliance_state
+from midea_beautiful_dehumidifier.scanner import find_appliances
 
 __version__ = __version__
 
@@ -42,6 +42,5 @@ def connect_to_cloud(app_key, account, password) -> CloudService | None:
         account,
         password,
     )
-    if cloud.authenticate():
-        return cloud
-    return None
+    cloud.authenticate()
+    return cloud

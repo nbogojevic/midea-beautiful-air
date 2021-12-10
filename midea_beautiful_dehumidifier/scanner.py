@@ -161,6 +161,37 @@ def find_appliances_on_lan(
                 scanned.ip,
                 scanned.type,
             )
+    appliances_count = sum(
+        is_supported_appliance(a["type"]) for a in appliances_from_cloud
+    )
+    if len(appliances) >= appliances_count:
+        _LOGGER.info(
+            "Found %d of %d appliance(s)",
+            len(appliances),
+            appliances_count,
+        )
+    else:
+        _LOGGER.warning(
+            (
+                "Some appliance(s) where not discovered on local LAN:"
+                " %d discovered out of %d"
+            ),
+            len(appliances),
+            appliances_count,
+        )
+        for c in appliances_from_cloud:
+            d = next(
+                filter(lambda a: c["id"] == str(a.id), appliances),
+                None,
+            )
+            if d is not None:
+                if is_supported_appliance(c["type"]):
+                    _LOGGER.warning(
+                        "Unable to discover appliance id=%s, type=%s",
+                        c["id"],
+                        c["type"],
+                    )
+                    d.state.set_appliance_detail(c)
 
 
 def find_appliances(
@@ -178,14 +209,6 @@ def find_appliances(
         )
         cloud_service.authenticate()
     appliances_from_cloud = cloud_service.list_appliances()
-    appliances_count = sum(
-        is_supported_appliance(a["type"]) for a in appliances_from_cloud
-    )
-    _LOGGER.info(
-        "Account has %d supported appliance(s) out of %d appliance(s)",
-        appliances_count,
-        len(appliances_from_cloud),
-    )
 
     appliances: list[LanDevice] = []
 
@@ -198,35 +221,5 @@ def find_appliances(
         broadcast_timeout=broadcast_timeout,
         broadcast_networks=broadcast_networks,
     )
-    if len(appliances) >= appliances_count:
-        _LOGGER.info(
-            "Found %d of %d appliance(s)",
-            len(appliances),
-            appliances_count,
-        )
-    else:
-        _LOGGER.warning(
-            (
-                "Some appliance(s) where not discovered on local LAN:"
-                " %d discovered out of %d"
-            ),
-            len(appliances),
-            appliances_count,
-        )
-
-        for c in appliances_from_cloud:
-            if not any(True for d in appliances if str(d.id) == str(c["id"])):
-                _LOGGER.warning(
-                    "Unable to find appliance id=%s, type=%s",
-                    c["id"],
-                    c["type"],
-                )
-                if is_supported_appliance(c["type"]):
-                    _LOGGER.info(
-                        "Adding placeholder for appliance id=%s", c["id"]
-                    )
-                    appliances.append(
-                        LanDevice(id=c["id"], device_type=c["type"])
-                    )
 
     return appliances
