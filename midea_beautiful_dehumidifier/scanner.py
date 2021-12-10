@@ -164,17 +164,19 @@ def find_appliances_on_lan(
 
 
 def find_appliances(
-    app_key,
-    account,
-    password,
+    app_key=None,
+    account=None,
+    password=None,
+    cloud_service=None,
     broadcast_retries: int = 2,
     broadcast_timeout: int = 3,
     broadcast_networks=None,
 ) -> list[LanDevice]:
-    cloud_service = CloudService(
-        app_key=app_key, account=account, password=password
-    )
-    cloud_service.authenticate()
+    if cloud_service is None:
+        cloud_service = CloudService(
+            app_key=app_key, account=account, password=password
+        )
+        cloud_service.authenticate()
     appliances_from_cloud = cloud_service.list_appliances()
     appliances_count = sum(
         is_supported_appliance(a["type"]) for a in appliances_from_cloud

@@ -94,7 +94,7 @@ if __name__ == "__main__":
         "--ip", help="IP address of the appliance", required=True
     )
     parser_set.add_argument(
-        "--port", help="port of the appliance", default=6444
+        "--port", help="broadcast port of the appliance", default=6445
     )
     parser_set.add_argument(
         "--token",

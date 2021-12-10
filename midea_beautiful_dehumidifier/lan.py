@@ -539,7 +539,6 @@ class LanDevice:
                 return False
 
         if self.type.lower() == "a1" or self.type.lower() == "0xa1":
-            self.state = DehumidifierAppliance(self.id)
             self.refresh()
             _LOGGER.debug("Device data: %s", self.state)
         else:
@@ -569,7 +568,7 @@ class LanDevice:
 
 
 def get_appliance_state(
-    ip, port, token=None, key=None, socket_timeout=8
+    ip, port=6445, token=None, key=None, socket_timeout=8, cloud_service=None
 ) -> LanDevice | None:
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -589,7 +588,7 @@ def get_appliance_state(
         _LOGGER.debug("Received from %s:%d %s", ip, port, response.hex())
         appliance = LanDevice(discovery_data=response, token=token, key=key)
         _LOGGER.debug("Appliance from %s:%d is %s", ip, port, appliance)
-        if appliance.identify_appliance():
+        if appliance.identify_appliance(cloud_service):
             return appliance
     except socket.error:
         _LOGGER.info("Couldn't connect with appliance %s:%d", ip, port)
