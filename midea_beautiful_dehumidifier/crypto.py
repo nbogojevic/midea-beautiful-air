@@ -8,8 +8,9 @@ from urllib.parse import unquote_plus, urlencode, urlparse
 
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from midea_beautiful_dehumidifier.util import hex4log
 from midea_beautiful_dehumidifier.midea import (
+    DEFAULT_APPKEY,
+    DEFAULT_SIGNKEY,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_ENCRYPTED_RESPONSE,
 )
@@ -300,34 +301,28 @@ def crc8(data):
     return crc_value
 
 
-_default_app_key: Final = "434a209a5ce141c3b726de067835d7f0"
-_default_sign_key: Final = "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S"
+BLOCKSIZE: Final = 16
 
 
 class Security:
-    def __init__(self, app_key: str = None, sign_key: str = None):
-        self._app_key_str = (
-            app_key if app_key is not None else _default_app_key
-        )
-        self._sign_key = (
-            sign_key if sign_key is not None else _default_sign_key
-        ).encode()
-        self._block_size = 16
-        self._iv = b"\0" * 16
-        self._enc_key = md5(self._sign_key).digest()
-        self._dynamic_key = md5(self._app_key_str.encode()).digest()[:8]
+    def __init__(
+        self, appkey: str = DEFAULT_APPKEY, signkey: str = DEFAULT_SIGNKEY
+    ):
+        self._appkey = appkey
+        self._signkey = signkey.encode()
+        self._iv = b"\0" * BLOCKSIZE
+        self._enc_key = md5(self._signkey).digest()
         self._tcp_key = None
         self._request_count = 0
         self._response_count = 0
-        self.access_token = ""
 
-    def aes_decrypt(self, raw):
+    def aes_decrypt(self, raw: bytes) -> bytes:
         try:
             cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
             decryptor = cipher.decryptor()
             decrypted = decryptor.update(bytes(raw)) + decryptor.finalize()
             # Remove the padding
-            unpadder = padding.PKCS7(self._block_size * 8).unpadder()
+            unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
             decrypted = (
                 unpadder.update(bytes(decrypted)) + unpadder.finalize()
             )
@@ -336,13 +331,13 @@ class Security:
             _LOGGER.error(
                 "Error during AES decryption: %s - data: %s",
                 repr(e),
-                hex4log(raw, _LOGGER, logging.ERROR),
+                raw.hex()
             )
-            return bytearray(0)
+            return b""
 
-    def aes_encrypt(self, raw):
+    def aes_encrypt(self, raw) -> bytes:
         # Make sure to pad the data
-        padder = padding.PKCS7(self._block_size * 8).padder()
+        padder = padding.PKCS7(BLOCKSIZE * 8).padder()
         raw = padder.update(raw) + padder.finalize()
         cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
         encryptor = cipher.encryptor()
@@ -350,18 +345,18 @@ class Security:
 
         return encrypted
 
-    def aes_cbc_decrypt(self, raw, key):
+    def aes_cbc_decrypt(self, raw, key) -> bytes:
         cipher = Cipher(algorithms.AES(key), modes.CBC(self._iv))
         decryptor = cipher.decryptor()
         return decryptor.update(bytes(raw)) + decryptor.finalize()
 
-    def aes_cbc_encrypt(self, raw, key):
+    def aes_cbc_encrypt(self, raw, key) -> bytes:
         cipher = Cipher(algorithms.AES(key), modes.CBC(self._iv))
         encryptor = cipher.encryptor()
         return encryptor.update(bytes(raw)) + encryptor.finalize()
 
-    def encode32_data(self, raw):
-        return md5(raw + self._sign_key).digest()
+    def encode32_data(self, raw) -> bytes:
+        return md5(raw + self._signkey).digest()
 
     def tcp_key(self, response, key):
         if response == b"ERROR":
@@ -369,7 +364,8 @@ class Security:
             return b"", False
         if len(response) != 64:
             _LOGGER.error(
-                f"Unexpected data length (expecter 64, was {len(response)})"
+                "Unexpected data length (expected 64, was %d)",
+                len(response)
             )
             return b"", False
         payload = response[:32]
@@ -448,7 +444,7 @@ class Security:
         query_str: str = unquote_plus(urlencode(query))
 
         # Combine all the sign stuff to make one giant string, then SHA256 it
-        sign: str = path + query_str + self._app_key_str
+        sign: str = path + query_str + self._appkey
         m = sha256()
         m.update(sign.encode("ascii"))
 
@@ -461,7 +457,7 @@ class Security:
 
         # Create the login hash with the loginID + password hash + appKey,
         # then hash it all AGAIN
-        loginHash = loginId + m.hexdigest() + self._app_key_str
+        loginHash = loginId + m.hexdigest() + self._appkey
         m = sha256()
         m.update(loginHash.encode("ascii"))
         return m.hexdigest()

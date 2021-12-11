@@ -6,7 +6,7 @@ from ipaddress import IPv4Network
 
 import ifaddr
 
-from midea_beautiful_dehumidifier.cloud import CloudService
+from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.appliance import is_supported_appliance
 from midea_beautiful_dehumidifier.lan import BROADCAST_MSG, LanDevice
 from midea_beautiful_dehumidifier.util import hex4log
@@ -17,19 +17,19 @@ _LOGGER = logging.getLogger(__name__)
 class MideaDiscovery:
     def __init__(
         self,
-        cloud: CloudService,
+        cloud: MideaCloud,
         broadcast_retries: int,
         broadcast_timeout: float,
         broadcast_networks: list[str] | None,
     ):
         self._cloud = cloud
         self._broadcast_retries = broadcast_retries
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.socket.settimeout(broadcast_timeout)
-        self.result = set()
-        self.found_appliances = set()
-        self.networks = broadcast_networks
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self._socket.settimeout(broadcast_timeout)
+        self._result = set()
+        self._found_appliances = set()
+        self._networks = broadcast_networks
 
     def collect_appliances(self) -> list[LanDevice]:
         """Find all appliances on the local network."""
@@ -44,15 +44,15 @@ class MideaDiscovery:
             scanned_appliances: set[LanDevice] = set()
             try:
                 while True:
-                    data, addr = self.socket.recvfrom(512)
+                    data, addr = self._socket.recvfrom(512)
                     ip = addr[0]
-                    if ip not in self.found_appliances:
+                    if ip not in self._found_appliances:
                         _LOGGER.debug(
                             "Reply from %s payload=%s",
                             ip,
                             hex4log(data, _LOGGER),
                         )
-                        self.found_appliances.add(ip)
+                        self._found_appliances.add(ip)
                         appliance = LanDevice(discovery_data=data)
                         if appliance.version == 0:
                             _LOGGER.error(
@@ -65,22 +65,22 @@ class MideaDiscovery:
                 _LOGGER.debug("Finished broadcast collection")
             for sd in scanned_appliances:
                 if sd.identify_appliance(self._cloud):
-                    self.result.add(sd)
+                    self._result.add(sd)
 
-        return list(self.result)
+        return list(self._result)
 
     def _broadcast_message(self):
         for broadcast_address in self._get_networks():
             try:
-                self.socket.sendto(BROADCAST_MSG, (broadcast_address, 6445))
-                self.socket.sendto(BROADCAST_MSG, (broadcast_address, 20086))
+                self._socket.sendto(BROADCAST_MSG, (broadcast_address, 6445))
+                self._socket.sendto(BROADCAST_MSG, (broadcast_address, 20086))
             except Exception:
                 _LOGGER.debug(
                     "Unable to send broadcast to: %s", broadcast_address
                 )
 
     def _get_networks(self) -> list[str]:
-        if self.networks is None:
+        if self._networks is None:
             nets: list[IPv4Network] = []
             adapters: list[ifaddr.Adapter] = ifaddr.get_adapters()
             for adapter in adapters:
@@ -96,7 +96,7 @@ class MideaDiscovery:
                             and not localNet.is_link_local
                         ):
                             nets.append(localNet)
-            self.networks = list()
+            self._networks = list()
             if not nets:
                 _LOGGER.error("No valid networks detected to send broadcast")
             else:
@@ -106,12 +106,12 @@ class MideaDiscovery:
                         net.network_address,
                         net.broadcast_address,
                     )
-                    self.networks.append(str(net.broadcast_address))
-        return self.networks
+                    self._networks.append(str(net.broadcast_address))
+        return self._networks
 
 
 def find_appliances_on_lan(
-    cloud_service: CloudService,
+    cloud: MideaCloud,
     broadcast_retries: int,
     appliances_from_cloud: list,
     broadcast_timeout: float,
@@ -120,7 +120,7 @@ def find_appliances_on_lan(
 ):
 
     discovery = MideaDiscovery(
-        cloud=cloud_service,
+        cloud=cloud,
         broadcast_retries=broadcast_retries,
         broadcast_timeout=broadcast_timeout,
         broadcast_networks=broadcast_networks,
@@ -195,20 +195,18 @@ def find_appliances_on_lan(
 
 
 def find_appliances(
-    app_key=None,
+    appkey=None,
     account=None,
     password=None,
-    cloud_service=None,
+    cloud=None,
     broadcast_retries: int = 2,
     broadcast_timeout: int = 3,
     broadcast_networks=None,
 ) -> list[LanDevice]:
-    if cloud_service is None:
-        cloud_service = CloudService(
-            app_key=app_key, account=account, password=password
-        )
-        cloud_service.authenticate()
-    appliances_from_cloud = cloud_service.list_appliances()
+    if cloud is None:
+        cloud = MideaCloud(appkey=appkey, account=account, password=password)
+        cloud.authenticate()
+    appliances_from_cloud = cloud.list_appliances()
 
     appliances: list[LanDevice] = []
 
@@ -216,7 +214,7 @@ def find_appliances(
     find_appliances_on_lan(
         appliances=appliances,
         appliances_from_cloud=appliances_from_cloud,
-        cloud_service=cloud_service,
+        cloud=cloud,
         broadcast_retries=broadcast_retries,
         broadcast_timeout=broadcast_timeout,
         broadcast_networks=broadcast_networks,

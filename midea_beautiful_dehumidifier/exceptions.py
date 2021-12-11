@@ -6,8 +6,11 @@ class Exception(Exception):
 
 
 class AuthenticationError(Exception):
-    def __init__(self):
-        pass
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return f"AuthenticationError {self.message}"
 
 
 class CloudError(Exception):
@@ -34,3 +37,12 @@ class RetryLaterError(Exception):
 
     def __str__(self):
         return f"RetryLaterError {self.error_code} {self.message}"
+
+
+class CloudAuthenticationError(Exception):
+    def __init__(self, error_code, message):
+        self.error_code = error_code
+        self.message = message
+
+    def __str__(self):
+        return f"CloudAuthenticationError {self.error_code} {self.message}"

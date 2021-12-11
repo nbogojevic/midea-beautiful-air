@@ -77,24 +77,21 @@ class DehumidifierStatusCommand(MideaCommand):
             ]
         )
 
-    def _checksum(self, data):
-        return (~sum(data) + 1) & 0xFF
-
-    def finalize(self):
+    def finalize(self) -> bytes:
         global _order
         _order = (_order + 1) & 0xFF
         self.data[30] = _order
         # Add the CRC8
         self.data[31] = crc8(self.data[10:31])
         # Add checksum
-        self.data[32] = self._checksum(self.data[1:32])
+        self.data[32] = (~sum(self.data[1:32]) + 1) & 0xFF
 
-        return self.data
+        return bytes(self.data)
 
 
 class DehumidifierSetCommand(MideaCommand):
     def __init__(self: DehumidifierSetCommand):
-        self.data: bytearray = bytearray(
+        self.data = bytearray(
             [
                 0xAA,
                 # Length
@@ -143,10 +140,7 @@ class DehumidifierSetCommand(MideaCommand):
             ]
         )
 
-    def _checksum(self, data):
-        return (~sum(data) + 1) & 0xFF
-
-    def finalize(self: DehumidifierSetCommand):
+    def finalize(self: DehumidifierSetCommand) -> bytes:
         global _order
         _order = (_order + 1) & 0xFF
         # Add the CRC8
@@ -154,9 +148,9 @@ class DehumidifierSetCommand(MideaCommand):
         # Add the CRC8
         self.data[31] = crc8(self.data[10:31])
         # Add checksum
-        self.data[32] = self._checksum(self.data[1:32])
+        self.data[32] = (~sum(self.data[1:32]) + 1) & 0xFF
         # Set the length of the command data
-        return self.data
+        return bytes(self.data)
 
     @property
     def is_on(self):
@@ -205,7 +199,7 @@ class DehumidifierSetCommand(MideaCommand):
 
 
 class DehumidifierResponse:
-    def __init__(self: DehumidifierResponse, data: bytearray):
+    def __init__(self: DehumidifierResponse, data: bytes):
 
         # self.faultFlag = (data[1] & 0x80) >> 7
 

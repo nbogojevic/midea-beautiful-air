@@ -1,6 +1,8 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
+from midea_beautiful_dehumidifier.midea import DEFAULT_APPKEY
+
 try:
     from coloredlogs import install as coloredlogs_install
 except Exception:
@@ -20,7 +22,7 @@ def output(appliance: LanDevice, show_credentials: bool = False):
     print(f"addr={appliance.ip}:{appliance.port}")
     print(f"        id      = {appliance.id}")
     print(f"        name    = {appliance.state.name}")
-    print(f"        hum%    = {appliance.state.current_humidity}")
+    print(f"        humid%  = {appliance.state.current_humidity}")
     print(f"        target% = {appliance.state.target_humidity}")
     print(f"        fan     = {appliance.state.fan_speed}")
     print(f"        tank    = {appliance.state.tank_full}")
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     parser_discover.add_argument(
         "--appkey",
         help="Midea app key",
-        default="3742e9e5842d4ad59c2db887e12449f9",
+        default=DEFAULT_APPKEY,
     )
     parser_discover.add_argument(
         "--credentials", action="store_true", help="show credentials"
@@ -67,9 +69,6 @@ if __name__ == "__main__":
     )
     parser_status.add_argument(
         "--ip", help="IP address of the appliance", required=True
-    )
-    parser_status.add_argument(
-        "--port", help="port of the appliance", default=6444
     )
     parser_status.add_argument(
         "--token",
@@ -92,9 +91,6 @@ if __name__ == "__main__":
     parser_set = subparsers.add_parser("set", help="sets status of appliance")
     parser_set.add_argument(
         "--ip", help="IP address of the appliance", required=True
-    )
-    parser_set.add_argument(
-        "--port", help="broadcast port of the appliance", default=6445
     )
     parser_set.add_argument(
         "--token",
@@ -125,25 +121,22 @@ if __name__ == "__main__":
 
     if args.command == "discover":
         appliances = find_appliances(
-            app_key=args.appkey, account=args.account, password=args.password,
+            appkey=args.appkey,
+            account=args.account,
+            password=args.password,
             broadcast_retries=2,
-            broadcast_timeout=3
-
+            broadcast_timeout=3,
         )
         for appliance in appliances:
             output(appliance, args.credentials)
 
     elif args.command == "status":
-        appliance = appliance_state(
-            args.ip, int(args.port), token=args.token, key=args.key
-        )
+        appliance = appliance_state(args.ip, token=args.token, key=args.key)
         if appliance is not None:
             output(appliance, args.credentials)
 
     elif args.command == "set":
-        appliance = appliance_state(
-            args.ip, int(args.port), token=args.token, key=args.key
-        )
+        appliance = appliance_state(args.ip, token=args.token, key=args.key)
         if appliance is not None:
             appliance.set_state(
                 target_humidity=args.humidity,

@@ -9,7 +9,6 @@ from midea_beautiful_dehumidifier.command import (
     DehumidifierStatusCommand,
 )
 from midea_beautiful_dehumidifier.util import hex4log
-from midea_beautiful_dehumidifier.midea import MideaCommand
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,7 +71,7 @@ class DehumidifierAppliance:
     def keep_last_known_online_state(self, feedback: bool):
         self._keep_last_known_online_state = feedback
 
-    def process_response(self: DehumidifierAppliance, data: bytearray):
+    def process_response(self: DehumidifierAppliance, data: bytes):
         _LOGGER.debug(
             "Processing response for dehumidifier id=%s data=%s",
             self._id,
@@ -89,10 +88,10 @@ class DehumidifierAppliance:
         elif not self._keep_last_known_online_state:
             self._online = False
 
-    def refresh_command(self) -> MideaCommand:
+    def refresh_command(self) -> DehumidifierStatusCommand:
         return DehumidifierStatusCommand()
 
-    def apply_command(self) -> MideaCommand:
+    def apply_command(self) -> DehumidifierSetCommand:
         cmd = DehumidifierSetCommand()
         cmd.is_on = self.is_on
         cmd.target_humidity = self.target_humidity
