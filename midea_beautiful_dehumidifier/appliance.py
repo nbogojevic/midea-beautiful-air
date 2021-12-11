@@ -29,10 +29,10 @@ class DehumidifierAppliance:
         self._type = "0xA1"
         self.is_on = False
         self.ion_mode = False
-        self.mode = 0
-        self.target_humidity = 50
+        self._mode = 0
+        self._target_humidity = 50
         self._current_humidity = 45
-        self.fan_speed = 40
+        self._fan_speed = 40
         self._err_code = 0
         self._tank_full = False
 
@@ -122,6 +122,41 @@ class DehumidifierAppliance:
     @property
     def err_code(self):
         return self._err_code
+
+    @property
+    def fan_speed(self):
+        return self._fan_speed
+
+    @fan_speed.setter
+    def fan_speed(self, fan_speed: int):
+        if fan_speed < 0:
+            self._fan_speed = 0
+        elif fan_speed > 100:
+            self._fan_speed = 100
+        else:
+            self._fan_speed = fan_speed
+
+    @property
+    def target_humidity(self):
+        return self._target_humidity
+
+    @target_humidity.setter
+    def target_humidity(self, target_humidity: int):
+        if target_humidity < 0:
+            self._target_humidity = 0
+        elif target_humidity > 100:
+            self._target_humidity = 100
+        else:
+            self._target_humidity = target_humidity
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @mode.setter
+    def mode(self, mode: int):
+        if 0 <= mode and mode <= 15:
+            self._mode = mode
 
     def __str__(self):
         return str(self.__dict__)

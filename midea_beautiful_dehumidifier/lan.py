@@ -538,7 +538,7 @@ class LanDevice:
         ion=None,
         is_on=None,
     ):
-        if target_humidity is not None and 0 <= target_humidity <= 100:
+        if target_humidity is not None:
             self.state.target_humidity = int(target_humidity)
         if fan_speed is not None:
             self.state.fan_speed = int(fan_speed)
