@@ -14,6 +14,7 @@ from midea_beautiful_dehumidifier.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_ENCRYPTED_RESPONSE,
 )
+from midea_beautiful_dehumidifier.exceptions import ProtocolException
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,10 +23,10 @@ def _strxor(plain_text, key):
     # returns plain text by repeatedly xoring it with key
     pt = plain_text
     len_key = len(key)
-    encoded = []
+    encoded = bytearray(len(pt))
 
-    for i in range(0, len(pt)):
-        encoded.append(pt[i] ^ key[i % len_key])
+    for i in range(len(pt)):
+        encoded[i] = pt[i] ^ key[i % len_key]
     return bytes(encoded)
 
 
@@ -310,52 +311,83 @@ class Security:
     ):
         self._appkey = appkey
         self._signkey = signkey.encode()
-        self._iv = b"\0" * BLOCKSIZE
+        self._iv = b"\x00" * BLOCKSIZE
         self._enc_key = md5(self._signkey).digest()
         self._tcp_key = None
         self._request_count = 0
         self._response_count = 0
 
     def aes_decrypt(self, raw: bytes) -> bytes:
+        """
+        Decrypt raw bytes using AES/ECB
+
+        Args:
+            raw (bytes): array of bytes or bytearray to decrypted
+
+        Returns:
+            bytes: decrypted data
+        """
         try:
             cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
             decryptor = cipher.decryptor()
-            decrypted = decryptor.update(bytes(raw)) + decryptor.finalize()
+            decrypted = decryptor.update(raw) + decryptor.finalize()
             # Remove the padding
             unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
-            decrypted = (
-                unpadder.update(bytes(decrypted)) + unpadder.finalize()
-            )
-            return decrypted
+            return unpadder.update(decrypted) + unpadder.finalize()
         except ValueError as e:
             _LOGGER.error(
                 "Error during AES decryption: %s - data: %s",
                 repr(e),
-                raw.hex()
+                raw.hex(),
             )
             return b""
 
     def aes_encrypt(self, raw) -> bytes:
-        # Make sure to pad the data
+        """
+        Encrypt raw bytes using AES/ECB
+
+        Args:
+            raw (bytes): array of bytes or bytearray to encrypt
+
+        Returns:
+            bytes: encrypted array of bytes
+        """
+        # Pad data to 128 bit
         padder = padding.PKCS7(BLOCKSIZE * 8).padder()
         raw = padder.update(raw) + padder.finalize()
         cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
         encryptor = cipher.encryptor()
-        encrypted = encryptor.update(bytes(raw)) + encryptor.finalize()
-
-        return encrypted
+        return encryptor.update(raw) + encryptor.finalize()
 
     def aes_cbc_decrypt(self, raw, key) -> bytes:
+        """
+        Decrypt raw bytes using AES/CBC
+
+        Args:
+            raw (bytes): array of bytes or bytearray to decrypted
+
+        Returns:
+            bytes: decrypted data
+        """
         cipher = Cipher(algorithms.AES(key), modes.CBC(self._iv))
         decryptor = cipher.decryptor()
-        return decryptor.update(bytes(raw)) + decryptor.finalize()
+        return decryptor.update(raw) + decryptor.finalize()
 
     def aes_cbc_encrypt(self, raw, key) -> bytes:
+        """
+        Encrypt raw bytes using AES/CBC
+
+        Args:
+            raw (bytes): array of bytes or bytearray to encrypt
+
+        Returns:
+            bytes: encrypted array of bytes
+        """
         cipher = Cipher(algorithms.AES(key), modes.CBC(self._iv))
         encryptor = cipher.encryptor()
-        return encryptor.update(bytes(raw)) + encryptor.finalize()
+        return encryptor.update(raw) + encryptor.finalize()
 
-    def encode32_data(self, raw) -> bytes:
+    def md5fingerprint(self, raw) -> bytes:
         return md5(raw + self._signkey).digest()
 
     def tcp_key(self, response, key):
@@ -364,8 +396,7 @@ class Security:
             return b"", False
         if len(response) != 64:
             _LOGGER.error(
-                "Unexpected data length (expected 64, was %d)",
-                len(response)
+                "Unexpected data length (expected 64, was %d)", len(response)
             )
             return b"", False
         payload = response[:32]
@@ -380,30 +411,32 @@ class Security:
         return self._tcp_key, True
 
     def encode_8370(self, data, msgtype):
-        header = bytes([0x83, 0x70])
+        header = bytearray(b"\x83\x70")
         size, padding = len(data), 0
         if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
             if (size + 2) % 16 != 0:
                 padding = 16 - (size + 2 & 0xF)
                 size += padding + 32
                 data += urandom(padding)
-        header += size.to_bytes(2, "big")
-        header += bytes([0x20, padding << 4 | msgtype])
+        header.extend(size.to_bytes(2, "big"))
+        header.extend([0x20, padding << 4 | msgtype])
         data = self._request_count.to_bytes(2, "big") + data
         self._request_count += 1
         if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
             if self._tcp_key is None:
-                raise Exception("Missing tcp key")
+                raise ProtocolException(
+                    "Missing TCP key for local network access"
+                )
             sign = sha256(header + data).digest()
             data = self.aes_cbc_encrypt(data, self._tcp_key) + sign
-        return header + data
+        return bytes(header + data)
 
     def decode_8370(self, data):
         if len(data) < 6:
             return [], data
         header = data[:6]
         if header[0] != 0x83 or header[1] != 0x70:
-            raise Exception("not an 8370 message")
+            raise ProtocolException("not an 8370 message")
         size = int.from_bytes(header[2:4], "big") + 8
         leftover = None
         if len(data) < size:
@@ -412,7 +445,7 @@ class Security:
             leftover = data[size:]
             data = data[:size]
         if header[4] != 0x20:
-            raise Exception("Byte 4 was not 0x20")
+            raise ProtocolException("Byte 4 was not 0x20")
         padding = header[5] >> 4
         msgtype = header[5] & 0xF
         data = data[6:]
@@ -421,7 +454,7 @@ class Security:
             data = data[:-32]
             data = self.aes_cbc_decrypt(data, self._tcp_key)
             if sha256(header + data).digest() != sign:
-                raise Exception("Signature does not match payload")
+                raise ProtocolException("Signature does not match payload")
             if padding:
                 data = data[:-padding]
         self._response_count = int.from_bytes(data[:2], "big")

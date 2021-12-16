@@ -22,23 +22,22 @@ from midea_beautiful_dehumidifier.crypto import Security
 _LOGGER = logging.getLogger(__name__)
 
 
-SERVER_URL: Final = "https://mapp.appsmb.com/v1/"
+CLOUD_API_SERVER_URL: Final = "https://mapp.appsmb.com/v1/"
+
+CLOUD_API_CLIENT_TYPE: Final = 1  # Android
+CLOUD_API_FORMAT: Final = 2  # JSON
+CLOUD_API_LANGUAGE: Final = "en_US"
+CLOUD_API_APP_ID: Final = 1017
+CLOUD_API_SRC: Final = 17
 
 
 class MideaCloud:
-
-    CLIENT_TYPE = 1  # Android
-    FORMAT = 2  # JSON
-    LANGUAGE = "en_US"
-    APP_ID = 1017
-    SRC = 17
-
     def __init__(
         self,
         appkey: str,
         account: str,
         password: str,
-        server_url: str = SERVER_URL,
+        server_url: str = CLOUD_API_SERVER_URL,
         max_retries: int = 3,
     ):
         # Get this from any of the Midea based apps, you can find one on
@@ -48,11 +47,7 @@ class MideaCloud:
         self._account = account
         self._password = password
         # Server URL
-        self._server_url = (
-            server_url
-            if server_url is not None and len(server_url) > 0
-            else SERVER_URL
-        )
+        self._server_url = server_url
 
         # An obscure log in ID that is seperate to the email address
         self._login_id: str = ""
@@ -108,11 +103,11 @@ class MideaCloud:
 
             # Set up the initial data payload with the global variable set
             data = {
-                "appId": self.APP_ID,
-                "format": self.FORMAT,
-                "clientType": self.CLIENT_TYPE,
-                "language": self.LANGUAGE,
-                "src": self.SRC,
+                "appId": CLOUD_API_APP_ID,
+                "format": CLOUD_API_FORMAT,
+                "clientType": CLOUD_API_CLIENT_TYPE,
+                "language": CLOUD_API_LANGUAGE,
+                "src": CLOUD_API_SRC,
                 "stamp": datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
             }
             # Add the method parameters for the endpoint

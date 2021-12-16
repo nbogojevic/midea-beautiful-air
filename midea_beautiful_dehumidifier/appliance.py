@@ -8,7 +8,6 @@ from midea_beautiful_dehumidifier.command import (
     DehumidifierSetCommand,
     DehumidifierStatusCommand,
 )
-from midea_beautiful_dehumidifier.util import hex4log
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,7 +74,7 @@ class DehumidifierAppliance:
         _LOGGER.debug(
             "Processing response for dehumidifier id=%s data=%s",
             self._id,
-            hex4log(data, _LOGGER),
+            data
         )
         if len(data) > 0:
             self._online = True

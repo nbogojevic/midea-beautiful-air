@@ -9,7 +9,6 @@ import ifaddr
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.appliance import is_supported_appliance
 from midea_beautiful_dehumidifier.lan import BROADCAST_MSG, LanDevice
-from midea_beautiful_dehumidifier.util import hex4log
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class MideaDiscovery:
                         _LOGGER.debug(
                             "Reply from %s payload=%s",
                             ip,
-                            hex4log(data, _LOGGER),
+                            data
                         )
                         self._found_appliances.add(ip)
                         appliance = LanDevice(discovery_data=data)
@@ -73,7 +72,6 @@ class MideaDiscovery:
         for broadcast_address in self._get_networks():
             try:
                 self._socket.sendto(BROADCAST_MSG, (broadcast_address, 6445))
-                self._socket.sendto(BROADCAST_MSG, (broadcast_address, 20086))
             except Exception:
                 _LOGGER.debug(
                     "Unable to send broadcast to: %s", broadcast_address

@@ -18,9 +18,18 @@ from midea_beautiful_dehumidifier.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
 )
-from midea_beautiful_dehumidifier.util import hex4log
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _hexlog(
+    data: bytes,
+    level: int = logging.DEBUG,
+) -> str:
+    """
+    Outputs bytes or byte array as hex if logging.DEBUG level is enabled.
+    """
+    return data.hex() if _LOGGER.isEnabledFor(level) else ""
 
 
 BROADCAST_MSG: Final = bytes(
@@ -105,7 +114,7 @@ def _get_udpid(data):
     b = sha256(data).digest()
     b1, b2 = b[:16], b[16:]
     b3 = bytearray(16)
-    for i in range(len(b1)):
+    for i in range(16):
         b3[i] = b1[i] ^ b2[i]
     return b3.hex()
 
@@ -119,7 +128,7 @@ class LanDevice:
         token: str = "",
         key: str = "",
         max_retries: int = 2,
-        device_type: str = "",
+        appliance_type: str = "",
         discovery_data=None,
     ):
         self._security = Security()
@@ -128,7 +137,7 @@ class LanDevice:
             data = bytes(discovery_data)
             if data[:2] == b"ZZ":  # 5a5a
                 self.version = 2
-            elif data[:2] == b"\x83p":  # 8370
+            elif data[:2] == b"\x83\x70":  # 8370
                 self.version = 3
             else:
                 self.version = 0
@@ -141,7 +150,7 @@ class LanDevice:
             _LOGGER.debug(
                 "Decrypted reply from %s reply=%s",
                 self.ip,
-                hex4log(reply, _LOGGER),
+                _hexlog(reply),
             )
             self.port = int.from_bytes(reply[4:8], "little")
             # ssid like midea_xx_xxxx net_xx_xxxx
@@ -152,7 +161,7 @@ class LanDevice:
             self.id = int(id)
             self.ip = ip
             self.port = int(port)
-            self.type = device_type
+            self.type = appliance_type
 
         self._retries = 0
         self._socket = None
@@ -160,7 +169,6 @@ class LanDevice:
         self.key = key
         self._timestamp = time.time()
         self._tcp_key = None
-        self._local = None
         self.state = DehumidifierAppliance(id)
         self._max_retries = int(max_retries)
         self._connection_retries = 3
@@ -236,7 +244,7 @@ class LanDevice:
         # PacketLength
         packet[4:6] = (len(packet) + 16).to_bytes(2, "little")
         # Append a basic checksum data(16 bytes) to the packet
-        packet.extend(self._security.encode32_data(packet))
+        packet.extend(self._security.md5fingerprint(packet))
         return packet
 
     def refresh(self):
@@ -259,9 +267,7 @@ class LanDevice:
             self._socket.settimeout(2)
             try:
                 self._socket.connect((self.ip, self.port))
-                self._local = ":".join(
-                    "%s" % i for i in self._socket.getsockname()
-                )
+
             except Exception as error:
                 _LOGGER.error(
                     "Connection error: %s:%s %s", self.ip, self.port, error
@@ -278,8 +284,11 @@ class LanDevice:
         if not _LOGGER.isEnabledFor(level):
             return ""
         socket_time = round(time.time() - self._timestamp, 2)
+        _local = None
+        if self._socket is not None:
+            _local = ":".join("%s" % i for i in self._socket.getsockname())
         return (
-            f"{self._local} -> {self.ip}:{self.port}"
+            f"{_local} -> {self.ip}:{self.port}"
             f" retries: {self._retries} time: {socket_time}"
         )
 
@@ -295,7 +304,7 @@ class LanDevice:
             _LOGGER.debug(
                 "Sending %s message: %s",
                 self._socket_info(),
-                hex4log(message, _LOGGER),
+                _hexlog(message),
             )
             self._socket.sendall(message)
         except Exception as error:
@@ -328,7 +337,7 @@ class LanDevice:
             _LOGGER.debug(
                 "Recv %s response: %s",
                 self._socket_info(),
-                hex4log(response, _LOGGER),
+                _hexlog(response),
             )
             if len(response) == 0:
                 _LOGGER.debug(
@@ -378,7 +387,7 @@ class LanDevice:
             _LOGGER.log(
                 5,
                 "Got TCP key for %s %s",
-                self._socket_info(level=logging.DEBUG),
+                self._socket_info(level=5),
                 self._tcp_key,
             )
             # After authentication, don’t send data immediately,
@@ -387,7 +396,7 @@ class LanDevice:
         else:
             _LOGGER.warning(
                 "Failed to get TCP key for %s",
-                self._socket_info(level=logging.INFO),
+                self._socket_info(logging.WARN),
             )
         return success
 
@@ -398,7 +407,7 @@ class LanDevice:
             "Packet for: %s(%s) data: %s",
             self.id,
             self.ip,
-            hex4log(data, _LOGGER, 5),
+            _hexlog(data, 5),
         )
         responses = self._appliance_send_8370(data)
         _LOGGER.log(5, "Got response(s) from: %s(%s)", self.id, self.ip)
@@ -428,7 +437,7 @@ class LanDevice:
                         "Retrying authenticate, %d out of %d: %s",
                         i + 2,
                         self._connection_retries,
-                        self._socket_info(),
+                        self._socket_info(logging.INFO),
                     )
                     self._disconnect()
 
@@ -479,7 +488,7 @@ class LanDevice:
             "Packet for: %s(%s) data: %s",
             self.id,
             self.ip,
-            hex4log(data, _LOGGER),
+            _hexlog(data),
         )
         responses = self._appliance_send_8370(data)
         _LOGGER.debug("Got response(s) from: %s(%s)", self.id, self.ip)
@@ -493,7 +502,7 @@ class LanDevice:
     def _get_valid_token(self, cloud: MideaCloud) -> bool:
         """
         Retrieves token and authenticates connection to appliance.
-        Works only with v3 devices.
+        Works only with v3 appliances.
 
         Args:
             cloud (CloudService): interface to Midea cloud
@@ -524,7 +533,7 @@ class LanDevice:
 
         if self.type.lower() == "a1" or self.type.lower() == "0xa1":
             self.refresh()
-            _LOGGER.debug("Device data: %s", self.state)
+            _LOGGER.debug("Appliance data: %s", self.state)
         else:
             _LOGGER.debug("Found unsupported appliance: %s", self)
             return False

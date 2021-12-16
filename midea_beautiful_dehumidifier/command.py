@@ -245,7 +245,7 @@ class DehumidifierResponse:
         # self.lightValue = data[20]
         self._err_code = data[0x15]
         for i in range(len(data)):
-            _LOGGER.debug("%2d %2x %3d", i, data[i], data[i])
+            _LOGGER.log(5, "%2d %2x %3d", i, data[i], data[i])
 
     @property
     def is_on(self):

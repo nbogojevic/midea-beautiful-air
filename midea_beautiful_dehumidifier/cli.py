@@ -33,7 +33,7 @@ def output(appliance: LanDevice, show_credentials: bool = False):
         print(f"        key     = {appliance.key}")
 
 
-if __name__ == "__main__":
+def cli():
     parser = argparse.ArgumentParser(
         prog="midea_beautiful_dehumidifier.cli",
         description="Discovers Midea dehumidifiers on local network.",
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         "--log",
         help="sets logging level",
         default="WARNING",
-        choices=["DEBUG", "INFO", "WARNING"],
+        choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR"],
     )
     subparsers = parser.add_subparsers(help="sub-commands", dest="command")
     parser_discover = subparsers.add_parser(
@@ -146,3 +146,7 @@ if __name__ == "__main__":
                 is_on=args.on,
             )
             output(appliance, args.credentials)
+
+
+if __name__ == "__main__":
+    cli()
