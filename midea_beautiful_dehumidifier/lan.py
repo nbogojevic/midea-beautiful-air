@@ -321,7 +321,7 @@ class LanDevice:
         for response in responses:
             self.state.process_response(response)
 
-    def _connect(self):
+    def _connect(self, socket_timeout=2):
         if self._socket is None:
             self._disconnect()
             _LOGGER.debug(
@@ -330,7 +330,7 @@ class LanDevice:
             self._buffer = b""
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # set timeout
-            self._socket.settimeout(2)
+            self._socket.settimeout(socket_timeout)
             try:
                 self._socket.connect((self.ip, self.port))
 
@@ -353,14 +353,9 @@ class LanDevice:
         if not _LOGGER.isEnabledFor(level):
             return ""
         socket_time = round(time.time() - self._timestamp, 2)
-        _local = None
-        if self._socket is not None:
-            try:
-                _local = ":".join("%s" % i for i in self._socket.getsockname())
-            except Exception as ex:
-                _local = str(ex)
+
         return (
-            f"{_local} -> {self.ip}:{self.port}"
+            f"local -> {self.ip}:{self.port}"
             f" retries: {self._retries} time: {socket_time}"
         )
 
@@ -673,7 +668,7 @@ def get_appliance_state(
             appliances_from_cloud = cloud.list_appliances()
             for d in appliances_from_cloud:
                 if d["id"] == appliance.id:
-                    appliance.state.update_info(d)
+                    appliance.state.update_info(details=d)
                     break
             return appliance
     except socket.error:

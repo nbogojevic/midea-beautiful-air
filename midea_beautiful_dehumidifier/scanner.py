@@ -125,17 +125,17 @@ def find_appliances_on_lan(
         scanned_appliances = list(discovery.collect_appliances())
         scanned_appliances.sort(key=lambda x: x.id)
         for scanned in scanned_appliances:
-            for a in appliances:
-                if str(a.id) == str(scanned.id):
+            for appliance in appliances:
+                if str(appliance.id) == str(scanned.id):
                     _LOGGER.debug("Known appliance %s", scanned.id)
-                    if a.ip != scanned.ip:
+                    if appliance.ip != scanned.ip:
                         # Already known
-                        a.update(scanned)
+                        appliance.update(scanned)
                     break
 
-            for d in appliances_from_cloud:
-                if d["id"] == str(scanned.id):
-                    scanned.state.update_info(d)
+            for details in appliances_from_cloud:
+                if details["id"] == str(scanned.id):
+                    scanned.state.update_info(details=details)
                     appliances.append(scanned)
                     _LOGGER.info(
                         "Found appliance name=%s id=%s, ip=%s:%d",
@@ -172,15 +172,17 @@ def find_appliances_on_lan(
             len(appliances),
             appliances_count,
         )
-        for d in appliances_from_cloud:
-            if Appliance.supported(d["type"]):
-                for a in appliances:
-                    if d["id"] == str(a.id):
-                        appliance = a
+        for details in appliances_from_cloud:
+            appliance_type = details["type"]
+            if Appliance.supported(appliance_type):
+                id = details["id"]
+                for appliance in appliances:
+                    if id == str(appliance.id):
+                        appliance = appliance
                         break
                 else:
                     appliance = LanDevice(
-                        id=d["id"], appliance_type=d["type"]
+                        id=id, appliance_type=appliance_type
                     )
                     appliances.append(appliance)
                 _LOGGER.warning(
@@ -188,11 +190,11 @@ def find_appliances_on_lan(
                         "Unable to discover registered appliance"
                         " name=%s id=%s, type=%s"
                     ),
-                    d["name"],
-                    d["id"],
-                    d["type"],
+                    details["name"],
+                    id,
+                    appliance_type,
                 )
-                appliance.state.update_info(d)
+                appliance.state.update_info(details=details)
 
 
 def find_appliances(

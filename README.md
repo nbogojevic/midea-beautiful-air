@@ -1,10 +1,10 @@
 This is a library that allows communication with Midea dehumidifier appliances via the local area network.
 
-# midea_beautiful_dehumidifier
+# midea-beautiful-dehumidifier
 [![Build Status](https://github.com/nbogojevic/midea-beautiful-dehumidifier/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-dehumidifier/actions/workflows/python-publish.yml)
 [![PyPI](https://img.shields.io/pypi/v/midea_beautiful_dehumidifier.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_dehumidifier/)
 
-This library allows discovering Midea dehumidifiers on local networkg, getting and updating their state. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
+This library allows discovering Midea dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
 
 This libary inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners.
 
@@ -16,12 +16,12 @@ Thanks for [yitsushi's project](https://github.com/yitsushi/midea-air-condition)
 
 The library works only Midea dehumidifiers supporting V3 protocol. Both appliances with and without ion function are supported.
 
-Some examples of supported dehumidifiers (tested):
+Some tested examples of supported dehumidifiers:
 
 * Comfee MDDF-20DEN7-WF
 * Inventor Eva Ion Pro Wi-Fi 20L
 
-It may work with other Comfee, Inventor, Pro Breeze WiFi dehumidifiers.
+It may work with Comfee, Inventor, Pro Breeze WiFi, as well as other Midea WiFi dehumidifiers.
 
 ## Dehumidifier data
 
@@ -36,7 +36,7 @@ The following dehumidifier data is accessible via library:
 * tank is full (boolean, read-only)
 * appliance name (read-only). This one is set through Midea application.
 * appliance serial number (read-only) 
-* appliance IP address (read-only)
+* appliance IPv4 address (read-only)
 * token and key for local network access (read-only)
 
 

@@ -14,9 +14,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Appliance:
-    def __init__(self, id, type: str = ""):
+    def __init__(self, id, appliance_type: str = ""):
         self._id = int(id)
-        self._type = type
+        self._type = appliance_type
         self._online = False
         self._active = False
         self._keep_last_known_online_state = False
@@ -24,7 +24,7 @@ class Appliance:
     @staticmethod
     def instance(id, type: str = "") -> Appliance:
         if Appliance.supported(type):
-            return DehumidifierAppliance(id=id, type=type)
+            return DehumidifierAppliance(id=id, appliance_type=type)
         _LOGGER.warn("Creating unsupported appliance %s %s", id, type)
         return Appliance(id, type)
 
@@ -45,20 +45,34 @@ class Appliance:
             or ("0x" + lcase2) == lcase1
         )
 
-    def update_info(self, details: dict):
-        if self._id != 0 and str(self._id) != str(details["id"]):
-            raise ValueError(
-                f"Can't change id from {self._id} to {details['id']}"
-            )
-        self._id = int(details["id"])
-        if not Appliance.same_types(self._type, details["type"]):
-            raise ValueError(
-                f"Can't change type from {self._type} to {details['type']}"
-            )
-        self._type = details["type"]
-        self._name = details["name"]
-        self._active = details["activeStatus"] == "1"
-        self._online = details["onlineStatus"] == "1"
+    def update_info(
+        self,
+        details: dict = None,
+        name: str = "",
+        id: int = 0,
+        appliance_type: str = "",
+    ):
+        if details is not None:
+            if self._id != 0 and str(self._id) != str(details["id"]):
+                raise ValueError(
+                    f"Can't change id from {self._id} to {details['id']}"
+                )
+            self._id = int(details["id"])
+            if not Appliance.same_types(self._type, details["type"]):
+                raise ValueError(
+                    f"Can't change type from {self._type} to {details['type']}"
+                )
+            self._type = details["type"]
+            self._name = details["name"]
+            self._active = details["activeStatus"] == "1"
+            self._online = details["onlineStatus"] == "1"
+        else:
+            if len(name) != 0:
+                self._name = name
+            if id != 0 and self._id == 0:
+                self._id = id
+            if appliance_type != "" and self._type == "":
+                self._type = appliance_type
 
     @property
     def id(self):
@@ -99,8 +113,8 @@ class Appliance:
 
 
 class DehumidifierAppliance(Appliance):
-    def __init__(self, id, type: str = ""):
-        super().__init__(id, type)
+    def __init__(self, id, appliance_type: str = ""):
+        super().__init__(id, appliance_type)
 
         self.is_on = False
         self.ion_mode = False
@@ -108,7 +122,6 @@ class DehumidifierAppliance(Appliance):
         self._target_humidity = 50
         self._current_humidity = 45
         self._fan_speed = 40
-        self._err_code = 0
         self._tank_full = False
 
     def process_response(self, data: bytes):
@@ -149,7 +162,6 @@ class DehumidifierAppliance(Appliance):
         self.target_humidity = response.target_humidity
         self._current_humidity = response.current_humidity
         self.fan_speed = response.fan_speed
-        self._err_code = response.err_code
         self._tank_full = response.tank_full
 
     @property
@@ -159,10 +171,6 @@ class DehumidifierAppliance(Appliance):
     @property
     def current_humidity(self):
         return self._current_humidity
-
-    @property
-    def err_code(self):
-        return self._err_code
 
     @property
     def fan_speed(self):
