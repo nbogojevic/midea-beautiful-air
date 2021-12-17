@@ -7,17 +7,17 @@ import logging
 import socket
 import time
 from hashlib import sha256
+from threading import Lock
 from typing import Final
 
+from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.command import MideaCommand
 from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.appliance import Appliance
-from midea_beautiful_dehumidifier.exceptions import AuthenticationError
-from midea_beautiful_dehumidifier.midea import (
-    MSGTYPE_ENCRYPTED_REQUEST,
-    MSGTYPE_HANDSHAKE_REQUEST,
-)
+from midea_beautiful_dehumidifier.exceptions import (AuthenticationError,
+                                                     ProtocolError)
+from midea_beautiful_dehumidifier.midea import (MSGTYPE_ENCRYPTED_REQUEST,
+                                                MSGTYPE_HANDSHAKE_REQUEST)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -214,6 +214,8 @@ class LanDevice:
             self.ssid = None
             self.type = appliance_type
 
+        # Default interface version is 3
+        self.version = 3
         self._retries = 0
         self._socket = None
         self.token = token
@@ -223,6 +225,7 @@ class LanDevice:
         self.state = Appliance.instance(id=id, type=self.type)
         self._max_retries = int(max_retries)
         self._connection_retries = 3
+        self._api_lock = Lock()
 
     def update(self, other: LanDevice):
         self.token = other.token
@@ -333,7 +336,10 @@ class LanDevice:
 
             except Exception as error:
                 _LOGGER.error(
-                    "Connection error: %s:%s %s", self.ip, self.port, error
+                    "Connection error: %s:%s %s",
+                    self.ip,
+                    self.port,
+                    error,
                 )
                 self._disconnect()
 
@@ -349,71 +355,77 @@ class LanDevice:
         socket_time = round(time.time() - self._timestamp, 2)
         _local = None
         if self._socket is not None:
-            _local = ":".join("%s" % i for i in self._socket.getsockname())
+            try:
+                _local = ":".join("%s" % i for i in self._socket.getsockname())
+            except Exception as ex:
+                _local = str(ex)
         return (
             f"{_local} -> {self.ip}:{self.port}"
             f" retries: {self._retries} time: {socket_time}"
         )
 
     def _request(self, message):
-        # Create a TCP/IP socket
-        self._connect()
-        if self._socket is None:
-            _LOGGER.debug("Socket is None: %s:%s", self.ip, self.port)
-            self._retries += 1
-            return b""
+        with self._api_lock:
+            # Create a TCP/IP socket
+            self._connect()
+            if self._socket is None:
+                _LOGGER.debug("Socket is None: %s:%s", self.ip, self.port)
+                self._retries += 1
+                return b""
 
-        # Send data
-        try:
-            _LOGGER.log(
-                5,
-                "Sending to %s, message: %s",
-                self._socket_info(),
-                _hexlog(message),
-            )
-            self._socket.sendall(message)
-        except Exception as error:
-            _LOGGER.error(
-                "Error sending to %s: %s", self._socket_info(), error
-            )
-            self._disconnect()
-            self._retries += 1
-            return b""
+            # Send data
+            try:
+                _LOGGER.log(
+                    5,
+                    "Sending to %s, message: %s",
+                    self._socket_info(),
+                    _hexlog(message),
+                )
+                self._socket.sendall(message)
+            except Exception as error:
+                _LOGGER.error(
+                    "Error sending to %s: %s",
+                    self._socket_info(logging.ERROR),
+                    error,
+                )
+                self._disconnect()
+                self._retries += 1
+                return b""
 
-        # Received data
-        try:
-            response = self._socket.recv(1024)
-        except socket.timeout as error:
-            _LOGGER.debug(
-                "Receiving from %s, time out error: %s",
-                self._socket_info(),
-                error,
-            )
+            # Received data
+            try:
+                response = self._socket.recv(1024)
+            except socket.timeout as error:
+                _LOGGER.debug(
+                    "Receiving from %s, time out error: %s",
+                    self._socket_info(),
+                    error,
+                )
 
-            self._retries += 1
-            return b""
-        except OSError as error:
-            _LOGGER.debug(
-                "Error receiving from %s: %s", self._socket_info(), error
-            )
-            self._disconnect()
-            self._retries += 1
-            return b""
-        else:
-            _LOGGER.log(
-                5,
-                "Receiving from %s, response: %s",
-                self._socket_info(),
-                _hexlog(response),
-            )
-            if len(response) == 0:
-                _LOGGER.debug("Socket closed from %s", self._socket_info())
+                self._retries += 1
+                return b""
+            except OSError as error:
+                _LOGGER.debug(
+                    "Error receiving from %s: %s", self._socket_info(), error
+                )
                 self._disconnect()
                 self._retries += 1
                 return b""
             else:
-                self._retries = 0
-                return response
+                _LOGGER.log(
+                    5,
+                    "Receiving from %s, response: %s",
+                    self._socket_info(5),
+                    _hexlog(response),
+                )
+                if len(response) == 0:
+                    _LOGGER.debug("Socket closed from %s", self._socket_info())
+                    self._disconnect()
+                    self._retries += 1
+                    return b""
+                else:
+                    self._retries = 0
+                    return response
 
     def _authenticate(self) -> bool:
         if len(self.token) == 0 or len(self.key) == 0:
@@ -480,9 +492,14 @@ class LanDevice:
         _LOGGER.log(5, "Got response(s) from: %s(%s)", self.id, self.ip)
 
         if len(responses) == 0:
-            _LOGGER.warning("Got no responses from: %s(%s)", self.id, self.ip)
+            _LOGGER.warning(
+                "Got no responses on status from: %s(%s)", self.id, self.ip
+            )
             self._active = False
             self._support = False
+            if self._socket is not None:
+                self._socket.close()
+            self._socket = None
         return responses
 
     def _appliance_send_8370(self, data) -> list[bytes]:
@@ -497,14 +514,14 @@ class LanDevice:
                     if i == self._connection_retries - 1:
                         _LOGGER.error(
                             "Failed to authenticate %s",
-                            self._socket_info(logging.WARNING),
+                            self._socket_info(logging.ERROR),
                         )
                         return []
-                    _LOGGER.info(
+                    _LOGGER.debug(
                         "Retrying authenticate, %d out of %d: %s",
                         i + 2,
                         self._connection_retries,
-                        self._socket_info(logging.INFO),
+                        self._socket_info(),
                     )
                     self._disconnect()
 
@@ -546,23 +563,29 @@ class LanDevice:
             self.state.process_response(response)
 
     def _apply(self, cmd: MideaCommand) -> list[bytes]:
-        data = self._lan_packet(int(self.id), cmd)
+        with self._api_lock:
+            data = self._lan_packet(int(self.id), cmd)
 
-        _LOGGER.log(
-            5,
-            "Packet for: %s(%s) data: %s",
-            self.id,
-            self.ip,
-            _hexlog(data),
-        )
-        responses = self._appliance_send_8370(data)
-        _LOGGER.debug("Got response(s) from: %s(%s)", self.id, self.ip)
+            _LOGGER.log(
+                5,
+                "Packet for: %s(%s) data: %s",
+                self.id,
+                self.ip,
+                _hexlog(data),
+            )
+            responses = self._appliance_send_8370(data)
+            _LOGGER.debug("Got response(s) from: %s(%s)", self.id, self.ip)
 
-        if len(responses) == 0:
-            _LOGGER.warning("Got no responses from: %s(%s)", self.id, self.ip)
-            self._active = False
-            self._support = False
-        return responses
+            if len(responses) == 0:
+                _LOGGER.warning(
+                    "Got no responses on apply from: %s(%s)", self.id, self.ip
+                )
+                self._active = False
+                self._support = False
+                if self._socket is not None:
+                    self._socket.close()
+                self._socket = None
+            return responses
 
     def _get_valid_token(self, cloud: MideaCloud) -> bool:
         """
@@ -596,6 +619,11 @@ class LanDevice:
                     return False
             elif not self._authenticate():
                 return False
+        else:
+            raise ProtocolError(
+                f"Only version 3 is supported,"
+                f" was {self.version} for id={self.id}"
+            )
 
         if Appliance.supported(self.type):
             self.refresh()
@@ -605,10 +633,7 @@ class LanDevice:
             return False
         return True
 
-    def set_state(
-        self,
-        **kwargs
-    ):
+    def set_state(self, **kwargs):
         for attr, value in kwargs:
             if hasattr(self.state, attr):
                 setattr(self.state, attr, value)
@@ -623,7 +648,7 @@ class LanDevice:
 
 
 def get_appliance_state(
-    ip, token=None, key=None, socket_timeout=8, cloud=None
+    ip, token="", key="", socket_timeout=8, cloud=None
 ) -> LanDevice | None:
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -645,9 +670,14 @@ def get_appliance_state(
         appliance = LanDevice(discovery_data=response, token=token, key=key)
         _LOGGER.log(5, "Appliance from %s:%d is %s", ip, port, appliance)
         if appliance.identify_appliance(cloud):
+            appliances_from_cloud = cloud.list_appliances()
+            for d in appliances_from_cloud:
+                if d["id"] == appliance.id:
+                    appliance.state.update_info(d)
+                    break
             return appliance
     except socket.error:
-        _LOGGER.warn("Couldn't connect with appliance %s:%d", ip, port)
+        _LOGGER.warn("Could not connect with appliance %s:%d", ip, port)
     except socket.timeout:
         _LOGGER.warn(
             "Timeout while connecting the appliance %s:%d for %ds.",

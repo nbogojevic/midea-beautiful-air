@@ -92,45 +92,47 @@ class MideaCloud:
             dict: value of result key in json response
         """
         response = {}
-        self._api_lock.acquire()
+        with self._api_lock:
 
-        try:
-            if authenticate:
-                self.authenticate()
+            try:
+                if authenticate:
+                    self.authenticate()
 
-            if endpoint == "user/login" and self._session and self._login_id:
-                return self._session
+                if (
+                    endpoint == "user/login"
+                    and self._session
+                    and self._login_id
+                ):
+                    return self._session
 
-            # Set up the initial data payload with the global variable set
-            data = {
-                "appId": CLOUD_API_APP_ID,
-                "format": CLOUD_API_FORMAT,
-                "clientType": CLOUD_API_CLIENT_TYPE,
-                "language": CLOUD_API_LANGUAGE,
-                "src": CLOUD_API_SRC,
-                "stamp": datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
-            }
-            # Add the method parameters for the endpoint
-            data.update(args)
+                # Set up the initial data payload with the global variable set
+                data = {
+                    "appId": CLOUD_API_APP_ID,
+                    "format": CLOUD_API_FORMAT,
+                    "clientType": CLOUD_API_CLIENT_TYPE,
+                    "language": CLOUD_API_LANGUAGE,
+                    "src": CLOUD_API_SRC,
+                    "stamp": datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
+                }
+                # Add the method parameters for the endpoint
+                data.update(args)
 
-            # Add the sessionId if there is a valid session
-            if self._session:
-                data["sessionId"] = self._session["sessionId"]
+                # Add the sessionId if there is a valid session
+                if self._session:
+                    data["sessionId"] = self._session["sessionId"]
 
-            url = self._server_url + endpoint
+                url = self._server_url + endpoint
 
-            data["sign"] = self._security.sign(url, data)
-            _LOGGER.log(5, "HTTP request = %s", data)
-            # POST the endpoint with the payload
-            r = requests.post(url=url, data=data, timeout=9)
-            r.raise_for_status()
-            _LOGGER.log(5, "HTTP response text = %s", r.text)
+                data["sign"] = self._security.sign(url, data)
+                _LOGGER.log(5, "HTTP request = %s", data)
+                # POST the endpoint with the payload
+                r = requests.post(url=url, data=data, timeout=9)
+                r.raise_for_status()
+                _LOGGER.log(5, "HTTP response text = %s", r.text)
 
-            response = json.loads(r.text)
-        except RequestException as exc:
-            raise CloudRequestError(endpoint) from exc
-        finally:
-            self._api_lock.release()
+                response = json.loads(r.text)
+            except RequestException as exc:
+                raise CloudRequestError(endpoint) from exc
 
         _LOGGER.log(5, "HTTP response = %s", response)
 

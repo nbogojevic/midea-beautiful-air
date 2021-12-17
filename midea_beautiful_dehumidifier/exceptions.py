@@ -5,7 +5,7 @@ class Exception(Exception):
     pass
 
 
-class ProtocolException(Exception):
+class ProtocolError(Exception):
     def __init__(self, message):
         self.message = message
 

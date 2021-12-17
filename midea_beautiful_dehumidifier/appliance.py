@@ -15,7 +15,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class Appliance:
     def __init__(self, id, type: str = ""):
-        self._id = id
+        self._id = int(id)
         self._type = type
         self._online = False
         self._active = False
@@ -25,6 +25,7 @@ class Appliance:
     def instance(id, type: str = "") -> Appliance:
         if Appliance.supported(type):
             return DehumidifierAppliance(id=id, type=type)
+        _LOGGER.warn("Creating unsupported appliance %s %s", id, type)
         return Appliance(id, type)
 
     @staticmethod
@@ -49,7 +50,7 @@ class Appliance:
             raise ValueError(
                 f"Can't change id from {self._id} to {details['id']}"
             )
-        self._id = details["id"]
+        self._id = int(details["id"])
         if not Appliance.same_types(self._type, details["type"]):
             raise ValueError(
                 f"Can't change type from {self._type} to {details['type']}"

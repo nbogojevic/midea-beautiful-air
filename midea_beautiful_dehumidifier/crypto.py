@@ -15,7 +15,7 @@ from midea_beautiful_dehumidifier.midea import (
 )
 from midea_beautiful_dehumidifier.exceptions import (
     AuthenticationError,
-    ProtocolException,
+    ProtocolError,
 )
 
 
@@ -416,7 +416,7 @@ class Security:
         self._request_count += 1
         if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
             if self._tcp_key is None:
-                raise ProtocolException(
+                raise ProtocolError(
                     "Missing TCP key for local network access"
                 )
             sign = sha256(header + data).digest()
@@ -428,7 +428,7 @@ class Security:
             return [], data
         header = data[:6]
         if header[0] != 0x83 or header[1] != 0x70:
-            raise ProtocolException("not an 8370 message")
+            raise ProtocolError("not an 8370 message")
         size = int.from_bytes(header[2:4], "big") + 8
         leftover = None
         if len(data) < size:
@@ -437,7 +437,7 @@ class Security:
             leftover = data[size:]
             data = data[:size]
         if header[4] != 0x20:
-            raise ProtocolException("Byte 4 was not 0x20")
+            raise ProtocolError("Byte 4 was not 0x20")
         padding = header[5] >> 4
         msgtype = header[5] & 0xF
         data = data[6:]
@@ -446,7 +446,7 @@ class Security:
             data = data[:-32]
             data = self.aes_cbc_decrypt(data, self._tcp_key)
             if sha256(header + data).digest() != sign:
-                raise ProtocolException("Signature does not match payload")
+                raise ProtocolError("Signature does not match payload")
             if padding:
                 data = data[:-padding]
         self._response_count = int.from_bytes(data[:2], "big")
