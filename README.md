@@ -46,6 +46,23 @@ Library can discover appliances on local network. This is done by broadcasting U
 
 ## Usage
 
+Install package:
+
+```shell
+pip install midea-beautiful-dehumidifier
+```
+
+### Command line tool
+
+Help for command line tool:
+
+```shell
+python -m midea_beautiful_dehumidifier.cli --help
+python -m midea_beautiful_dehumidifier.cli discover --help
+python -m midea_beautiful_dehumidifier.cli set --help
+python -m midea_beautiful_dehumidifier.cli status --help
+```
+
 Discover dehumidifier appliances on the local network:
 
 ```shell
@@ -71,6 +88,31 @@ pip install midea-beautiful-dehumidifier
 python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode MODE
 ```
 
+### Code
+
+Discover appliances on local network:
+
+```python
+from midea_beautiful_dehumidifier import find_appliances
+
+appliances = find_appliances(
+    account=USER_EMAIL,
+    password=PASSWORD,
+    broadcast_retries=2,
+    broadcast_timeout=3,
+)
+for appliance in appliances:
+    output(appliance, args.credentials)
+```
+
+Get appliance state:
+
+```python
+from midea_beautiful_dehumidifier import appliance_state
+
+appliance = appliance_state(APPLIANCE_IP_ADDRESS, token=TOKEN, key=KEY)
+print(appliance)
+```
 ## See also
 
 * https://github.com/nbogojevic/midea-dehumidifier-lan
