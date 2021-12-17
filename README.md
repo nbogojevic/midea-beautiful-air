@@ -27,7 +27,8 @@ The following dehumidifier data is accessible via library:
 * fan speed (can be set)
 * ion switch status (boolean, can be set)
 * tank is full (boolean, read-only)
-* appliance name (read-only). Usually `Dehumidifier` or `Dehumidifier Ion`.
+* appliance name (read-only). This one is set through Midea application.
+* appliance serial number (read-only) 
 * appliance IP address (read-only)
 * token and key for local network access (read-only)
 

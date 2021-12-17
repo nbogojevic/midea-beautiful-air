@@ -7,7 +7,7 @@ from ipaddress import IPv4Network
 import ifaddr
 
 from midea_beautiful_dehumidifier.cloud import MideaCloud
-from midea_beautiful_dehumidifier.appliance import is_supported_appliance
+from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.lan import BROADCAST_MSG, LanDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,54 +17,43 @@ class MideaDiscovery:
     def __init__(
         self,
         cloud: MideaCloud,
-        broadcast_retries: int,
         broadcast_timeout: float,
         broadcast_networks: list[str] | None,
     ):
         self._cloud = cloud
-        self._broadcast_retries = broadcast_retries
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self._socket.settimeout(broadcast_timeout)
-        self._result = set()
         self._found_appliances = set()
         self._networks = broadcast_networks
 
     def collect_appliances(self) -> list[LanDevice]:
         """Find all appliances on the local network."""
 
-        for i in range(self._broadcast_retries):
-            _LOGGER.debug(
-                "Broadcasting message %d of %d",
-                i + 1,
-                self._broadcast_retries,
-            )
-            self._broadcast_message()
-            scanned_appliances: set[LanDevice] = set()
-            try:
-                while True:
-                    data, addr = self._socket.recvfrom(512)
-                    ip = addr[0]
-                    if ip not in self._found_appliances:
-                        _LOGGER.debug(
-                            "Reply from %s payload=%s",
-                            ip,
-                            data
-                        )
-                        self._found_appliances.add(ip)
-                        appliance = LanDevice(discovery_data=data)
-                        if appliance.version == 0:
-                            _LOGGER.error(
-                                "Unable to load data from appliance %s.", ip
-                            )
-                            continue
-                        scanned_appliances.add(appliance)
+        self._broadcast_message()
+        self._result = set()
 
-            except socket.timeout:
-                _LOGGER.debug("Finished broadcast collection")
-            for sd in scanned_appliances:
-                if sd.identify_appliance(self._cloud):
-                    self._result.add(sd)
+        scanned_appliances: set[LanDevice] = set()
+        try:
+            while True:
+                data, addr = self._socket.recvfrom(512)
+                ip = addr[0]
+                if ip not in self._found_appliances:
+                    _LOGGER.log(5, "Reply from ip=%s payload=%s", ip, data)
+                    self._found_appliances.add(ip)
+                    appliance = LanDevice(discovery_data=data)
+                    if appliance.version == 0:
+                        _LOGGER.error(
+                            "Unable to load data from appliance ip=%s", ip
+                        )
+                        continue
+                    scanned_appliances.add(appliance)
+
+        except socket.timeout:
+            _LOGGER.debug("Finished broadcast collection")
+        for sd in scanned_appliances:
+            if sd.identify_appliance(self._cloud):
+                self._result.add(sd)
 
         return list(self._result)
 
@@ -96,7 +85,7 @@ class MideaDiscovery:
                             nets.append(localNet)
             self._networks = list()
             if not nets:
-                _LOGGER.error("No valid networks detected to send broadcast")
+                _LOGGER.error("No valid networks to send broadcast to")
             else:
                 for net in nets:
                     _LOGGER.debug(
@@ -119,55 +108,61 @@ def find_appliances_on_lan(
 
     discovery = MideaDiscovery(
         cloud=cloud,
-        broadcast_retries=broadcast_retries,
         broadcast_timeout=broadcast_timeout,
         broadcast_networks=broadcast_networks,
     )
     _LOGGER.debug("Starting LAN discovery")
-
-    scanned_appliances = list(discovery.collect_appliances())
-    scanned_appliances.sort(key=lambda x: x.id)
-    for scanned in scanned_appliances:
-        if any(True for d in appliances if str(d.id) == str(scanned.id)):
-            _LOGGER.debug("Known appliance %s", scanned.id)
-            # TODO update appliance config if needed
-            continue
-
-        appliance = next(
-            filter(
-                lambda a: a["id"] == str(scanned.id), appliances_from_cloud
-            ),
-            None,
-        )
-        if appliance and scanned.state is not None:
-            scanned.state.set_appliance_detail(appliance)
-            scanned.refresh()
-            appliances.append(scanned)
-            _LOGGER.info(
-                "Found dehumidifier id=%s, ip=%s:%d",
-                scanned.id,
-                scanned.ip,
-                scanned.port,
-            )
-        else:
-            _LOGGER.warning(
-                (
-                    "Found an appliance that is not registered to account:"
-                    " id=%s, ip=%s, type=%s"
-                ),
-                scanned.id,
-                scanned.ip,
-                scanned.type,
-            )
     appliances_count = sum(
-        is_supported_appliance(a["type"]) for a in appliances_from_cloud
+        Appliance.supported(a["type"]) for a in appliances_from_cloud
     )
-    if len(appliances) >= appliances_count:
-        _LOGGER.info(
-            "Found %d of %d appliance(s)",
-            len(appliances),
-            appliances_count,
+    for i in range(broadcast_retries):
+        _LOGGER.debug(
+            "Broadcast attempt %d of max %d",
+            i + 1,
+            broadcast_retries,
         )
+
+        scanned_appliances = list(discovery.collect_appliances())
+        scanned_appliances.sort(key=lambda x: x.id)
+        for scanned in scanned_appliances:
+            for a in appliances:
+                if str(a.id) == str(scanned.id):
+                    _LOGGER.debug("Known appliance %s", scanned.id)
+                    if a.ip != scanned.ip:
+                        # Already known
+                        a.update(scanned)
+                    break
+
+            for d in appliances_from_cloud:
+                if d["id"] == str(scanned.id):
+                    scanned.state.update_info(d)
+                    appliances.append(scanned)
+                    _LOGGER.info(
+                        "Found appliance name=%s id=%s, ip=%s:%d",
+                        scanned.state.name,
+                        scanned.id,
+                        scanned.ip,
+                        scanned.port,
+                    )
+                    break
+            else:
+                _LOGGER.warning(
+                    (
+                        "Found an appliance that is"
+                        " not registered to account:"
+                        " id=%s, ip=%s, type=%s"
+                    ),
+                    scanned.id,
+                    scanned.ip,
+                    scanned.type,
+                )
+        if len(appliances) >= appliances_count:
+            _LOGGER.info(
+                "Found %d of %d appliance(s)",
+                len(appliances),
+                appliances_count,
+            )
+            break
     else:
         _LOGGER.warning(
             (
@@ -177,19 +172,27 @@ def find_appliances_on_lan(
             len(appliances),
             appliances_count,
         )
-        for c in appliances_from_cloud:
-            d = next(
-                filter(lambda a: c["id"] == str(a.id), appliances),
-                None,
-            )
-            if d is not None:
-                if is_supported_appliance(c["type"]):
-                    _LOGGER.warning(
-                        "Unable to discover appliance id=%s, type=%s",
-                        c["id"],
-                        c["type"],
+        for d in appliances_from_cloud:
+            if Appliance.supported(d["type"]):
+                for a in appliances:
+                    if d["id"] == str(a.id):
+                        appliance = a
+                        break
+                else:
+                    appliance = LanDevice(
+                        id=d["id"], appliance_type=d["type"]
                     )
-                    d.state.set_appliance_detail(c)
+                    appliances.append(appliance)
+                _LOGGER.warning(
+                    (
+                        "Unable to discover registered appliance"
+                        " name=%s id=%s, type=%s"
+                    ),
+                    d["name"],
+                    d["id"],
+                    d["type"],
+                )
+                appliance.state.update_info(d)
 
 
 def find_appliances(

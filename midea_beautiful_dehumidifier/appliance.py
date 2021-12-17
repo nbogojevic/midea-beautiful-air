@@ -12,33 +12,43 @@ from midea_beautiful_dehumidifier.command import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def is_supported_appliance(type: str | int) -> bool:
-    lcase = str(type).lower()
-    return lcase == "a1" or lcase == "0xa1" or type == 161
-
-
-class DehumidifierAppliance:
-    def __init__(self, id):
+class Appliance:
+    def __init__(self, id, type: str = ""):
         self._id = id
-        self._keep_last_known_online_state = False
-        self._updating = False
-        self._defer_update = False
+        self._type = type
         self._online = False
         self._active = False
-        self._type = "0xA1"
-        self.is_on = False
-        self.ion_mode = False
-        self._mode = 0
-        self._target_humidity = 50
-        self._current_humidity = 45
-        self._fan_speed = 40
-        self._err_code = 0
-        self._tank_full = False
+        self._keep_last_known_online_state = False
 
-    def set_appliance_detail(self, details: dict):
+    @staticmethod
+    def supported(type: str | int) -> bool:
+        lcase = str(type).lower()
+        return lcase == "a1" or lcase == "0xa1" or type == 161
+
+    @staticmethod
+    def same_types(type1: str | int, type2: str | int) -> bool:
+        if type1 == type2:
+            return True
+        lcase1 = str(type1).lower()
+        lcase2 = str(type2).lower()
+        return (
+            lcase1 == lcase2
+            or ("0x" + lcase1) == lcase2
+            or ("0x" + lcase2) == lcase1
+        )
+
+    def update_info(self, details: dict):
+        if self._id != 0 and str(self._id) != str(details["id"]):
+            raise ValueError(
+                f"Can't change id from {self._id} to {details['id']}"
+            )
         self._id = details["id"]
-        self._name = details["name"]
+        if not Appliance.same_types(self._type, details["type"]):
+            raise ValueError(
+                f"Can't change type from {self._type} to {details['type']}"
+            )
         self._type = details["type"]
+        self._name = details["name"]
         self._active = details["activeStatus"] == "1"
         self._online = details["onlineStatus"] == "1"
 
@@ -70,11 +80,26 @@ class DehumidifierAppliance:
     def keep_last_known_online_state(self, feedback: bool):
         self._keep_last_known_online_state = feedback
 
+
+class DehumidifierAppliance(Appliance):
+    def __init__(self, id, type: str = ""):
+        super().__init__(id, type)
+
+        self.is_on = False
+        self.ion_mode = False
+        self._mode = 0
+        self._target_humidity = 50
+        self._current_humidity = 45
+        self._fan_speed = 40
+        self._err_code = 0
+        self._tank_full = False
+
     def process_response(self: DehumidifierAppliance, data: bytes):
-        _LOGGER.debug(
+        _LOGGER.log(
+            5,
             "Processing response for dehumidifier id=%s data=%s",
             self._id,
-            data
+            data,
         )
         if len(data) > 0:
             self._online = True

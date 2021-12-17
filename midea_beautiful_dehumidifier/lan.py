@@ -11,7 +11,10 @@ from typing import Final
 
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.appliance import DehumidifierAppliance
+from midea_beautiful_dehumidifier.appliance import (
+    Appliance,
+    DehumidifierAppliance,
+)
 from midea_beautiful_dehumidifier.exceptions import AuthenticationError
 from midea_beautiful_dehumidifier.midea import (
     MideaCommand,
@@ -24,10 +27,10 @@ _LOGGER = logging.getLogger(__name__)
 
 def _hexlog(
     data: bytes,
-    level: int = logging.DEBUG,
+    level: int = 5,
 ) -> str:
     """
-    Outputs bytes or byte array as hex if logging.DEBUG level is enabled.
+    Outputs bytes or byte array as hex if logging level 5 is enabled.
     """
     return data.hex() if _LOGGER.isEnabledFor(level) else ""
 
@@ -143,24 +146,75 @@ class LanDevice:
                 self.version = 0
             if data[8:10] == b"ZZ":  # 5a5a
                 data = data[8:-16]
-            self.id = int.from_bytes(data[20:26], "little")
+            id = int.from_bytes(data[20:26], "little")
             encrypt_data = data[40:-16]
             reply = self._security.aes_decrypt(encrypt_data)
             self.ip = ".".join([str(i) for i in reply[3::-1]])
-            _LOGGER.debug(
-                "Decrypted reply from %s reply=%s",
+            _LOGGER.log(
+                5,
+                "Decrypted reply from %s len=%d reply=%s",
                 self.ip,
+                len(reply),
                 _hexlog(reply),
             )
             self.port = int.from_bytes(reply[4:8], "little")
+            self.sn = reply[8:40].decode("ascii")
+            ssid_len = reply[40]
             # ssid like midea_xx_xxxx net_xx_xxxx
-            self.ssid = reply[41 : 41 + reply[40]].decode("utf-8")
-            self.mac = reply[24:36].decode("ascii")
-            self.type = self.ssid.split("_")[1].lower()
+            self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
+            self.mac = reply[63 + ssid_len : 69 + ssid_len].hex(":")
+            if reply[55 + ssid_len] != 0:
+                # Get type from strucutre
+                self.type = hex(reply[55 + ssid_len])
+                self.subtype = int.from_bytes(
+                    reply[57 + ssid_len : 59 + ssid_len], "little"
+                )
+            else:
+                # Get from SSID
+                self.type = self.ssid.split("_")[1].lower()
+                self.subtype = 0
+            self.reserved = reply[43 + ssid_len]
+            self.flags = reply[44 + ssid_len]
+            self.extra = reply[45 + ssid_len]
+            # m_enable_extra = (b >> 7) == 1
+            # m_support_extra_auth = (b & 1) == 1
+            # m_support_extra_channel = (b & 2) == 2
+            # m_support_extra_last_error_code = (b & 4) == 4
+
+            self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
+            _LOGGER.debug(
+                (
+                    "Descriptor data from %s"
+                    " type=%s subtype=%x flags=%x extra=%x reserved=%x"
+                    " mac=%s ssid=%s udp version=%x protocol version=%s"
+                    " enckey=%s"
+                ),
+                self.ip,
+                self.type,
+                self.subtype,
+                self.flags,
+                self.extra,
+                self.reserved,
+                self.mac,
+                self.ssid,
+                int.from_bytes(
+                    reply[46 + ssid_len : 50 + ssid_len], "little"
+                ),
+                reply[69 + ssid_len : 75 + ssid_len].hex(),
+                self.randomkey,
+            )
         else:
-            self.id = int(id)
+            id = int(id)
             self.ip = ip
             self.port = int(port)
+            self.sn = None
+            self.subtype = None
+            self.reserved = None
+            self.flags = None
+            self.extra = None
+            self.randomkey = None
+            self.mac = None
+            self.ssid = None
             self.type = appliance_type
 
         self._retries = 0
@@ -169,22 +223,34 @@ class LanDevice:
         self.key = key
         self._timestamp = time.time()
         self._tcp_key = None
-        self.state = DehumidifierAppliance(id)
+        self.state = DehumidifierAppliance(id=id, type=self.type)
         self._max_retries = int(max_retries)
         self._connection_retries = 3
 
+    def update(self, other: LanDevice):
+        self.token = other.token
+        self.key = other.key
+        self._socket = other._socket
+        self._tcp_key = other._tcp_key
+        self._socket = other._socket
+        self._tcp_key = other._tcp_key
+        self._max_retries = other._max_retries
+        self._timestamp = other._timestamp
+        self._retries = other._retries
+        self.ip = other.ip
+        self.port = other.port
+
     def _lan_packet(self, id: int, command: MideaCommand):
-        # aa20ac00000000000003418100ff03ff000200000000000000000000000006f274
         # Init the packet with the header data.
         packet = bytearray(
             [
-                # 2 bytes - StaicHeader
+                # 2 bytes - Static Header
                 0x5A,
                 0x5A,
-                # 2 bytes - mMessageType
+                # 2 bytes - Message Type
                 0x01,
                 0x11,
-                # 2 bytes - PacketLenght
+                # 2 bytes - Packet Length
                 0x00,
                 0x00,
                 # 2 bytes
@@ -204,7 +270,7 @@ class LanDevice:
                 0x00,
                 0x00,
                 0x00,
-                # 6 bytes - mDeviceID
+                # 6 bytes - Device ID
                 0x00,
                 0x00,
                 0x00,
@@ -251,7 +317,7 @@ class LanDevice:
         if self.state is None:
             raise ValueError("Midea appliance descriptor is None")
         cmd = self.state.refresh_command()
-        responses = self.status(cmd, id=self.state.id)
+        responses = self.status(cmd)
         for response in responses:
             self.state.process_response(response)
 
@@ -301,14 +367,17 @@ class LanDevice:
 
         # Send data
         try:
-            _LOGGER.debug(
-                "Sending %s message: %s",
+            _LOGGER.log(
+                5,
+                "Sending to %s, message: %s",
                 self._socket_info(),
                 _hexlog(message),
             )
             self._socket.sendall(message)
         except Exception as error:
-            _LOGGER.error("Send %s Error: %s", self._socket_info(), error)
+            _LOGGER.error(
+                "Error sending to %s: %s", self._socket_info(), error
+            )
             self._disconnect()
             self._retries += 1
             return b"", True
@@ -318,31 +387,36 @@ class LanDevice:
             response = self._socket.recv(1024)
         except socket.timeout as error:
             if error.args[0] == "timed out":
-                _LOGGER.debug("Recv %s, timed out", self._socket_info())
+                _LOGGER.debug(
+                    "Receiving from %s, timed out", self._socket_info()
+                )
                 self._retries += 1
                 return b"", True
             else:
                 _LOGGER.debug(
-                    "Recv %s time out error: %s", self._socket_info(), error
+                    "Receiving from %s, time out error: %s",
+                    self._socket_info(),
+                    error,
                 )
                 self._disconnect()
                 self._retries += 1
                 return b"", True
         except socket.error as error:
-            _LOGGER.debug("Recv %s error: %s", self._socket_info(), error)
+            _LOGGER.debug(
+                "Error receiving from %s: %s", self._socket_info(), error
+            )
             self._disconnect()
             self._retries += 1
             return b"", True
         else:
-            _LOGGER.debug(
-                "Recv %s response: %s",
+            _LOGGER.log(
+                5,
+                "Receiving from %s, response: %s",
                 self._socket_info(),
                 _hexlog(response),
             )
             if len(response) == 0:
-                _LOGGER.debug(
-                    "Recv %s server closed socket", self._socket_info()
-                )
+                _LOGGER.debug("Socket closed from %s", self._socket_info())
                 self._disconnect()
                 self._retries += 1
                 return b"", True
@@ -366,7 +440,7 @@ class LanDevice:
                 if i > 0:
                     # Retry handshake
                     _LOGGER.info(
-                        "Unable to perform handshake, retrying %d of 3",
+                        "Unable to perform handshake, retrying %d of %d",
                         i + 1,
                         self._connection_retries,
                     )
@@ -382,6 +456,7 @@ class LanDevice:
         tcp_key, success = self._security.tcp_key(
             response, binascii.unhexlify(self.key)
         )
+
         if success:
             self._tcp_key = tcp_key.hex()
             _LOGGER.log(
@@ -391,8 +466,8 @@ class LanDevice:
                 self._tcp_key,
             )
             # After authentication, don’t send data immediately,
-            # so sleep 1s.
-            time.sleep(1)
+            # so sleep 500ms.
+            time.sleep(0.5)
         else:
             _LOGGER.warning(
                 "Failed to get TCP key for %s",
@@ -400,14 +475,14 @@ class LanDevice:
             )
         return success
 
-    def status(self, cmd: MideaCommand, id: str | int = None) -> list[bytes]:
+    def status(self, cmd: MideaCommand) -> list[bytes]:
         data = self._lan_packet(int(self.id), cmd)
         _LOGGER.log(
             5,
             "Packet for: %s(%s) data: %s",
             self.id,
             self.ip,
-            _hexlog(data, 5),
+            _hexlog(data),
         )
         responses = self._appliance_send_8370(data)
         _LOGGER.log(5, "Got response(s) from: %s(%s)", self.id, self.ip)
@@ -484,7 +559,8 @@ class LanDevice:
     def _apply(self, cmd: MideaCommand) -> list[bytes]:
         data = self._lan_packet(int(self.id), cmd)
 
-        _LOGGER.debug(
+        _LOGGER.log(
+            5,
             "Packet for: %s(%s) data: %s",
             self.id,
             self.ip,
@@ -516,6 +592,7 @@ class LanDevice:
         ]:
             self.token, self.key = cloud.get_token(udpid)
             if self._authenticate():
+                _LOGGER.debug("Token valid for %s", udpid)
                 return True
             # token/key were not valid, forget them
             self.token, self.key = "", ""
@@ -528,10 +605,10 @@ class LanDevice:
                     raise ValueError("Provide either token/key pair or cloud")
                 if not self._get_valid_token(cloud):
                     return False
-            if not self._authenticate():
+            elif not self._authenticate():
                 return False
 
-        if self.type.lower() == "a1" or self.type.lower() == "0xa1":
+        if Appliance.supported(self.type):
             self.refresh()
             _LOGGER.debug("Appliance data: %s", self.state)
         else:
@@ -558,6 +635,10 @@ class LanDevice:
         if is_on is not None:
             self.state.is_on = int(is_on) != 0
         return self.apply()
+
+    @property
+    def id(self):
+        return self.state.id
 
 
 def get_appliance_state(

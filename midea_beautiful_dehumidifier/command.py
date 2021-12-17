@@ -209,10 +209,10 @@ class DehumidifierResponse:
         # self.mode_FC_return = (data[2] & 240) >> 4
         self._mode = data[0x02] & 15
         self._fan_speed = data[0x03] & 0x7F
-        self.on_timer_value = data[0x04]
-        self.on_timer_minutes = data[0x06]
-        self.off_timer_value = data[0x05]
-        self.off_timer_minutes = data[0x06]
+        self._on_timer_value = data[0x04]
+        self._on_timer_minutes = data[0x06]
+        self._off_timer_value = data[0x05]
+        self._off_timer_minutes = data[0x06]
 
         self._target_humidity = data[0x07]
         if self._target_humidity > 100:
@@ -283,37 +283,37 @@ class DehumidifierResponse:
     @property
     def on_timer(self):
         return {
-            "status": (self.on_timer_value & 0x80) != 0,
-            "set": self.on_timer_value != 0x7F,
+            "status": (self._on_timer_value & 0x80) != 0,
+            "set": self._on_timer_value != 0x7F,
             "hour": (
-                (self.on_timer_value & 0x7C) >> 2
-                if self.on_timer_value != 0x7F
+                (self._on_timer_value & 0x7C) >> 2
+                if self._on_timer_value != 0x7F
                 else 0
             ),
             "minutes": (
-                (self.on_timer_value & 0x3)
+                (self._on_timer_value & 0x3)
                 | (
-                    ((self.on_timer_minutes & 0xF0) >> 4)
-                    if self.on_timer_value != 0x7F
+                    ((self._on_timer_minutes & 0xF0) >> 4)
+                    if self._on_timer_value != 0x7F
                     else 0
                 )
             ),
-            "on_timer_value": self.on_timer_value,
-            "on_timer_minutes": self.on_timer_minutes,
+            "on_timer_value": self._on_timer_value,
+            "on_timer_minutes": self._on_timer_minutes,
         }
 
     # Byte 0x05 + 0x06
     @property
     def off_timer(self):
         return {
-            "status": (self.off_timer_value & 0x80) != 0,
-            "set": self.off_timer_value != 0x7F,
-            "hour": (self.off_timer_value & 0x7C) >> 2,
+            "status": (self._off_timer_value & 0x80) != 0,
+            "set": self._off_timer_value != 0x7F,
+            "hour": (self._off_timer_value & 0x7C) >> 2,
             "minutes": (
-                (self.off_timer_value & 0x3) | (self.off_timer_minutes & 0xF)
+                (self._off_timer_value & 0x3) | (self._off_timer_minutes & 0xF)
             ),
-            "off_timer_value": self.off_timer_value,
-            "off_timer_minutes": self.off_timer_minutes,
+            "off_timer_value": self._off_timer_value,
+            "off_timer_minutes": self._off_timer_minutes,
         }
 
     def __str__(self):

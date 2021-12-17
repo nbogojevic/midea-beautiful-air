@@ -307,11 +307,14 @@ BLOCKSIZE: Final = 16
 
 class Security:
     def __init__(
-        self, appkey: str = DEFAULT_APPKEY, signkey: str = DEFAULT_SIGNKEY
+        self,
+        appkey: str = DEFAULT_APPKEY,
+        signkey: str = DEFAULT_SIGNKEY,
+        iv: bytes = b"\x00" * BLOCKSIZE,
     ):
         self._appkey = appkey
         self._signkey = signkey.encode()
-        self._iv = b"\x00" * BLOCKSIZE
+        self._iv = bytes(iv)
         self._enc_key = md5(self._signkey).digest()
         self._tcp_key = None
         self._request_count = 0

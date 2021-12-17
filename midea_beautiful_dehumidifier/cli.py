@@ -21,6 +21,8 @@ from midea_beautiful_dehumidifier.lan import LanDevice
 def output(appliance: LanDevice, show_credentials: bool = False):
     print(f"addr={appliance.ip}:{appliance.port}")
     print(f"        id      = {appliance.id}")
+    print(f"        sn      = {appliance.sn}")
+    print(f"        ssid    = {appliance.ssid}")
     print(f"        name    = {appliance.state.name}")
     print(f"        humid%  = {appliance.state.current_humidity}")
     print(f"        target% = {appliance.state.target_humidity}")
