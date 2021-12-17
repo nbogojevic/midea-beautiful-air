@@ -10,14 +10,11 @@ from hashlib import sha256
 from typing import Final
 
 from midea_beautiful_dehumidifier.cloud import MideaCloud
+from midea_beautiful_dehumidifier.command import MideaCommand
 from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.appliance import (
-    Appliance,
-    DehumidifierAppliance,
-)
+from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.exceptions import AuthenticationError
 from midea_beautiful_dehumidifier.midea import (
-    MideaCommand,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
 )
@@ -223,7 +220,7 @@ class LanDevice:
         self.key = key
         self._timestamp = time.time()
         self._tcp_key = None
-        self.state = DehumidifierAppliance(id=id, type=self.type)
+        self.state = Appliance.instance(id=id, type=self.type)
         self._max_retries = int(max_retries)
         self._connection_retries = 3
 
@@ -363,7 +360,8 @@ class LanDevice:
         self._connect()
         if self._socket is None:
             _LOGGER.debug("Socket is None: %s:%s", self.ip, self.port)
-            return b"", False
+            self._retries += 1
+            return b""
 
         # Send data
         try:
@@ -380,34 +378,27 @@ class LanDevice:
             )
             self._disconnect()
             self._retries += 1
-            return b"", True
+            return b""
 
         # Received data
         try:
             response = self._socket.recv(1024)
         except socket.timeout as error:
-            if error.args[0] == "timed out":
-                _LOGGER.debug(
-                    "Receiving from %s, timed out", self._socket_info()
-                )
-                self._retries += 1
-                return b"", True
-            else:
-                _LOGGER.debug(
-                    "Receiving from %s, time out error: %s",
-                    self._socket_info(),
-                    error,
-                )
-                self._disconnect()
-                self._retries += 1
-                return b"", True
-        except socket.error as error:
+            _LOGGER.debug(
+                "Receiving from %s, time out error: %s",
+                self._socket_info(),
+                error,
+            )
+
+            self._retries += 1
+            return b""
+        except OSError as error:
             _LOGGER.debug(
                 "Error receiving from %s: %s", self._socket_info(), error
             )
             self._disconnect()
             self._retries += 1
-            return b"", True
+            return b""
         else:
             _LOGGER.log(
                 5,
@@ -419,24 +410,24 @@ class LanDevice:
                 _LOGGER.debug("Socket closed from %s", self._socket_info())
                 self._disconnect()
                 self._retries += 1
-                return b"", True
+                return b""
             else:
                 self._retries = 0
-                return response, True
+                return response
 
     def _authenticate(self) -> bool:
         if len(self.token) == 0 or len(self.key) == 0:
             raise AuthenticationError("missing token/key pair")
         byte_token = binascii.unhexlify(self.token)
 
-        response, success = None, False
+        response = b""
         for i in range(self._connection_retries):
             request = self._security.encode_8370(
                 byte_token, MSGTYPE_HANDSHAKE_REQUEST
             )
-            response, success = self._request(request)
+            response = self._request(request)
 
-            if not success:
+            if len(response) == 0:
                 if i > 0:
                     # Retry handshake
                     _LOGGER.info(
@@ -447,17 +438,17 @@ class LanDevice:
                     time.sleep(i + 1)
             else:
                 break
-
-        if not success or response is None:
+        else:
             _LOGGER.error("Failed to perform handshake")
             return False
+
         response = response[8:72]
 
-        tcp_key, success = self._security.tcp_key(
-            response, binascii.unhexlify(self.key)
-        )
+        try:
+            tcp_key = self._security.tcp_key(
+                response, binascii.unhexlify(self.key)
+            )
 
-        if success:
             self._tcp_key = tcp_key.hex()
             _LOGGER.log(
                 5,
@@ -468,12 +459,13 @@ class LanDevice:
             # After authentication, don’t send data immediately,
             # so sleep 500ms.
             time.sleep(0.5)
-        else:
+            return True
+        except Exception:
             _LOGGER.warning(
                 "Failed to get TCP key for %s",
                 self._socket_info(logging.WARN),
             )
-        return success
+            return False
 
     def status(self, cmd: MideaCommand) -> list[bytes]:
         data = self._lan_packet(int(self.id), cmd)
@@ -488,7 +480,7 @@ class LanDevice:
         _LOGGER.log(5, "Got response(s) from: %s(%s)", self.id, self.ip)
 
         if len(responses) == 0:
-            _LOGGER.warning("Got Null from: %s(%s)", self.id, self.ip)
+            _LOGGER.warning("Got no responses from: %s(%s)", self.id, self.ip)
             self._active = False
             self._support = False
         return responses
@@ -496,7 +488,7 @@ class LanDevice:
     def _appliance_send_8370(self, data) -> list[bytes]:
         if self._socket is None or self._tcp_key is None:
             _LOGGER.debug(
-                "Socket %s closed, Creating new socket", self._socket_info()
+                "Socket %s closed, creating new socket", self._socket_info()
             )
             self._disconnect()
 
@@ -520,9 +512,6 @@ class LanDevice:
                 else:
                     break
 
-        if self._tcp_key is None:
-            return []
-
         packets = []
 
         # copy from data in order to resend data
@@ -531,13 +520,13 @@ class LanDevice:
 
         # time sleep retries second befor send data, default is 0
         time.sleep(self._retries)
-        responses, b = self._request(data)
-        if len(responses) == 0 and self._retries < self._max_retries and b:
+        response_buf = self._request(data)
+        if len(response_buf) == 0 and self._retries < self._max_retries:
             packets = self._appliance_send_8370(original_data)
             self._retries = 0
             return packets
         responses, self._buffer = self._security.decode_8370(
-            self._buffer + responses
+            self._buffer + response_buf
         )
         for response in responses:
             if len(response) > 40 + 16:
@@ -549,7 +538,7 @@ class LanDevice:
 
     def apply(self):
         if self.state is None:
-            raise ValueError("Midea appliance descriptor is None")
+            raise ValueError("Midea appliance descriptor is missing")
         cmd = self.state.apply_command()
 
         responses = self._apply(cmd)
@@ -570,7 +559,7 @@ class LanDevice:
         _LOGGER.debug("Got response(s) from: %s(%s)", self.id, self.ip)
 
         if len(responses) == 0:
-            _LOGGER.warning("Got Null from: %s(%s)", self.id, self.ip)
+            _LOGGER.warning("Got no responses from: %s(%s)", self.id, self.ip)
             self._active = False
             self._support = False
         return responses
@@ -618,22 +607,14 @@ class LanDevice:
 
     def set_state(
         self,
-        target_humidity=None,
-        fan_speed=None,
-        mode=None,
-        ion=None,
-        is_on=None,
+        **kwargs
     ):
-        if target_humidity is not None:
-            self.state.target_humidity = int(target_humidity)
-        if fan_speed is not None:
-            self.state.fan_speed = int(fan_speed)
-        if mode is not None:
-            self.state.mode = int(mode)
-        if ion is not None:
-            self.state.ion_mode = int(ion) != 0
-        if is_on is not None:
-            self.state.is_on = int(is_on) != 0
+        for attr, value in kwargs:
+            if hasattr(self.state, attr):
+                setattr(self.state, attr, value)
+            else:
+                _LOGGER.warn("Unknown state attribute %s", attr)
+
         return self.apply()
 
     @property

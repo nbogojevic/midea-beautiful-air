@@ -21,15 +21,15 @@ from midea_beautiful_dehumidifier.lan import LanDevice
 def output(appliance: LanDevice, show_credentials: bool = False):
     print(f"addr={appliance.ip}:{appliance.port}")
     print(f"        id      = {appliance.id}")
-    print(f"        sn      = {appliance.sn}")
+    print(f"        s/n     = {appliance.sn}")
     print(f"        ssid    = {appliance.ssid}")
-    print(f"        name    = {appliance.state.name}")
-    print(f"        humid%  = {appliance.state.current_humidity}")
-    print(f"        target% = {appliance.state.target_humidity}")
-    print(f"        fan     = {appliance.state.fan_speed}")
-    print(f"        tank    = {appliance.state.tank_full}")
-    print(f"        mode    = {appliance.state.mode}")
-    print(f"        ion     = {appliance.state.ion_mode}")
+    print(f"        name    = {getattr(appliance.state, 'name')}")
+    print(f"        humid%  = {getattr(appliance.state, 'current_humidity')}")
+    print(f"        target% = {getattr(appliance.state, 'target_humidity')}")
+    print(f"        fan     = {getattr(appliance.state, 'fan_speed')}")
+    print(f"        tank    = {getattr(appliance.state, 'tank_full')}")
+    print(f"        mode    = {getattr(appliance.state, 'mode')}")
+    print(f"        ion     = {getattr(appliance.state, 'ion_mode')}")
     if show_credentials:
         print(f"        token   = {appliance.token}")
         print(f"        key     = {appliance.key}")
@@ -144,7 +144,7 @@ def cli():
                 target_humidity=args.humidity,
                 fan_speed=args.fan,
                 mode=args.mode,
-                ion=args.ion,
+                ion_mode=args.ion,
                 is_on=args.on,
             )
             output(appliance, args.credentials)

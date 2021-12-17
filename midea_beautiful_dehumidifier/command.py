@@ -1,7 +1,6 @@
 """ Commands for Midea appliance """
 from __future__ import annotations
 
-from midea_beautiful_dehumidifier.midea import MideaCommand
 from midea_beautiful_dehumidifier.crypto import crc8
 
 import logging
@@ -9,6 +8,25 @@ import logging
 _LOGGER = logging.getLogger(__name__)
 
 _order = 0
+
+
+class MideaCommand:
+    """Base command interface"""
+
+    def __init__(self):
+        self.data = bytearray()
+
+    def finalize(self) -> bytes:
+        global _order
+        _order = (_order + 1) & 0xFF
+        # Add the CRC8
+        self.data[30] = _order
+        # Add the CRC8
+        self.data[31] = crc8(self.data[10:31])
+        # Add checksum
+        self.data[32] = (~sum(self.data[1:32]) + 1) & 0xFF
+        # Set the length of the command data
+        return bytes(self.data)
 
 
 class DehumidifierStatusCommand(MideaCommand):
@@ -77,20 +95,9 @@ class DehumidifierStatusCommand(MideaCommand):
             ]
         )
 
-    def finalize(self) -> bytes:
-        global _order
-        _order = (_order + 1) & 0xFF
-        self.data[30] = _order
-        # Add the CRC8
-        self.data[31] = crc8(self.data[10:31])
-        # Add checksum
-        self.data[32] = (~sum(self.data[1:32]) + 1) & 0xFF
-
-        return bytes(self.data)
-
 
 class DehumidifierSetCommand(MideaCommand):
-    def __init__(self: DehumidifierSetCommand):
+    def __init__(self):
         self.data = bytearray(
             [
                 0xAA,
@@ -140,18 +147,6 @@ class DehumidifierSetCommand(MideaCommand):
             ]
         )
 
-    def finalize(self: DehumidifierSetCommand) -> bytes:
-        global _order
-        _order = (_order + 1) & 0xFF
-        # Add the CRC8
-        self.data[30] = _order
-        # Add the CRC8
-        self.data[31] = crc8(self.data[10:31])
-        # Add checksum
-        self.data[32] = (~sum(self.data[1:32]) + 1) & 0xFF
-        # Set the length of the command data
-        return bytes(self.data)
-
     @property
     def is_on(self):
         return self.data[11] & 0x01 != 0
@@ -199,7 +194,7 @@ class DehumidifierSetCommand(MideaCommand):
 
 
 class DehumidifierResponse:
-    def __init__(self: DehumidifierResponse, data: bytes):
+    def __init__(self, data: bytes):
 
         # self.faultFlag = (data[1] & 0x80) >> 7
 
@@ -310,7 +305,8 @@ class DehumidifierResponse:
             "set": self._off_timer_value != 0x7F,
             "hour": (self._off_timer_value & 0x7C) >> 2,
             "minutes": (
-                (self._off_timer_value & 0x3) | (self._off_timer_minutes & 0xF)
+                (self._off_timer_value & 0x3)
+                | (self._off_timer_minutes & 0xF)
             ),
             "off_timer_value": self._off_timer_value,
             "off_timer_minutes": self._off_timer_minutes,

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from hashlib import md5, sha256
 from os import urandom
 from typing import Any, Final
@@ -14,9 +13,10 @@ from midea_beautiful_dehumidifier.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_ENCRYPTED_RESPONSE,
 )
-from midea_beautiful_dehumidifier.exceptions import ProtocolException
-
-_LOGGER = logging.getLogger(__name__)
+from midea_beautiful_dehumidifier.exceptions import (
+    AuthenticationError,
+    ProtocolException,
+)
 
 
 def _strxor(plain_text, key):
@@ -330,20 +330,12 @@ class Security:
         Returns:
             bytes: decrypted data
         """
-        try:
-            cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
-            decryptor = cipher.decryptor()
-            decrypted = decryptor.update(raw) + decryptor.finalize()
-            # Remove the padding
-            unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
-            return unpadder.update(decrypted) + unpadder.finalize()
-        except ValueError as e:
-            _LOGGER.error(
-                "Error during AES decryption: %s - data: %s",
-                repr(e),
-                raw.hex(),
-            )
-            return b""
+        cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
+        decryptor = cipher.decryptor()
+        decrypted = decryptor.update(raw) + decryptor.finalize()
+        # Remove the padding
+        unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
+        return unpadder.update(decrypted) + unpadder.finalize()
 
     def aes_encrypt(self, raw) -> bytes:
         """
@@ -393,25 +385,22 @@ class Security:
     def md5fingerprint(self, raw) -> bytes:
         return md5(raw + self._signkey).digest()
 
-    def tcp_key(self, response, key):
+    def tcp_key(self, response, key) -> bytes:
         if response == b"ERROR":
-            _LOGGER.error("Authentication failed")
-            return b"", False
+            raise AuthenticationError("Authentication failed - error packet")
         if len(response) != 64:
-            _LOGGER.error(
-                "Unexpected data length (expected 64, was %d)", len(response)
+            raise AuthenticationError(
+                f"Unexpected data length (expected 64, was {len(response)})"
             )
-            return b"", False
         payload = response[:32]
         sign = response[32:]
         plain = self.aes_cbc_decrypt(payload, key)
         if sha256(plain).digest() != sign:
-            _LOGGER.error("sign does not match")
-            return b"", False
+            raise AuthenticationError("Packet signature mismatch")
         self._tcp_key = _strxor(plain, key)
         self._request_count = 0
         self._response_count = 0
-        return self._tcp_key, True
+        return self._tcp_key
 
     def encode_8370(self, data, msgtype):
         header = bytearray(b"\x83\x70")
@@ -434,7 +423,7 @@ class Security:
             data = self.aes_cbc_encrypt(data, self._tcp_key) + sign
         return bytes(header + data)
 
-    def decode_8370(self, data):
+    def decode_8370(self, data: bytes):
         if len(data) < 6:
             return [], data
         header = data[:6]

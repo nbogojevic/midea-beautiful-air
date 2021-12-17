@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from midea_beautiful_dehumidifier.command import (
+    MideaCommand,
     DehumidifierResponse,
     DehumidifierSetCommand,
     DehumidifierStatusCommand,
@@ -19,6 +20,12 @@ class Appliance:
         self._online = False
         self._active = False
         self._keep_last_known_online_state = False
+
+    @staticmethod
+    def instance(id, type: str = "") -> Appliance:
+        if Appliance.supported(type):
+            return DehumidifierAppliance(id=id, type=type)
+        return Appliance(id, type)
 
     @staticmethod
     def supported(type: str | int) -> bool:
@@ -80,6 +87,15 @@ class Appliance:
     def keep_last_known_online_state(self, feedback: bool):
         self._keep_last_known_online_state = feedback
 
+    def process_response(self, data: bytes):
+        pass
+
+    def refresh_command(self) -> MideaCommand:
+        return MideaCommand()
+
+    def apply_command(self) -> MideaCommand:
+        return MideaCommand()
+
 
 class DehumidifierAppliance(Appliance):
     def __init__(self, id, type: str = ""):
@@ -94,7 +110,7 @@ class DehumidifierAppliance(Appliance):
         self._err_code = 0
         self._tank_full = False
 
-    def process_response(self: DehumidifierAppliance, data: bytes):
+    def process_response(self, data: bytes):
         _LOGGER.log(
             5,
             "Processing response for dehumidifier id=%s data=%s",
@@ -124,7 +140,7 @@ class DehumidifierAppliance(Appliance):
         cmd.ion_mode = self.ion_mode
         return cmd
 
-    def _update(self: DehumidifierAppliance, response: DehumidifierResponse):
+    def _update(self, response: DehumidifierResponse):
         self.is_on = response.is_on
 
         self.ion_mode = response.ion_mode
