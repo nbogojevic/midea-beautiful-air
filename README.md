@@ -4,17 +4,24 @@ This is a library that allows communication with Midea dehumidifier appliances v
 [![Build Status](https://github.com/nbogojevic/midea-beautiful-dehumidifier/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-dehumidifier/actions/workflows/python-publish.yml)
 [![PyPI](https://img.shields.io/pypi/v/midea_beautiful_dehumidifier.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_dehumidifier/)
 
-This library allows discovering Midea dehumidifiers on local networkg, getting and updating their state.
+This library allows discovering Midea dehumidifiers on local networkg, getting and updating their state. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
 
 This libary inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners.
 
 
-Thanks for [yitsushi's project](https://github.com/yitsushi/midea-air-condition), [NeoAcheron's project](https://github.com/NeoAcheron/midea-ac-py), [andersonshatch's project](https://github.com/andersonshatch/midea-ac-py).
+Thanks for [yitsushi's project](https://github.com/yitsushi/midea-air-condition), [NeoAcheron's project](https://github.com/NeoAcheron/midea-ac-py), [andersonshatch's project](https://github.com/andersonshatch/midea-ac-py), [barban's project](https://github.com/barban-dev/midea_inventor_dehumidifier)
 
 
 ## Supported appliances
 
 The library works only Midea dehumidifiers supporting V3 protocol. Both appliances with and without ion function are supported.
+
+Some examples of supported dehumidifiers (tested):
+
+* Comfee MDDF-20DEN7-WF
+* Inventor Eva Ion Pro Wi-Fi 20L
+
+It may work with other Comfee, Inventor, Pro Breeze WiFi dehumidifiers.
 
 ## Dehumidifier data
 
@@ -35,11 +42,11 @@ The following dehumidifier data is accessible via library:
 
 ## Discovery
 
-Library can discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with description information. It also retrieves known appliances from Midea cloud account and then matches this information with information retrieved via local network.
+Library can discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with description information. Following discovery communication usually goes over port 6444. It also retrieves known appliances from Midea cloud account and then matches this information with information retrieved via local network. Local network communication is encrypted using Midea protocol.
 
 ## Usage
 
-Discover appliances on the local network:
+Discover dehumidifier appliances on the local network:
 
 ```shell
 pip install midea-beautiful-dehumidifier
@@ -52,13 +59,18 @@ Get status of an appliance:
 
 ```shell
 pip install midea-beautiful-dehumidifier
-python -m midea_beautiful_dehumidifier.cli status --ip APPLIANCE_IP --token TOKEN --key KEY
+python -m midea_beautiful_dehumidifier.cli status --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY
 ```
 
+`TOKEN` and `KEY` can be retrieved using `discover` command.
 
 Set appliance attribute (target humidity, mode, ion switch, fan speed):
 
 ```shell
 pip install midea-beautiful-dehumidifier
-python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP --token TOKEN --key KEY --mode MODE
+python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode MODE
 ```
+
+## See also
+
+* https://github.com/nbogojevic/midea-dehumidifier-lan
