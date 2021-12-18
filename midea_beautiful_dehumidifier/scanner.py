@@ -108,7 +108,7 @@ def _add_missing_appliances(
 ):
     _LOGGER.warning(
         (
-            "Some appliance(s) where not discovered on local LAN:"
+            "Some appliance(s) where not discovered on local network(s):"
             " %d discovered out of %d"
         ),
         len(appliances),
@@ -124,15 +124,15 @@ def _add_missing_appliances(
             else:
                 appliance = LanDevice(id=id, appliance_type=appliance_type)
                 appliances.append(appliance)
-            _LOGGER.warning(
-                (
-                    "Unable to discover registered appliance"
-                    " name=%s id=%s, type=%s"
-                ),
-                details["name"],
-                id,
-                appliance_type,
-            )
+                _LOGGER.warning(
+                    (
+                        "Unable to discover registered appliance"
+                        " name=%s, id=%s, type=%s"
+                    ),
+                    details["name"],
+                    id,
+                    appliance_type,
+                )
             appliance.name = details["name"]
 
 
@@ -176,7 +176,7 @@ def find_appliances_on_lan(
                     scanned.name = details["name"]
                     appliances.append(scanned)
                     _LOGGER.info(
-                        "Found appliance name=%s id=%s, ip=%s:%d",
+                        "Found appliance name=%s, id=%s, ip=%s:%d",
                         scanned.state.name,
                         scanned.id,
                         scanned.ip,
@@ -187,7 +187,7 @@ def find_appliances_on_lan(
                 _LOGGER.warning(
                     (
                         "Found an appliance that is"
-                        " not registered to account:"
+                        " not registered to the account:"
                         " id=%s, ip=%s, type=%s"
                     ),
                     scanned.id,
@@ -201,7 +201,7 @@ def find_appliances_on_lan(
                 appliances_count,
             )
             break
-    else:
+    if len(appliances) < appliances_count:
         _add_missing_appliances(cloud, appliances, appliances_count)
 
 
@@ -209,13 +209,14 @@ def find_appliances(
     appkey=None,
     account=None,
     password=None,
+    appid=None,
     cloud=None,
     broadcast_retries: int = 2,
     broadcast_timeout: int = 3,
     broadcast_networks=None,
 ) -> list[LanDevice]:
     if cloud is None:
-        cloud = MideaCloud(appkey=appkey, account=account, password=password)
+        cloud = MideaCloud(appkey, account, password, appid)
         cloud.authenticate()
 
     appliances: list[LanDevice] = []

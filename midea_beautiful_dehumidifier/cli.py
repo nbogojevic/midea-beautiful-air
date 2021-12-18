@@ -1,7 +1,7 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
-from midea_beautiful_dehumidifier.midea import DEFAULT_APPKEY
+from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 
 try:
     from coloredlogs import install as coloredlogs_install
@@ -63,6 +63,11 @@ def cli():
         default=DEFAULT_APPKEY,
     )
     parser_discover.add_argument(
+        "--appid",
+        help="Midea app id",
+        default=DEFAULT_APP_ID,
+    )
+    parser_discover.add_argument(
         "--credentials", action="store_true", help="show credentials"
     )
 
@@ -75,19 +80,13 @@ def cli():
     parser_status.add_argument(
         "--token",
         help="token used to communicate with appliance",
-        default=None,
+        default="",
     )
     parser_status.add_argument(
-        "--key", help="key used to communicate with appliance", default=None
+        "--key", help="key used to communicate with appliance", default=""
     )
     parser_status.add_argument(
         "--credentials", action="store_true", help="show credentials"
-    )
-    parser_status.add_argument(
-        "--account", help="Midea cloud account", default=None
-    )
-    parser_status.add_argument(
-        "--password", help="Midea cloud password", default=None
     )
 
     parser_set = subparsers.add_parser("set", help="sets status of appliance")
@@ -97,10 +96,10 @@ def cli():
     parser_set.add_argument(
         "--token",
         help="token used to communicate with appliance",
-        default=None,
+        default="",
     )
     parser_set.add_argument(
-        "--key", help="key used to communicate with appliance", default=None
+        "--key", help="key used to communicate with appliance", default=""
     )
     parser_set.add_argument(
         "--credentials", action="store_true", help="show credentials"
@@ -126,6 +125,7 @@ def cli():
             appkey=args.appkey,
             account=args.account,
             password=args.password,
+            appid=args.appid,
             broadcast_retries=2,
             broadcast_timeout=3,
         )

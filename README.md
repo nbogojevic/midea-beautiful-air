@@ -18,10 +18,12 @@ The library works only Midea dehumidifiers supporting V3 protocol. Both applianc
 
 Some tested examples of supported dehumidifiers:
 
-* Comfee MDDF-20DEN7-WF
-* Inventor Eva Ion Pro Wi-Fi 20L
+* Comfee MDDF-16DEN7-WF or MDDF-20DEN7-WF (tested with 20L version)
+* Inventor EVA ΙΟΝ Pro Wi-Fi (EP3-WiFi 16L/20L) (tested with 20L version)
+* Inventor Eva II Pro Wi-Fi (EVP-WF16L/20L)
+* Pro Breeze 30L Smart Dehumidifier with Wifi / App Control
 
-It may work with Comfee, Inventor, Pro Breeze WiFi, as well as other Midea WiFi dehumidifiers.
+It may work with as well as other Midea WiFi dehumidifiers.
 
 ## Dehumidifier data
 
@@ -42,7 +44,21 @@ The following dehumidifier data is accessible via library:
 
 ## Discovery
 
-Library can discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with description information. Following discovery communication usually goes over port 6444. It also retrieves known appliances from Midea cloud account and then matches this information with information retrieved via local network. Local network communication is encrypted using Midea protocol.
+Library can discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with description information. Following discovery communication goes over port 6444. The library can also retrieve known appliances from Midea cloud account and match this information with information retrieved via local network.
+
+## Local network communication
+
+Local network communication is encrypted using Midea protocol encryption based on AES.
+
+## Cloud communication
+
+Library connects to Midea cloud using credentials from NetHome Plus mobile app. You can use other midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some examples.
+
+Library should never log username, password or token keys.
+
+## Logging
+
+Library logs additional information on log level 5.
 
 ## Usage
 

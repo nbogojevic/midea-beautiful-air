@@ -13,7 +13,10 @@ from midea_beautiful_dehumidifier.exceptions import (
     CloudRequestError,
     RetryLaterError,
 )
-from midea_beautiful_dehumidifier.midea import CLOUD_API_SERVER_URL
+from midea_beautiful_dehumidifier.midea import (
+    CLOUD_API_SERVER_URL,
+    DEFAULT_APP_ID,
+)
 
 import requests
 from requests.exceptions import RequestException
@@ -26,7 +29,6 @@ _LOGGER = logging.getLogger(__name__)
 CLOUD_API_CLIENT_TYPE: Final = 1  # Android
 CLOUD_API_FORMAT: Final = 2  # JSON
 CLOUD_API_LANGUAGE: Final = "en_US"
-CLOUD_API_APP_ID: Final = 1017
 CLOUD_API_SRC: Final = 17
 
 
@@ -36,12 +38,13 @@ class MideaCloud:
         appkey: str,
         account: str,
         password: str,
+        appid: str = DEFAULT_APP_ID,
         server_url: str = CLOUD_API_SERVER_URL,
         max_retries: int = 3,
     ):
-        # Get this from any of the Midea based apps, you can find one on
-        # Yitsushi's github page
+        # Get this from any of the Midea based apps
         self._appkey = appkey
+        self._appid = appid
         # Your email address for your Midea account
         self._account = account
         self._password = password
@@ -106,7 +109,7 @@ class MideaCloud:
 
                 # Set up the initial data payload with the global variable set
                 data = {
-                    "appId": CLOUD_API_APP_ID,
+                    "appId": self._appid,
                     "format": CLOUD_API_FORMAT,
                     "clientType": CLOUD_API_CLIENT_TYPE,
                     "language": CLOUD_API_LANGUAGE,
@@ -170,7 +173,7 @@ class MideaCloud:
         Performs a user login with the credentials supplied to the
         constructor
         """
-        if len(self._login_id) == 0:
+        if not self._login_id:
             self._get_login_id()
 
         if (

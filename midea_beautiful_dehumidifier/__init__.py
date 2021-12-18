@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from midea_beautiful_dehumidifier.__version__ import __version__
 from midea_beautiful_dehumidifier.cloud import MideaCloud
-from midea_beautiful_dehumidifier.midea import DEFAULT_APPKEY
+from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 from midea_beautiful_dehumidifier.lan import get_appliance_state
 from midea_beautiful_dehumidifier.scanner import find_appliances
 
@@ -13,6 +13,7 @@ def discover_appliances(
     appkey=DEFAULT_APPKEY,
     account=None,
     password=None,
+    appid=DEFAULT_APP_ID,
     cloud: MideaCloud | None = None,
     broadcast_retries=2,
     broadcast_timeout=3,
@@ -53,6 +54,7 @@ def discover_appliances(
         appkey=appkey,
         account=account,
         password=password,
+        appid=appid,
         cloud=cloud,
         broadcast_retries=broadcast_retries,
         broadcast_timeout=broadcast_timeout,
@@ -83,7 +85,9 @@ def appliance_state(ip, token=None, key=None, cloud: MideaCloud = None):
     return get_appliance_state(ip, token=token, key=key, cloud=cloud)
 
 
-def connect_to_cloud(account, password, appkey=DEFAULT_APPKEY) -> MideaCloud:
+def connect_to_cloud(
+    account, password, appkey=DEFAULT_APPKEY, appid=DEFAULT_APP_ID
+) -> MideaCloud:
     """
     Connects to Midea cloud
 
@@ -91,10 +95,11 @@ def connect_to_cloud(account, password, appkey=DEFAULT_APPKEY) -> MideaCloud:
         appkey (str): Midea cloud API application key
         account (str): Midea cloud user e-mail
         password (str): Midea cloud password
+        appid (str): Midea cloud API application id
 
     Returns:
         MideaCloud: Interface to Midea cloud API
     """
-    cloud = MideaCloud(appkey, account, password)
+    cloud = MideaCloud(appkey, account, password, appid)
     cloud.authenticate()
     return cloud

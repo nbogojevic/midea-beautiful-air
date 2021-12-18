@@ -184,12 +184,21 @@ class LanDevice:
             # m_support_extra_last_error_code = (b & 4) == 4
 
             self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
+            self.udp_version = int.from_bytes(
+                reply[46 + ssid_len : 50 + ssid_len], "little"
+            )
+            self.protocol_version = reply[69 + ssid_len : 72 + ssid_len].hex()
+            self.firmware_version = (
+                f"{reply[72 + ssid_len]}."
+                f"{reply[73 + ssid_len]}."
+                f"{reply[74 + ssid_len]}"
+            )
             _LOGGER.debug(
                 (
                     "Descriptor data from %s"
                     " type=%s subtype=%x flags=%x extra=%x reserved=%x"
-                    " mac=%s ssid=%s udp version=%x protocol version=%s"
-                    " enckey=%s"
+                    " mac=%s ssid=%s udp version=%x protocol=%s version=%s"
+                    " enckey=%s sn=%s"
                 ),
                 self.ip,
                 self.type,
@@ -199,11 +208,11 @@ class LanDevice:
                 self.reserved,
                 self.mac,
                 self.ssid,
-                int.from_bytes(
-                    reply[46 + ssid_len : 50 + ssid_len], "little"
-                ),
-                reply[69 + ssid_len : 75 + ssid_len].hex(),
+                self.udp_version,
+                self.protocol_version,
+                self.firmware_version,
                 self.randomkey,
+                self.sn
             )
         else:
             id = int(id)
@@ -218,6 +227,9 @@ class LanDevice:
             self.mac = None
             self.ssid = None
             self.type = appliance_type
+            self.firmware_version = None
+            self.protocol_version = None
+            self.udp_version = None
 
         # Default interface version is 3
         self.version = 3
@@ -244,7 +256,13 @@ class LanDevice:
         self._retries = other._retries
         self.ip = other.ip
         self.port = other.port
-
+        self.firmware_version = other.firmware_version
+        self.protocol_version = other.protocol_version
+        self.udp_version = other.protocol_version
+        self.sn = other.sn
+        self.mac = other.mac
+        self.ssid = other.ssid
+        
     def _lan_packet(self, id: int, command: MideaCommand):
         # Init the packet with the header data.
         packet = bytearray(
@@ -317,8 +335,6 @@ class LanDevice:
         return packet
 
     def refresh(self):
-        if self.state is None:
-            raise ValueError("Midea appliance descriptor is None")
         cmd = self.state.refresh_command()
         responses = self.status(cmd)
         for response in responses:
@@ -428,7 +444,7 @@ class LanDevice:
                     return response
 
     def _authenticate(self) -> bool:
-        if len(self.token) == 0 or len(self.key) == 0:
+        if not self.token or not self.key:
             raise AuthenticationError("missing token/key pair")
         byte_token = binascii.unhexlify(self.token)
 
@@ -439,7 +455,7 @@ class LanDevice:
             )
             response = self._request(request)
 
-            if len(response) == 0:
+            if not response:
                 if i > 0:
                     # Retry handshake
                     _LOGGER.info(
@@ -552,8 +568,6 @@ class LanDevice:
         return packets
 
     def apply(self):
-        if self.state is None:
-            raise ValueError("Midea appliance descriptor is missing")
         cmd = self.state.apply_command()
 
         responses = self._apply(cmd)
@@ -608,7 +622,7 @@ class LanDevice:
 
     def identify_appliance(self, cloud: MideaCloud = None) -> bool:
         if self.version == 3:
-            if len(self.token) == 0 or len(self.key) == 0:
+            if not self.token or not self.key:
                 if cloud is None:
                     raise ValueError("Provide either token/key pair or cloud")
                 if not self._get_valid_token(cloud):
@@ -668,7 +682,9 @@ def get_appliance_state(
         sock.connect((ip, port))
 
         # Send the discovery query
-        _LOGGER.log(5, "Sending to %s:%d %s", ip, port, _hexlog(DISCOVERY_MSG))
+        _LOGGER.log(
+            5, "Sending to %s:%d %s", ip, port, _hexlog(DISCOVERY_MSG)
+        )
         sock.sendall(DISCOVERY_MSG)
 
         # Received data
