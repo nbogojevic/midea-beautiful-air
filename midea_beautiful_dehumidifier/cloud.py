@@ -1,4 +1,4 @@
-"""Connects to Midea cloud."""
+"""Interface to Midea cloud."""
 from __future__ import annotations
 
 import datetime
@@ -13,6 +13,7 @@ from midea_beautiful_dehumidifier.exceptions import (
     CloudRequestError,
     RetryLaterError,
 )
+from midea_beautiful_dehumidifier.midea import CLOUD_API_SERVER_URL
 
 import requests
 from requests.exceptions import RequestException
@@ -21,8 +22,6 @@ from midea_beautiful_dehumidifier.crypto import Security
 
 _LOGGER = logging.getLogger(__name__)
 
-
-CLOUD_API_SERVER_URL: Final = "https://mapp.appsmb.com/v1/"
 
 CLOUD_API_CLIENT_TYPE: Final = 1  # Android
 CLOUD_API_FORMAT: Final = 2  # JSON
@@ -196,16 +195,18 @@ class MideaCloud:
         if self._session is None or self._session.get("sessionId") is None:
             raise AuthenticationError("no sessionId")
 
-    def list_appliances(self):
+    def list_appliances(self, force: bool = False):
         """
         Lists all appliances associated with the account
         """
+        if not force and self._appliance_list:
+            return self._appliance_list
 
         # Get all home groups
         if not self._home_groups:
             response = self.api_request("homegroup/list/get", {})
             _LOGGER.debug("Midea home group query result=%s", response)
-            if not response or response.get("list") is None:
+            if not response or not response.get("list"):
                 _LOGGER.error(
                     "Unable to get home groups from Midea Cloud. response=%s",
                     response,
@@ -215,9 +216,9 @@ class MideaCloud:
 
         # Find default home group
         home_group = next(
-            x for x in self._home_groups if x["isDefault"] == "1"
+            g for g in self._home_groups if g["isDefault"] == "1"
         )
-        if home_group is None:
+        if not home_group:
             _LOGGER.error(
                 "Unable to get default home group from Midea Cloud."
             )
@@ -263,7 +264,7 @@ class MideaCloud:
             self._session = None
             self._get_login_id()
             self.authenticate()
-            self.list_appliances()
+            self.list_appliances(True)
 
         def session_restart():
             _LOGGER.debug(

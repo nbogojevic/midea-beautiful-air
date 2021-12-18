@@ -14,10 +14,15 @@ from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.command import MideaCommand
 from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.exceptions import (AuthenticationError,
-                                                     ProtocolError)
-from midea_beautiful_dehumidifier.midea import (MSGTYPE_ENCRYPTED_REQUEST,
-                                                MSGTYPE_HANDSHAKE_REQUEST)
+from midea_beautiful_dehumidifier.exceptions import (
+    AuthenticationError,
+    ProtocolError,
+)
+from midea_beautiful_dehumidifier.midea import (
+    DISCOVERY_PORT,
+    MSGTYPE_ENCRYPTED_REQUEST,
+    MSGTYPE_HANDSHAKE_REQUEST,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +37,7 @@ def _hexlog(
     return data.hex() if _LOGGER.isEnabledFor(level) else ""
 
 
-BROADCAST_MSG: Final = bytes(
+DISCOVERY_MSG: Final = bytes(
     [
         0x5A,
         0x5A,
@@ -297,19 +302,17 @@ class LanDevice:
         t = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")[:16]
         packet_time = bytearray()
         for i in range(0, len(t), 2):
-            d = int(t[i : i + 2])
-            packet_time.insert(0, d)
+            packet_time.insert(0, int(t[i : i + 2]))
         packet[12:20] = packet_time
         packet[20:28] = id.to_bytes(8, "little")
 
-        # Append the command data(48 bytes) to the packet
+        # Append the encrypted command data to the packet
 
         encrypted = self._security.aes_encrypt(command.finalize())
-
         packet.extend(encrypted)
-        # PacketLength
+        # Set packet length
         packet[4:6] = (len(packet) + 16).to_bytes(2, "little")
-        # Append a basic checksum data(16 bytes) to the packet
+        # Append a checksum to the packet
         packet.extend(self._security.md5fingerprint(packet))
         return packet
 
@@ -346,8 +349,8 @@ class LanDevice:
     def _disconnect(self):
         if self._socket:
             self._socket.close()
-            self._socket = None
-            self._tcp_key = None
+        self._socket = None
+        self._tcp_key = None
 
     def _socket_info(self, level=logging.DEBUG):
         if not _LOGGER.isEnabledFor(level):
@@ -414,7 +417,9 @@ class LanDevice:
                     _hexlog(response),
                 )
                 if len(response) == 0:
-                    _LOGGER.debug("Socket closed from %s", self._socket_info())
+                    _LOGGER.debug(
+                        "Socket closed from %s", self._socket_info()
+                    )
                     self._disconnect()
                     self._retries += 1
                     return b""
@@ -492,9 +497,7 @@ class LanDevice:
             )
             self._active = False
             self._support = False
-            if self._socket is not None:
-                self._socket.close()
-            self._socket = None
+            self._disconnect()
         return responses
 
     def _appliance_send_8370(self, data) -> list[bytes]:
@@ -577,9 +580,7 @@ class LanDevice:
                 )
                 self._active = False
                 self._support = False
-                if self._socket is not None:
-                    self._socket.close()
-                self._socket = None
+                self._disconnect()
             return responses
 
     def _get_valid_token(self, cloud: MideaCloud) -> bool:
@@ -641,41 +642,52 @@ class LanDevice:
     def id(self):
         return self.state.id
 
+    @property
+    def name(self):
+        return self.state.name
+
+    @name.setter
+    def name(self, name):
+        self.state.name = name
+
 
 def get_appliance_state(
-    ip, token="", key="", socket_timeout=8, cloud=None
+    ip: str,
+    port: int = DISCOVERY_PORT,
+    token: str = "",
+    key: str = "",
+    socket_timeout: int = 8,
+    cloud: MideaCloud = None,
 ) -> LanDevice | None:
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(socket_timeout)
-    port = 6445
 
     try:
-        # Connect to appliance
-        appliance_address = (ip, port)
-        sock.connect(appliance_address)
+        # Connect to the appliance
+        sock.connect((ip, port))
 
-        # Send data
-        _LOGGER.log(5, "Sending to %s:%d %s", ip, port, BROADCAST_MSG.hex())
-        sock.sendall(BROADCAST_MSG)
+        # Send the discovery query
+        _LOGGER.log(5, "Sending to %s:%d %s", ip, port, _hexlog(DISCOVERY_MSG))
+        sock.sendall(DISCOVERY_MSG)
 
         # Received data
         response = sock.recv(512)
-        _LOGGER.log(5, "Received from %s:%d %s", ip, port, response.hex())
+        _LOGGER.log(5, "Received from %s:%d %s", ip, port, _hexlog(response))
         appliance = LanDevice(discovery_data=response, token=token, key=key)
         _LOGGER.log(5, "Appliance from %s:%d is %s", ip, port, appliance)
         if appliance.identify_appliance(cloud):
-            appliances_from_cloud = cloud.list_appliances()
-            for d in appliances_from_cloud:
-                if d["id"] == appliance.id:
-                    appliance.state.update_info(details=d)
-                    break
+            if cloud is not None:
+                for details in cloud.list_appliances():
+                    if details["id"] == appliance.id:
+                        appliance.name = details["name"]
+                        break
             return appliance
     except socket.error:
         _LOGGER.warn("Could not connect with appliance %s:%d", ip, port)
     except socket.timeout:
         _LOGGER.warn(
-            "Timeout while connecting the appliance %s:%d for %ds.",
+            "Timeout while connecting to appliance %s:%d for %ds.",
             ip,
             port,
             socket_timeout,

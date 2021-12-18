@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 
-class Exception(Exception):
+class MideaError(Exception):
     pass
 
 
-class ProtocolError(Exception):
+class ProtocolError(MideaError):
     def __init__(self, message):
         self.message = message
 
@@ -13,7 +13,7 @@ class ProtocolError(Exception):
         return f"ProtocolException {self.message}"
 
 
-class AuthenticationError(Exception):
+class AuthenticationError(MideaError):
     def __init__(self, message):
         self.message = message
 
@@ -21,7 +21,7 @@ class AuthenticationError(Exception):
         return f"AuthenticationError {self.message}"
 
 
-class CloudError(Exception):
+class CloudError(MideaError):
     def __init__(self, error_code, message):
         self.error_code = error_code
         self.message = message
@@ -30,7 +30,7 @@ class CloudError(Exception):
         return f"CloudError {self.error_code} {self.message}"
 
 
-class CloudRequestError(Exception):
+class CloudRequestError(MideaError):
     def __init__(self, endpoint: str):
         self.endpoint = endpoint
 
@@ -38,7 +38,7 @@ class CloudRequestError(Exception):
         return f"CloudRequestError {self.endpoint}"
 
 
-class RetryLaterError(Exception):
+class RetryLaterError(MideaError):
     def __init__(self, error_code, message):
         self.error_code = error_code
         self.message = message
@@ -47,7 +47,7 @@ class RetryLaterError(Exception):
         return f"RetryLaterError {self.error_code} {self.message}"
 
 
-class CloudAuthenticationError(Exception):
+class CloudAuthenticationError(MideaError):
     def __init__(self, error_code, message):
         self.error_code = error_code
         self.message = message

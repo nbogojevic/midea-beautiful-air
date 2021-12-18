@@ -1,3 +1,4 @@
+"""Cryptographic tools."""
 from __future__ import annotations
 
 from hashlib import md5, sha256

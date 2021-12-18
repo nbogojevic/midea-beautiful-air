@@ -19,7 +19,6 @@ class Appliance:
         self._type = appliance_type
         self._online = False
         self._active = False
-        self._keep_last_known_online_state = False
 
     @staticmethod
     def instance(id, type: str = "") -> Appliance:
@@ -45,35 +44,6 @@ class Appliance:
             or ("0x" + lcase2) == lcase1
         )
 
-    def update_info(
-        self,
-        details: dict = None,
-        name: str = "",
-        id: int = 0,
-        appliance_type: str = "",
-    ):
-        if details is not None:
-            if self._id != 0 and str(self._id) != str(details["id"]):
-                raise ValueError(
-                    f"Can't change id from {self._id} to {details['id']}"
-                )
-            self._id = int(details["id"])
-            if not Appliance.same_types(self._type, details["type"]):
-                raise ValueError(
-                    f"Can't change type from {self._type} to {details['type']}"
-                )
-            self._type = details["type"]
-            self._name = details["name"]
-            self._active = details["activeStatus"] == "1"
-            self._online = details["onlineStatus"] == "1"
-        else:
-            if len(name) != 0:
-                self._name = name
-            if id != 0 and self._id == 0:
-                self._id = id
-            if appliance_type != "" and self._type == "":
-                self._type = appliance_type
-
     @property
     def id(self):
         return self._id
@@ -81,6 +51,10 @@ class Appliance:
     @property
     def name(self):
         return self._name if hasattr(self, "_name") else self._id
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
     @property
     def type(self):
@@ -93,14 +67,6 @@ class Appliance:
     @property
     def online(self):
         return self._online
-
-    @property
-    def keep_last_known_online_state(self):
-        return self._keep_last_known_online_state
-
-    @keep_last_known_online_state.setter
-    def keep_last_known_online_state(self, feedback: bool):
-        self._keep_last_known_online_state = feedback
 
     def process_response(self, data: bytes):
         pass
@@ -139,7 +105,7 @@ class DehumidifierAppliance(Appliance):
             _LOGGER.debug("Decoded response %s", response)
 
             self._update(response)
-        elif not self._keep_last_known_online_state:
+        else:
             self._online = False
 
     def refresh_command(self) -> DehumidifierStatusCommand:

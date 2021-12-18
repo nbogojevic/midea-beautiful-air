@@ -1,3 +1,4 @@
+"""Scans local network for Midea appliances."""
 from __future__ import annotations
 
 import logging
@@ -8,7 +9,8 @@ import ifaddr
 
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.appliance import Appliance
-from midea_beautiful_dehumidifier.lan import BROADCAST_MSG, LanDevice
+from midea_beautiful_dehumidifier.lan import DISCOVERY_MSG, LanDevice
+from midea_beautiful_dehumidifier.midea import DISCOVERY_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +62,9 @@ class MideaDiscovery:
     def _broadcast_message(self):
         for broadcast_address in self._get_networks():
             try:
-                self._socket.sendto(BROADCAST_MSG, (broadcast_address, 6445))
+                self._socket.sendto(
+                    DISCOVERY_MSG, (broadcast_address, DISCOVERY_PORT)
+                )
             except Exception:
                 _LOGGER.debug(
                     "Unable to send broadcast to: %s", broadcast_address
@@ -97,13 +101,47 @@ class MideaDiscovery:
         return self._networks
 
 
+def _add_missing_appliances(
+    cloud: MideaCloud,
+    appliances: list[LanDevice],
+    appliances_count: int
+):
+    _LOGGER.warning(
+        (
+            "Some appliance(s) where not discovered on local LAN:"
+            " %d discovered out of %d"
+        ),
+        len(appliances),
+        appliances_count,
+    )
+    for details in cloud.list_appliances():
+        appliance_type = details["type"]
+        if Appliance.supported(appliance_type):
+            id = details["id"]
+            for appliance in appliances:
+                if id == str(appliance.id):
+                    break
+            else:
+                appliance = LanDevice(id=id, appliance_type=appliance_type)
+                appliances.append(appliance)
+            _LOGGER.warning(
+                (
+                    "Unable to discover registered appliance"
+                    " name=%s id=%s, type=%s"
+                ),
+                details["name"],
+                id,
+                appliance_type,
+            )
+            appliance.name = details["name"]
+
+
 def find_appliances_on_lan(
     cloud: MideaCloud,
+    appliances: list[LanDevice],
     broadcast_retries: int,
-    appliances_from_cloud: list,
     broadcast_timeout: float,
     broadcast_networks: list[str] | None,
-    appliances: list[LanDevice],
 ):
 
     discovery = MideaDiscovery(
@@ -113,7 +151,7 @@ def find_appliances_on_lan(
     )
     _LOGGER.debug("Starting LAN discovery")
     appliances_count = sum(
-        Appliance.supported(a["type"]) for a in appliances_from_cloud
+        Appliance.supported(a["type"]) for a in cloud.list_appliances()
     )
     for i in range(broadcast_retries):
         _LOGGER.debug(
@@ -133,9 +171,9 @@ def find_appliances_on_lan(
                         appliance.update(scanned)
                     break
 
-            for details in appliances_from_cloud:
+            for details in cloud.list_appliances():
                 if details["id"] == str(scanned.id):
-                    scanned.state.update_info(details=details)
+                    scanned.name = details["name"]
                     appliances.append(scanned)
                     _LOGGER.info(
                         "Found appliance name=%s id=%s, ip=%s:%d",
@@ -164,37 +202,7 @@ def find_appliances_on_lan(
             )
             break
     else:
-        _LOGGER.warning(
-            (
-                "Some appliance(s) where not discovered on local LAN:"
-                " %d discovered out of %d"
-            ),
-            len(appliances),
-            appliances_count,
-        )
-        for details in appliances_from_cloud:
-            appliance_type = details["type"]
-            if Appliance.supported(appliance_type):
-                id = details["id"]
-                for appliance in appliances:
-                    if id == str(appliance.id):
-                        appliance = appliance
-                        break
-                else:
-                    appliance = LanDevice(
-                        id=id, appliance_type=appliance_type
-                    )
-                    appliances.append(appliance)
-                _LOGGER.warning(
-                    (
-                        "Unable to discover registered appliance"
-                        " name=%s id=%s, type=%s"
-                    ),
-                    details["name"],
-                    id,
-                    appliance_type,
-                )
-                appliance.state.update_info(details=details)
+        _add_missing_appliances(cloud, appliances, appliances_count)
 
 
 def find_appliances(
@@ -209,14 +217,12 @@ def find_appliances(
     if cloud is None:
         cloud = MideaCloud(appkey=appkey, account=account, password=password)
         cloud.authenticate()
-    appliances_from_cloud = cloud.list_appliances()
 
     appliances: list[LanDevice] = []
 
     _LOGGER.debug("Scanning for midea dehumidifier appliances")
     find_appliances_on_lan(
         appliances=appliances,
-        appliances_from_cloud=appliances_from_cloud,
         cloud=cloud,
         broadcast_retries=broadcast_retries,
         broadcast_timeout=broadcast_timeout,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from midea_beautiful_dehumidifier.__version__ import __version__
 from midea_beautiful_dehumidifier.cloud import MideaCloud
+from midea_beautiful_dehumidifier.midea import DEFAULT_APPKEY
 from midea_beautiful_dehumidifier.lan import get_appliance_state
 from midea_beautiful_dehumidifier.scanner import find_appliances
 
@@ -9,7 +10,7 @@ __version__ = __version__
 
 
 def discover_appliances(
-    appkey=None,
+    appkey=DEFAULT_APPKEY,
     account=None,
     password=None,
     cloud: MideaCloud | None = None,
@@ -82,7 +83,7 @@ def appliance_state(ip, token=None, key=None, cloud: MideaCloud = None):
     return get_appliance_state(ip, token=token, key=key, cloud=cloud)
 
 
-def connect_to_cloud(appkey, account, password) -> MideaCloud:
+def connect_to_cloud(account, password, appkey=DEFAULT_APPKEY) -> MideaCloud:
     """
     Connects to Midea cloud
 
