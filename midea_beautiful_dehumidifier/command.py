@@ -1,13 +1,13 @@
 """ Commands for Midea appliance """
 from __future__ import annotations
 
-from midea_beautiful_dehumidifier.crypto import crc8
-
 import logging
+
+from midea_beautiful_dehumidifier.crypto import crc8
 
 _LOGGER = logging.getLogger(__name__)
 
-_order = 0
+_order: int = 0
 
 
 class MideaCommand:
@@ -36,7 +36,7 @@ class DehumidifierStatusCommand(MideaCommand):
             [
                 # 0 header
                 0xAA,
-                # 1 command lenght: N+10
+                # 1 command length: N+10
                 0x20,
                 # 2 appliance type 0xAC - airconditioning, 0xA1 - dehumidifier
                 0xA1,
@@ -152,7 +152,7 @@ class DehumidifierSetCommand(MideaCommand):
         return self.data[11] & 0x01 != 0
 
     @is_on.setter
-    def is_on(self, state: bool):
+    def is_on(self, state: bool) -> None:
         self.data[11] &= ~0x01  # Clear the power bit
         self.data[11] |= 0x01 if state else 0
 
@@ -161,7 +161,7 @@ class DehumidifierSetCommand(MideaCommand):
         return self.data[19] & 0x60 != 0
 
     @ion_mode.setter
-    def ion_mode(self, mode: bool):
+    def ion_mode(self, mode: bool) -> None:
         self.data[19] &= ~0x60  # Clear the power bit
         self.data[19] |= 0x60 if mode else 0
 
@@ -170,16 +170,16 @@ class DehumidifierSetCommand(MideaCommand):
         return self.data[17] & 0x7F
 
     @target_humidity.setter
-    def target_humidity(self, humidity: int):
+    def target_humidity(self, humidity: int) -> None:
         self.data[17] &= ~0x7F  # Clear the power bit
         self.data[17] |= humidity
 
     @property
-    def mode(self):
+    def mode(self) -> int:
         return self.data[12] & 0x0F
 
     @mode.setter
-    def mode(self, mode: int):
+    def mode(self, mode: int) -> None:
         self.data[12] &= ~0x0F  # Clear the power bit
         self.data[12] |= mode
 
@@ -188,7 +188,7 @@ class DehumidifierSetCommand(MideaCommand):
         return self.data[13] & 0x7F
 
     @fan_speed.setter
-    def fan_speed(self, speed: int):
+    def fan_speed(self, speed: int) -> None:
         self.data[13] &= ~0x7F  # Clear the power bit
         self.data[13] |= speed
 
@@ -203,7 +203,7 @@ class DehumidifierResponse:
         # self.quickChkSts = (data[1] & 32) >> 5
         self._fault = data[1] & 0x10000000
         self._run_status = data[1] & 0x00000001
-        self._imode = data[1] & 0x00000100
+        self._i_mode = data[1] & 0x00000100
         self._timing_mode = data[1] & 0x00010000
         self._quick_check = data[1] & 0x00100000
         # self.mode_FC_return = (data[2] & 240) >> 4
@@ -242,7 +242,7 @@ class DehumidifierResponse:
         # self.humidity_cur_dot = data[18] & 240
         # self.indoorTmpT1_dot = (data[18] & 15) >> 4
         # self.lightClass = data[19] & 240
-        # self.upanddownSwing = data[19]
+        # self.upAndDownSwing = data[19]
         # self.leftandrightSwing = (data[19] & 32) >> 4
         # self.lightValue = data[20]
         self._err_code = data[21]

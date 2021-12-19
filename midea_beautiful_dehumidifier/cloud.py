@@ -1,11 +1,11 @@
 """Interface to Midea cloud."""
 from __future__ import annotations
 
-import datetime
+from datetime import datetime
 import json
 import logging
 from threading import Lock
-from typing import Any, Final
+from typing import Any, Final, Tuple
 from midea_beautiful_dehumidifier.exceptions import (
     AuthenticationError,
     CloudAuthenticationError,
@@ -38,7 +38,7 @@ class MideaCloud:
         appkey: str,
         account: str,
         password: str,
-        appid: str = DEFAULT_APP_ID,
+        appid: int = DEFAULT_APP_ID,
         server_url: str = CLOUD_API_SERVER_URL,
         max_retries: int = 3,
     ):
@@ -51,14 +51,14 @@ class MideaCloud:
         # Server URL
         self._server_url = server_url
 
-        # An obscure log in ID that is seperate to the email address
+        # An obscure log in ID that is separate to the email address
         self._login_id: str = ""
 
         # A session dictionary that holds the login information of
         # the current user
         self._session = {}
 
-        # A list of home groups used by the API to seperate "zones"
+        # A list of home groups used by the API to separate "zones"
         self._home_groups = []
 
         # A list of appliances associated with the account
@@ -72,10 +72,9 @@ class MideaCloud:
         self._retries = 0
 
         self._security = Security(appkey=self._appkey)
+        self._appliance_list: list[dict] = []
 
-    def api_request(
-        self, endpoint: str, args: dict[str, Any], authenticate=True
-    ):
+    def api_request(self, endpoint: str, args: dict[str, Any], authenticate=True):
         """
         Sends an API request to the Midea cloud service and returns the
         results or raises ValueError if there is an error
@@ -87,7 +86,7 @@ class MideaCloud:
                 authenticate before sending request. Defaults to True.
 
         Raises:
-            CloudRequestError: If an HTTP error occured
+            CloudRequestError: If an HTTP error occurs
             RecursionError: If there were too many retries
 
         Returns:
@@ -100,11 +99,7 @@ class MideaCloud:
                 if authenticate:
                     self.authenticate()
 
-                if (
-                    endpoint == "user/login"
-                    and self._session
-                    and self._login_id
-                ):
+                if endpoint == "user/login" and self._session and self._login_id:
                     return self._session
 
                 # Set up the initial data payload with the global variable set
@@ -114,7 +109,7 @@ class MideaCloud:
                     "clientType": CLOUD_API_CLIENT_TYPE,
                     "language": CLOUD_API_LANGUAGE,
                     "src": CLOUD_API_SRC,
-                    "stamp": datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
+                    "stamp": datetime.now().strftime("%Y%m%d%H%M%S"),
                 }
                 # Add the method parameters for the endpoint
                 data.update(args)
@@ -176,10 +171,7 @@ class MideaCloud:
         if not self._login_id:
             self._get_login_id()
 
-        if (
-            self._session is not None
-            and self._session.get("sessionId") is not None
-        ):
+        if self._session is not None and self._session.get("sessionId") is not None:
             # Don't try logging in again, someone beat this thread to it
             return
 
@@ -218,13 +210,9 @@ class MideaCloud:
             self._home_groups = response["list"]
 
         # Find default home group
-        home_group = next(
-            g for g in self._home_groups if g["isDefault"] == "1"
-        )
+        home_group = next(g for g in self._home_groups if g["isDefault"] == "1")
         if not home_group:
-            _LOGGER.error(
-                "Unable to get default home group from Midea Cloud."
-            )
+            _LOGGER.error("Unable to get default home group from Midea Cloud.")
             return []
 
         home_group_id = home_group["id"]
@@ -238,18 +226,18 @@ class MideaCloud:
         _LOGGER.debug("Midea appliance list results=%s", self._appliance_list)
         return self._appliance_list
 
-    def get_token(self, udpid):
+    def get_token(self, udp_id: str) -> Tuple[str, str]:
         """
-        Get tokenlist with udpid
+        Get token corresponding to udp_id
         """
 
-        response = self.api_request("iot/secure/getToken", {"udpid": udpid})
+        response = self.api_request("iot/secure/getToken", {"udpid": udp_id})
         for token in response["tokenlist"]:
-            if token["udpId"] == udpid:
+            if token["udpId"] == udp_id:
                 return str(token["token"]), str(token["key"])
         return "", ""
 
-    def handle_api_error(self, error_code, message: str):
+    def handle_api_error(self, error, message: str) -> None:
         """
         Handle Midea API errors
 
@@ -258,10 +246,10 @@ class MideaCloud:
             message (str): Textual explanation
         """
 
-        def restart_full():
+        def restart_full() -> None:
             _LOGGER.debug(
-                "Restarting full connection session: '%s' - '%s",
-                error_code,
+                "Full connection restart: '%s' - '%s'",
+                error,
                 message,
             )
             self._session = None
@@ -269,28 +257,24 @@ class MideaCloud:
             self.authenticate()
             self.list_appliances(True)
 
-        def session_restart():
-            _LOGGER.debug(
-                "Restarting session: '%s' - '%s", error_code, message
-            )
+        def session_restart() -> None:
+            _LOGGER.debug("Restarting session: '%s' - '%s'", error, message)
             self._session = None
             self.authenticate()
 
-        def authentication_error():
-            _LOGGER.warn(
-                "Authentication error: '%s' - '%s", error_code, message
-            )
-            raise CloudAuthenticationError(error_code, message)
+        def authentication_error() -> None:
+            _LOGGER.warn("Authentication error: '%s' - '%s'", error, message)
+            raise CloudAuthenticationError(error, message)
 
-        def retry_later():
-            _LOGGER.debug("Retry later: '%s' - '%s", error_code, message)
-            raise RetryLaterError(error_code, message)
+        def retry_later() -> None:
+            _LOGGER.debug("Retry later: '%s' - '%s'", error, message)
+            raise RetryLaterError(error, message)
 
-        def throw():
-            raise CloudError(error_code, message)
+        def ignore() -> None:
+            _LOGGER.debug("Ignored error: '%s' - '%s'", error, message)
 
-        def ignore():
-            _LOGGER.debug("Error ignored: '%s' - '%s", error_code, message)
+        def cloud_error() -> None:
+            raise CloudError(error, message)
 
         error_handlers = {
             3004: session_restart,  # value is illegal
@@ -298,13 +282,13 @@ class MideaCloud:
             3102: authentication_error,  # invalid username
             3106: session_restart,  # invalid session
             3144: restart_full,
-            3176: ignore,  # The asyn reply does not exist
+            3176: ignore,  # The async reply does not exist
             3301: authentication_error,  # Invalid app key
             7610: retry_later,
             9999: ignore,  # system error
         }
 
-        handler = error_handlers.get(error_code, throw)
+        handler = error_handlers.get(error, cloud_error)
         handler()
 
     def __str__(self) -> str:

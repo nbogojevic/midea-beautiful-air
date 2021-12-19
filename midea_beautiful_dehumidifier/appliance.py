@@ -1,13 +1,13 @@
-""" Model for midea dehumidifier appliances """
+""" Model for Midea dehumidifier appliances """
 from __future__ import annotations
 
 import logging
 
 from midea_beautiful_dehumidifier.command import (
-    MideaCommand,
     DehumidifierResponse,
     DehumidifierSetCommand,
     DehumidifierStatusCommand,
+    MideaCommand,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,28 +21,23 @@ class Appliance:
         self._active = False
 
     @staticmethod
-    def instance(id, type: str = "") -> Appliance:
-        if Appliance.supported(type):
-            return DehumidifierAppliance(id=id, appliance_type=type)
-        _LOGGER.warn("Creating unsupported appliance %s %s", id, type)
-        return Appliance(id, type)
+    def instance(id, appliance_type: str = "") -> Appliance:
+        if Appliance.supported(appliance_type):
+            return DehumidifierAppliance(id=id, appliance_type=appliance_type)
+        _LOGGER.warn("Creating unsupported appliance %s %s", id, appliance_type)
+        return Appliance(id, appliance_type)
 
     @staticmethod
-    def supported(type: str | int) -> bool:
-        lcase = str(type).lower()
-        return lcase == "a1" or lcase == "0xa1" or type == 161
+    def supported(appliance_type: str | int) -> bool:
+        return DehumidifierAppliance.supported(appliance_type)
 
     @staticmethod
     def same_types(type1: str | int, type2: str | int) -> bool:
         if type1 == type2:
             return True
-        lcase1 = str(type1).lower()
-        lcase2 = str(type2).lower()
-        return (
-            lcase1 == lcase2
-            or ("0x" + lcase1) == lcase2
-            or ("0x" + lcase2) == lcase1
-        )
+        t1 = str(type1).lower()
+        t2 = str(type2).lower()
+        return t1 == t2 or ("0x" + t1) == t2 or ("0x" + t2) == t1
 
     @property
     def id(self):
@@ -53,11 +48,15 @@ class Appliance:
         return self._name if hasattr(self, "_name") else self._id
 
     @name.setter
-    def name(self, name):
+    def name(self, name) -> None:
         self._name = name
 
     @property
     def type(self):
+        return self._type
+
+    @property
+    def model(self):
         return self._type
 
     @property
@@ -68,7 +67,7 @@ class Appliance:
     def online(self):
         return self._online
 
-    def process_response(self, data: bytes):
+    def process_response(self, data: bytes) -> None:
         pass
 
     def refresh_command(self) -> MideaCommand:
@@ -90,6 +89,11 @@ class DehumidifierAppliance(Appliance):
         self._fan_speed = 40
         self._tank_full = False
 
+    @staticmethod
+    def supported(type: str | int) -> bool:
+        lwr = str(type).lower()
+        return lwr == "a1" or lwr == "0xa1" or type == 161
+
     def process_response(self, data: bytes):
         _LOGGER.log(
             5,
@@ -104,7 +108,15 @@ class DehumidifierAppliance(Appliance):
             response = DehumidifierResponse(data)
             _LOGGER.debug("Decoded response %s", response)
 
-            self._update(response)
+            self.is_on = response.is_on
+
+            self.ion_mode = response.ion_mode
+            self.mode = response.mode
+            self.target_humidity = response.target_humidity
+            self._current_humidity = response.current_humidity
+            self.fan_speed = response.fan_speed
+            self._tank_full = response.tank_full
+
         else:
             self._online = False
 
@@ -120,16 +132,6 @@ class DehumidifierAppliance(Appliance):
         cmd.ion_mode = self.ion_mode
         return cmd
 
-    def _update(self, response: DehumidifierResponse):
-        self.is_on = response.is_on
-
-        self.ion_mode = response.ion_mode
-        self.mode = response.mode
-        self.target_humidity = response.target_humidity
-        self._current_humidity = response.current_humidity
-        self.fan_speed = response.fan_speed
-        self._tank_full = response.tank_full
-
     @property
     def tank_full(self):
         return self._tank_full
@@ -143,7 +145,7 @@ class DehumidifierAppliance(Appliance):
         return self._fan_speed
 
     @fan_speed.setter
-    def fan_speed(self, fan_speed: int):
+    def fan_speed(self, fan_speed: int) -> None:
         if fan_speed < 0:
             self._fan_speed = 0
         elif fan_speed > 100:
@@ -156,7 +158,7 @@ class DehumidifierAppliance(Appliance):
         return self._target_humidity
 
     @target_humidity.setter
-    def target_humidity(self, target_humidity: int):
+    def target_humidity(self, target_humidity: int) -> None:
         if target_humidity < 0:
             self._target_humidity = 0
         elif target_humidity > 100:
@@ -169,9 +171,13 @@ class DehumidifierAppliance(Appliance):
         return self._mode
 
     @mode.setter
-    def mode(self, mode: int):
+    def mode(self, mode: int) -> None:
         if 0 <= mode and mode <= 15:
             self._mode = mode
+
+    @property
+    def model(self) -> str:
+        return "Dehumidifier"
 
     def __str__(self):
         return str(self.__dict__)

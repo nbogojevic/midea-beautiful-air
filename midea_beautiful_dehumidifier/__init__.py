@@ -1,24 +1,25 @@
+""" Library for local network access to Midea dehumidifier appliances """
 from __future__ import annotations
 
 from midea_beautiful_dehumidifier.__version__ import __version__
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful_dehumidifier.lan import get_appliance_state
+from midea_beautiful_dehumidifier.lan import LanDevice, get_appliance_state
 from midea_beautiful_dehumidifier.scanner import find_appliances
 
 __version__ = __version__
 
 
 def discover_appliances(
-    appkey=DEFAULT_APPKEY,
-    account=None,
-    password=None,
-    appid=DEFAULT_APP_ID,
+    appkey: str = DEFAULT_APPKEY,
+    account: str = None,
+    password: str = None,
+    appid: int = DEFAULT_APP_ID,
     cloud: MideaCloud | None = None,
-    broadcast_retries=2,
-    broadcast_timeout=3,
+    broadcast_retries: int = 2,
+    broadcast_timeout: int = 3,
     broadcast_networks=None,
-):
+) -> list[LanDevice]:
     """
     Discovers appliances on local network
 
@@ -62,7 +63,9 @@ def discover_appliances(
     )
 
 
-def appliance_state(ip, token=None, key=None, cloud: MideaCloud = None):
+def appliance_state(
+    ip: str, token=None, key=None, cloud: MideaCloud = None
+) -> LanDevice | None:
     """
     Retrieves appliance state
 
@@ -86,7 +89,7 @@ def appliance_state(ip, token=None, key=None, cloud: MideaCloud = None):
 
 
 def connect_to_cloud(
-    account, password, appkey=DEFAULT_APPKEY, appid=DEFAULT_APP_ID
+    account: str, password: str, appkey=DEFAULT_APPKEY, appid=DEFAULT_APP_ID
 ) -> MideaCloud:
     """
     Connects to Midea cloud

@@ -3,20 +3,18 @@ from __future__ import annotations
 
 from hashlib import md5, sha256
 from os import urandom
-from typing import Any, Final
+from typing import Any, Final, Tuple
 from urllib.parse import unquote_plus, urlencode, urlparse
 
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+from midea_beautiful_dehumidifier.exceptions import AuthenticationError, ProtocolError
 from midea_beautiful_dehumidifier.midea import (
     DEFAULT_APPKEY,
     DEFAULT_SIGNKEY,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_ENCRYPTED_RESPONSE,
-)
-from midea_beautiful_dehumidifier.exceptions import (
-    AuthenticationError,
-    ProtocolError,
 )
 
 
@@ -31,7 +29,7 @@ def _strxor(plain_text, key):
     return bytes(encoded)
 
 
-crc8_854_table = [
+crc8_854_table: Final = [
     0x00,
     0x5E,
     0xBC,
@@ -291,8 +289,8 @@ crc8_854_table = [
 ]
 
 
-def crc8(data):
-    crc_value = 0
+def crc8(data: bytes) -> int:
+    crc_value: int = 0
     for m in data:
         k = crc_value ^ m
         if k > 256:
@@ -317,7 +315,7 @@ class Security:
         self._signkey = signkey.encode()
         self._iv = bytes(iv)
         self._enc_key = md5(self._signkey).digest()
-        self._tcp_key = None
+        self._tcp_key = b""
         self._request_count = 0
         self._response_count = 0
 
@@ -338,7 +336,7 @@ class Security:
         unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
         return unpadder.update(decrypted) + unpadder.finalize()
 
-    def aes_encrypt(self, raw) -> bytes:
+    def aes_encrypt(self, raw: bytes) -> bytes:
         """
         Encrypt raw bytes using AES/ECB
 
@@ -355,7 +353,7 @@ class Security:
         encryptor = cipher.encryptor()
         return encryptor.update(raw) + encryptor.finalize()
 
-    def aes_cbc_decrypt(self, raw, key) -> bytes:
+    def aes_cbc_decrypt(self, raw: bytes, key: bytes) -> bytes:
         """
         Decrypt raw bytes using AES/CBC
 
@@ -369,7 +367,7 @@ class Security:
         decryptor = cipher.decryptor()
         return decryptor.update(raw) + decryptor.finalize()
 
-    def aes_cbc_encrypt(self, raw, key) -> bytes:
+    def aes_cbc_encrypt(self, raw: bytes, key: bytes) -> bytes:
         """
         Encrypt raw bytes using AES/CBC
 
@@ -383,10 +381,10 @@ class Security:
         encryptor = cipher.encryptor()
         return encryptor.update(raw) + encryptor.finalize()
 
-    def md5fingerprint(self, raw) -> bytes:
+    def md5fingerprint(self, raw: bytes) -> bytes:
         return md5(raw + self._signkey).digest()
 
-    def tcp_key(self, response, key) -> bytes:
+    def tcp_key(self, response: bytes, key: bytes) -> bytes:
         if response == b"ERROR":
             raise AuthenticationError("Authentication failed - error packet")
         if len(response) != 64:
@@ -403,7 +401,7 @@ class Security:
         self._response_count = 0
         return self._tcp_key
 
-    def encode_8370(self, data, msgtype):
+    def encode_8370(self, data: bytes, msgtype: int) -> bytes:
         header = bytearray(b"\x83\x70")
         size, padding = len(data), 0
         if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
@@ -416,15 +414,13 @@ class Security:
         data = self._request_count.to_bytes(2, "big") + data
         self._request_count += 1
         if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
-            if self._tcp_key is None:
-                raise ProtocolError(
-                    "Missing TCP key for local network access"
-                )
+            if not self._tcp_key:
+                raise ProtocolError("Missing TCP key for local network access")
             sign = sha256(header + data).digest()
             data = self.aes_cbc_encrypt(data, self._tcp_key) + sign
         return bytes(header + data)
 
-    def decode_8370(self, data: bytes):
+    def decode_8370(self, data: bytes) -> Tuple[list[bytes], bytes]:
         if len(data) < 6:
             return [], data
         header = data[:6]
@@ -457,7 +453,7 @@ class Security:
             return [data] + packets, incomplete
         return [data], b""
 
-    def sign(self, url: str, payload: dict[str, Any]):
+    def sign(self, url: str, payload: dict[str, Any]) -> str:
         # We only need the path
         path = urlparse(url).path
 
@@ -476,7 +472,7 @@ class Security:
 
         return m.hexdigest()
 
-    def encrypt_password(self, loginId: str, password: str):
+    def encrypt_password(self, loginId: str, password: str) -> str:
         # Hash the password
         m = sha256()
         m.update(password.encode("ascii"))

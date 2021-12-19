@@ -1,8 +1,6 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
-from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
-
 try:
     from coloredlogs import install as coloredlogs_install
 except Exception:
@@ -10,18 +8,19 @@ except Exception:
     def coloredlogs_install(level):
         pass
 
-
-import argparse
+from argparse import ArgumentParser
 import logging
 
 from midea_beautiful_dehumidifier import appliance_state, find_appliances
 from midea_beautiful_dehumidifier.lan import LanDevice
+from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 
 
 def output(appliance: LanDevice, show_credentials: bool = False):
     print(f"addr={appliance.ip}:{appliance.port}")
     print(f"        id      = {appliance.id}")
     print(f"        s/n     = {appliance.sn}")
+    print(f"        model   = {appliance.model}")
     print(f"        ssid    = {appliance.ssid}")
     print(f"        name    = {getattr(appliance.state, 'name')}")
     print(f"        humid%  = {getattr(appliance.state, 'current_humidity')}")
@@ -35,8 +34,8 @@ def output(appliance: LanDevice, show_credentials: bool = False):
         print(f"        key     = {appliance.key}")
 
 
-def cli():
-    parser = argparse.ArgumentParser(
+def cli() -> None:
+    parser = ArgumentParser(
         prog="midea_beautiful_dehumidifier.cli",
         description="Discovers Midea dehumidifiers on local network.",
     )
@@ -51,9 +50,7 @@ def cli():
     parser_discover = subparsers.add_parser(
         "discover", help="discovers appliances on local network"
     )
-    parser_discover.add_argument(
-        "--account", help="Midea cloud account", required=True
-    )
+    parser_discover.add_argument("--account", help="Midea cloud account", required=True)
     parser_discover.add_argument(
         "--password", help="Midea cloud password", required=True
     )
@@ -71,9 +68,7 @@ def cli():
         "--credentials", action="store_true", help="show credentials"
     )
 
-    parser_status = subparsers.add_parser(
-        "status", help="gets status from appliance"
-    )
+    parser_status = subparsers.add_parser("status", help="gets status from appliance")
     parser_status.add_argument(
         "--ip", help="IP address of the appliance", required=True
     )
@@ -90,9 +85,7 @@ def cli():
     )
 
     parser_set = subparsers.add_parser("set", help="sets status of appliance")
-    parser_set.add_argument(
-        "--ip", help="IP address of the appliance", required=True
-    )
+    parser_set.add_argument("--ip", help="IP address of the appliance", required=True)
     parser_set.add_argument(
         "--token",
         help="token used to communicate with appliance",
@@ -104,13 +97,9 @@ def cli():
     parser_set.add_argument(
         "--credentials", action="store_true", help="show credentials"
     )
-    parser_set.add_argument(
-        "--humidity", help="target humidity", default=None
-    )
+    parser_set.add_argument("--humidity", help="target humidity", default=None)
     parser_set.add_argument("--fan", help="fan strength", default=None)
-    parser_set.add_argument(
-        "--mode", help="dehumidifier mode switch", default=None
-    )
+    parser_set.add_argument("--mode", help="dehumidifier mode switch", default=None)
     parser_set.add_argument("--ion", help="ion mode switch", default=None)
     parser_set.add_argument("--on", help="turn on/off", default=None)
 

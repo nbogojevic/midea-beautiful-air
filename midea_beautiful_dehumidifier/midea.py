@@ -18,6 +18,6 @@ SUPPORTED_APPS: Final = {
     "MideaAir": {"appkey": "ff0cf6f5f0c3471de36341cab3f7a9af", "appid": 1117},
 }
 
-DEFAULT_APPKEY: Final = SUPPORTED_APPS["NetHome"]["appkey"]
-DEFAULT_APP_ID: Final = SUPPORTED_APPS["NetHome"]["appid"]
+DEFAULT_APPKEY: Final[str] = SUPPORTED_APPS["NetHome"]["appkey"]
+DEFAULT_APP_ID: Final[int] = SUPPORTED_APPS["NetHome"]["appid"]
 DEFAULT_SIGNKEY: Final = "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S"

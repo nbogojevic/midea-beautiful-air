@@ -6,7 +6,7 @@ This is a library that allows communication with Midea dehumidifier appliances v
 
 This library allows discovering Midea dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
 
-This libary inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners.
+This library inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners.
 
 
 Thanks for [yitsushi's project](https://github.com/yitsushi/midea-air-condition), [NeoAcheron's project](https://github.com/NeoAcheron/midea-ac-py), [andersonshatch's project](https://github.com/andersonshatch/midea-ac-py), [barban's project](https://github.com/barban-dev/midea_inventor_dehumidifier)
@@ -16,14 +16,14 @@ Thanks for [yitsushi's project](https://github.com/yitsushi/midea-air-condition)
 
 The library works only Midea dehumidifiers supporting V3 protocol. Both appliances with and without ion function are supported.
 
-Some tested examples of supported dehumidifiers:
+Some examples of supported dehumidifiers:
 
 * Comfee MDDF-16DEN7-WF or MDDF-20DEN7-WF (tested with 20L version)
 * Inventor EVA ΙΟΝ Pro Wi-Fi (EP3-WiFi 16L/20L) (tested with 20L version)
 * Inventor Eva II Pro Wi-Fi (EVP-WF16L/20L)
 * Pro Breeze 30L Smart Dehumidifier with Wifi / App Control
 
-It may work with as well as other Midea WiFi dehumidifiers.
+It may as well work with other Midea Wi-Fi dehumidifiers.
 
 ## Dehumidifier data
 
@@ -46,7 +46,7 @@ The following dehumidifier data is accessible via library:
 
 This library discovers appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and the library needs a token and a key for each appliance. This can be either provided or retrieved from Midea cloud account. The library can also retrieve the list of registered appliances from Midea cloud account and obtain additional information for devices (eg. name). 
 
-Library connects to Midea cloud using credentials from NetHome Plus mobile app. You can use other midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some key examples.
+Library connects to Midea cloud using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some examples.
 
 
 ## Logging

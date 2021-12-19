@@ -1,23 +1,20 @@
 """Connects to Midea appliances on local network."""
 from __future__ import annotations
 
-import binascii
-import datetime
+from binascii import unhexlify
+from datetime import datetime
+from hashlib import sha256
 import logging
 import socket
-import time
-from hashlib import sha256
 from threading import Lock
+from time import sleep, time
 from typing import Final
 
 from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.command import MideaCommand
 from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.exceptions import (
-    AuthenticationError,
-    ProtocolError,
-)
+from midea_beautiful_dehumidifier.exceptions import AuthenticationError, ProtocolError
 from midea_beautiful_dehumidifier.midea import (
     DISCOVERY_PORT,
     MSGTYPE_ENCRYPTED_REQUEST,
@@ -115,7 +112,7 @@ DISCOVERY_MSG: Final = bytes(
 )
 
 
-def _get_udpid(data):
+def _get_udp_id(data) -> str:
     b = sha256(data).digest()
     b1, b2 = b[:16], b[16:]
     b3 = bytearray(16)
@@ -166,7 +163,7 @@ class LanDevice:
             self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
             self.mac = reply[63 + ssid_len : 69 + ssid_len].hex(":")
             if reply[55 + ssid_len] != 0:
-                # Get type from strucutre
+                # Get type
                 self.type = hex(reply[55 + ssid_len])
                 self.subtype = int.from_bytes(
                     reply[57 + ssid_len : 59 + ssid_len], "little"
@@ -237,9 +234,9 @@ class LanDevice:
         self._socket = None
         self.token = token
         self.key = key
-        self._timestamp = time.time()
+        self._timestamp = time()
         self._tcp_key = None
-        self.state = Appliance.instance(id=id, type=self.type)
+        self.state = Appliance.instance(id=id, appliance_type=self.type)
         self._max_retries = int(max_retries)
         self._connection_retries = 3
         self._api_lock = Lock()
@@ -263,7 +260,7 @@ class LanDevice:
         self.mac = other.mac
         self.ssid = other.ssid
 
-    def _lan_packet(self, id: int, command: MideaCommand):
+    def _lan_packet(self, id: int, command: MideaCommand) -> bytes:
         # Init the packet with the header data.
         packet = bytearray(
             [
@@ -317,7 +314,7 @@ class LanDevice:
                 0x00,
             ]
         )
-        t = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")[:16]
+        t = datetime.now().strftime("%Y%m%d%H%M%S%f")[:16]
         packet_time = bytearray()
         for i in range(0, len(t), 2):
             packet_time.insert(0, int(t[i : i + 2]))
@@ -332,20 +329,18 @@ class LanDevice:
         packet[4:6] = (len(packet) + 16).to_bytes(2, "little")
         # Append a checksum to the packet
         packet.extend(self._security.md5fingerprint(packet))
-        return packet
+        return bytes(packet)
 
-    def refresh(self):
+    def refresh(self) -> None:
         cmd = self.state.refresh_command()
         responses = self.status(cmd)
         for response in responses:
             self.state.process_response(response)
 
-    def _connect(self, socket_timeout=2):
+    def _connect(self, socket_timeout=2) -> None:
         if self._socket is None:
             self._disconnect()
-            _LOGGER.debug(
-                "Attempting new connection to %s:%s", self.ip, self.port
-            )
+            _LOGGER.debug("Attempting new connection to %s:%s", self.ip, self.port)
             self._buffer = b""
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # set timeout
@@ -362,23 +357,23 @@ class LanDevice:
                 )
                 self._disconnect()
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         if self._socket:
             self._socket.close()
         self._socket = None
         self._tcp_key = None
 
-    def _socket_info(self, level=logging.DEBUG):
+    def _socket_info(self, level=logging.DEBUG) -> str:
         if not _LOGGER.isEnabledFor(level):
             return ""
-        socket_time = round(time.time() - self._timestamp, 2)
+        socket_time = round(time() - self._timestamp, 2)
 
         return (
             f"local -> {self.ip}:{self.port}"
             f" retries: {self._retries} time: {socket_time}"
         )
 
-    def _request(self, message):
+    def _request(self, message) -> bytes:
         if self._api_lock.acquire(timeout=10):
             try:
                 # Create a TCP/IP socket
@@ -436,9 +431,7 @@ class LanDevice:
                         _hexlog(response),
                     )
                     if len(response) == 0:
-                        _LOGGER.debug(
-                            "Socket closed from %s", self._socket_info()
-                        )
+                        _LOGGER.debug("Socket closed from %s", self._socket_info())
                         self._disconnect()
                         self._retries += 1
                         return b""
@@ -448,21 +441,17 @@ class LanDevice:
             finally:
                 self._api_lock.release()
         else:
-            _LOGGER.warn(
-                "Unable to acquire lock for request in 10s for %s", self.id
-            )
+            _LOGGER.warn("Unable to acquire lock for request in 10s for %s", self.id)
             return b""
 
     def _authenticate(self) -> bool:
         if not self.token or not self.key:
             raise AuthenticationError("missing token/key pair")
-        byte_token = binascii.unhexlify(self.token)
+        byte_token = unhexlify(self.token)
 
         response = b""
         for i in range(self._connection_retries):
-            request = self._security.encode_8370(
-                byte_token, MSGTYPE_HANDSHAKE_REQUEST
-            )
+            request = self._security.encode_8370(byte_token, MSGTYPE_HANDSHAKE_REQUEST)
             response = self._request(request)
 
             if not response:
@@ -473,7 +462,7 @@ class LanDevice:
                         i + 1,
                         self._connection_retries,
                     )
-                    time.sleep(i + 1)
+                    sleep(i + 1)
             else:
                 break
         else:
@@ -483,9 +472,7 @@ class LanDevice:
         response = response[8:72]
 
         try:
-            tcp_key = self._security.tcp_key(
-                response, binascii.unhexlify(self.key)
-            )
+            tcp_key = self._security.tcp_key(response, unhexlify(self.key))
 
             self._tcp_key = tcp_key.hex()
             _LOGGER.log(
@@ -496,7 +483,7 @@ class LanDevice:
             )
             # After authentication, don’t send data immediately,
             # so sleep 500ms.
-            time.sleep(0.5)
+            sleep(0.5)
             return True
         except Exception:
             _LOGGER.warning(
@@ -518,9 +505,7 @@ class LanDevice:
         _LOGGER.log(5, "Got response(s) from: %s(%s)", self.id, self.ip)
 
         if len(responses) == 0:
-            _LOGGER.warning(
-                "Got no responses on status from: %s(%s)", self.id, self.ip
-            )
+            _LOGGER.warning("Got no responses on status from: %s(%s)", self.id, self.ip)
             self._active = False
             self._support = False
             self._disconnect()
@@ -528,9 +513,7 @@ class LanDevice:
 
     def _appliance_send_8370(self, data) -> list[bytes]:
         if self._socket is None or self._tcp_key is None:
-            _LOGGER.debug(
-                "Socket %s closed, creating new socket", self._socket_info()
-            )
+            _LOGGER.debug("Socket %s closed, creating new socket", self._socket_info())
             self._disconnect()
 
             for i in range(self._connection_retries):
@@ -549,7 +532,7 @@ class LanDevice:
                     )
                     self._disconnect()
 
-                    time.sleep((i + 1) * 2)
+                    sleep((i + 1) * 2)
                 else:
                     break
 
@@ -559,8 +542,8 @@ class LanDevice:
         original_data = bytes(data)
         data = self._security.encode_8370(data, MSGTYPE_ENCRYPTED_REQUEST)
 
-        # time sleep retries second befor send data, default is 0
-        time.sleep(self._retries)
+        # wait few seconds before re-sending data, default is 0
+        sleep(self._retries)
         response_buf = self._request(data)
         if not response_buf and self._retries < self._max_retries:
             packets = self._appliance_send_8370(original_data)
@@ -577,7 +560,7 @@ class LanDevice:
                 packets.append(response[10:])
         return packets
 
-    def apply(self):
+    def apply(self) -> None:
         cmd = self.state.apply_command()
 
         responses = self._apply(cmd)
@@ -595,9 +578,7 @@ class LanDevice:
             _hexlog(data),
         )
         responses = self._appliance_send_8370(data)
-        _LOGGER.debug(
-            "Got response(s) from: %s(%s)", self.id, self.ip
-        )
+        _LOGGER.debug("Got response(s) from: %s(%s)", self.id, self.ip)
 
         if len(responses) == 0:
             _LOGGER.warning(
@@ -621,13 +602,13 @@ class LanDevice:
         Returns:
             bool: True if successful
         """
-        for udpid in [
-            _get_udpid(self.id.to_bytes(6, "little")),
-            _get_udpid(self.id.to_bytes(6, "big")),
+        for udp_id in [
+            _get_udp_id(self.id.to_bytes(6, "little")),
+            _get_udp_id(self.id.to_bytes(6, "big")),
         ]:
-            self.token, self.key = cloud.get_token(udpid)
+            self.token, self.key = cloud.get_token(udp_id)
             if self._authenticate():
-                _LOGGER.debug("Token valid for %s", udpid)
+                _LOGGER.debug("Token valid for %s", udp_id)
                 return True
             # token/key were not valid, forget them
             self.token, self.key = "", ""
@@ -644,8 +625,7 @@ class LanDevice:
                 return False
         else:
             raise ProtocolError(
-                f"Only version 3 is supported,"
-                f" was {self.version} for id={self.id}"
+                f"Only version 3 is supported," f" was {self.version} for id={self.id}"
             )
 
         if Appliance.supported(self.type):
@@ -673,6 +653,10 @@ class LanDevice:
     def name(self):
         return self.state.name
 
+    @property
+    def model(self):
+        return self.state.model
+
     @name.setter
     def name(self, name):
         self.state.name = name
@@ -695,9 +679,7 @@ def get_appliance_state(
         sock.connect((ip, port))
 
         # Send the discovery query
-        _LOGGER.log(
-            5, "Sending to %s:%d %s", ip, port, _hexlog(DISCOVERY_MSG)
-        )
+        _LOGGER.log(5, "Sending to %s:%d %s", ip, port, _hexlog(DISCOVERY_MSG))
         sock.sendall(DISCOVERY_MSG)
 
         # Received data

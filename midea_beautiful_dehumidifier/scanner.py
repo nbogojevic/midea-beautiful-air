@@ -1,14 +1,14 @@
 """Scans local network for Midea appliances."""
 from __future__ import annotations
 
+from ipaddress import IPv4Network
 import logging
 import socket
-from ipaddress import IPv4Network
 
-import ifaddr
+from ifaddr import IP, Adapter, get_adapters
 
-from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.appliance import Appliance
+from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.lan import DISCOVERY_MSG, LanDevice
 from midea_beautiful_dehumidifier.midea import DISCOVERY_PORT
 
@@ -45,9 +45,7 @@ class MideaDiscovery:
                     self._found_appliances.add(ip)
                     appliance = LanDevice(discovery_data=data)
                     if appliance.version == 0:
-                        _LOGGER.error(
-                            "Unable to load data from appliance ip=%s", ip
-                        )
+                        _LOGGER.error("Unable to load data from appliance ip=%s", ip)
                         continue
                     scanned_appliances.add(appliance)
 
@@ -59,23 +57,24 @@ class MideaDiscovery:
 
         return list(self._result)
 
-    def _broadcast_message(self):
-        for broadcast_address in self._get_networks():
+    def _broadcast_message(self) -> None:
+        for addr in self._get_networks():
             try:
-                self._socket.sendto(
-                    DISCOVERY_MSG, (broadcast_address, DISCOVERY_PORT)
-                )
+                self._socket.sendto(DISCOVERY_MSG, (addr, DISCOVERY_PORT))
             except Exception:
-                _LOGGER.debug(
-                    "Unable to send broadcast to: %s", broadcast_address
-                )
+                _LOGGER.debug("Unable to send broadcast to: %s", addr)
 
     def _get_networks(self) -> list[str]:
+        """Retrieves local networks by iterating local network adapters
+
+        Returns:
+            list[str]: list of local network broadcast addresses
+        """
         if self._networks is None:
             nets: list[IPv4Network] = []
-            adapters: list[ifaddr.Adapter] = ifaddr.get_adapters()
+            adapters: list[Adapter] = get_adapters()
             for adapter in adapters:
-                ip: ifaddr.IP
+                ip: IP
                 for ip in adapter.ips:
                     if ip.is_IPv4 and ip.network_prefix < 32:
                         localNet = IPv4Network(
@@ -102,10 +101,12 @@ class MideaDiscovery:
 
 
 def _add_missing_appliances(
-    cloud: MideaCloud,
-    appliances: list[LanDevice],
-    appliances_count: int
-):
+    cloud: MideaCloud, appliances: list[LanDevice], appliances_count: int
+) -> None:
+    """
+    Utility method to add placeholders for appliances which were not
+    discovered on local network
+    """
     _LOGGER.warning(
         (
             "Some appliance(s) where not discovered on local network(s):"
@@ -142,7 +143,7 @@ def find_appliances_on_lan(
     broadcast_retries: int,
     broadcast_timeout: float,
     broadcast_networks: list[str] | None,
-):
+) -> None:
 
     discovery = MideaDiscovery(
         cloud=cloud,

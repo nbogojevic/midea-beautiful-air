@@ -1,0 +1,34 @@
+{
+    "python.linting.enabled": true,
+    "python.formatting.provider": "black",
+    "python.linting.flake8Enabled": true,
+    "cSpell.words": [
+        "Comfee",
+        "midea",
+    ],
+    "cSpell.ignoreWords": [
+        "",
+        "Comfee",
+        "DGRAM",
+        "INET",
+        "MDDF",
+        "andersonshatch",
+        "barban",
+        "decryptor",
+        "encryptor",
+        "ifaddr",
+        "msmart",
+        "recvfrom",
+        "sendto",
+        "udpid",
+        "unhexlify",
+        "unpadder",
+        "urandom",
+        "yitsushi",
+        "zhou",
+        "chdjx",
+        "xhdiwjnchekd",
+        "PKCS",
+        "ssid"
+    ]
+}

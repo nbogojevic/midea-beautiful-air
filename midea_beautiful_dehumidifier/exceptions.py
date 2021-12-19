@@ -6,7 +6,7 @@ class MideaError(Exception):
 
 
 class ProtocolError(MideaError):
-    def __init__(self, message):
+    def __init__(self, message: str):
         self.message = message
 
     def __str__(self):
@@ -14,7 +14,7 @@ class ProtocolError(MideaError):
 
 
 class AuthenticationError(MideaError):
-    def __init__(self, message):
+    def __init__(self, message: str):
         self.message = message
 
     def __str__(self):
@@ -22,7 +22,7 @@ class AuthenticationError(MideaError):
 
 
 class CloudError(MideaError):
-    def __init__(self, error_code, message):
+    def __init__(self, error_code, message: str):
         self.error_code = error_code
         self.message = message
 
@@ -39,7 +39,7 @@ class CloudRequestError(MideaError):
 
 
 class RetryLaterError(MideaError):
-    def __init__(self, error_code, message):
+    def __init__(self, error_code, message: str):
         self.error_code = error_code
         self.message = message
 
@@ -48,7 +48,7 @@ class RetryLaterError(MideaError):
 
 
 class CloudAuthenticationError(MideaError):
-    def __init__(self, error_code, message):
+    def __init__(self, error_code, message: str):
         self.error_code = error_code
         self.message = message
 
