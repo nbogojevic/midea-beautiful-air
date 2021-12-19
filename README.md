@@ -126,7 +126,7 @@ print(appliance)
 
 ## Build the library
 
-Library is automatically built, packaged and published when a Git Hub 
+Library is automatically built, packaged and published to [PyPI](https://pypi.org/project/midea-beautiful-dehumidifier/) when a Git Hub release is published.
 
 ## See also
 
