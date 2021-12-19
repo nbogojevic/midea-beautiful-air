@@ -44,21 +44,15 @@ The following dehumidifier data is accessible via library:
 
 ## Discovery
 
-Library can discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with description information. Following discovery communication goes over port 6444. The library can also retrieve known appliances from Midea cloud account and match this information with information retrieved via local network.
+This library discovers appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and the library needs a token and a key for each appliance. This can be either provided or retrieved from Midea cloud account. The library can also retrieve the list of registered appliances from Midea cloud account and obtain additional information for devices (eg. name). 
 
-## Local network communication
+Library connects to Midea cloud using credentials from NetHome Plus mobile app. You can use other midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some key examples.
 
-Local network communication is encrypted using Midea protocol encryption based on AES.
-
-## Cloud communication
-
-Library connects to Midea cloud using credentials from NetHome Plus mobile app. You can use other midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some examples.
-
-Library should never log username, password or token keys.
 
 ## Logging
 
-Library logs additional information on log level 5.
+Library logs additional information on log level 5. Credential information like username, password or token keys will never be logged, but you can use command line tool to display token and key data. 
+
 
 ## Usage
 
@@ -129,6 +123,11 @@ from midea_beautiful_dehumidifier import appliance_state
 appliance = appliance_state(APPLIANCE_IP_ADDRESS, token=TOKEN, key=KEY)
 print(appliance)
 ```
+
+## Build the library
+
+Library is automatically built, packaged and published when a Git Hub 
+
 ## See also
 
 * https://github.com/nbogojevic/midea-dehumidifier-lan
