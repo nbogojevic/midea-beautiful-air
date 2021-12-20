@@ -129,7 +129,6 @@ class LanDevice:
         port: int | str = 6444,
         token: str = "",
         key: str = "",
-        max_retries: int = 2,
         appliance_type: str = "",
         data=None,
     ):
@@ -139,8 +138,8 @@ class LanDevice:
         self.token = token
         self.key = key
         self._tcp_key = None
-        self._max_retries = int(max_retries)
-        self._connection_retries = 3
+        self._max_retries = 3
+        self._no_responses = 0
         self._lock = RLock()
         if data is not None:
             data = bytes(data)
@@ -304,9 +303,16 @@ class LanDevice:
 
     def refresh(self) -> None:
         cmd = self.state.refresh_command()
-        responses = self.status(cmd)
-        for response in responses:
-            self.state.process_response(response)
+        responses = self._status(cmd)
+        if not responses:
+            self._no_responses += 1
+            if self._no_responses > self._max_retries:
+                self._online = False
+        else:
+            self._no_responses = 0
+            self._online = True
+            for response in responses:
+                self.state.process_response(response)
 
     def _connect(self, socket_timeout=2) -> None:
         with self._lock:
@@ -411,17 +417,22 @@ class LanDevice:
             _LOGGER.warning("Failed to get TCP key for %s", self)
             return False
 
-    def status(self, cmd: MideaCommand) -> list[bytes]:
+    def _status(self, cmd: MideaCommand) -> list[bytes]:
         data = self._lan_packet(int(self.id), cmd)
         _LOGGER.log(5, "Packet for: %s data: %s", self, _Hex(data))
         responses = self._appliance_send_8370(data)
-        _LOGGER.log(5, "Got response(s) from: %s", self)
 
         if len(responses) == 0:
-            _LOGGER.warning("Got no responses on status from: %s", self)
-            self._active = False
-            self._support = False
+            _LOGGER.debug("Got no responses on status from: %s", self)
+            self._no_responses += 1
+            if self._no_responses > self._max_retries:
+                self._online = False
             self._disconnect()
+        else:
+            self._no_responses = 0
+            self._online = True
+            _LOGGER.log(5, "Got response(s) from: %s", self)
+
         return responses
 
     def _appliance_send_8370(self, data) -> list[bytes]:
@@ -486,10 +497,11 @@ class LanDevice:
         _LOGGER.debug("Got response(s) from: %s", self)
 
         if len(responses) == 0:
-            _LOGGER.warning("Got no responses on apply from: %s", self)
-            self._active = False
-            self._support = False
+            _LOGGER.debug("Got no responses on apply from: %s", self)
+            self._online = False
             self._disconnect()
+        else:
+            self._online = True
         return responses
 
     def _get_valid_token(self, cloud: MideaCloud) -> bool:
@@ -593,6 +605,10 @@ class LanDevice:
     @property
     def is_supported(self):
         return self.version == 3
+
+    @property
+    def online(self):
+        return self.online
 
 
 def get_appliance_state(
