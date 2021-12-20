@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 import json
 import logging
-from threading import Lock
+from threading import RLock
 from typing import Any, Final, Tuple
 from midea_beautiful_dehumidifier.exceptions import (
     AuthenticationError,
@@ -30,6 +30,8 @@ CLOUD_API_CLIENT_TYPE: Final = 1  # Android
 CLOUD_API_FORMAT: Final = 2  # JSON
 CLOUD_API_LANGUAGE: Final = "en_US"
 CLOUD_API_SRC: Final = 17
+
+PROTECTED_RESPONSES: Final = ["iot/secure/getToken"]
 
 
 class MideaCloud:
@@ -58,14 +60,11 @@ class MideaCloud:
         # the current user
         self._session = {}
 
-        # A list of home groups used by the API to separate "zones"
-        self._home_groups = []
-
         # A list of appliances associated with the account
         self._appliance_list = []
 
         # Allow for multiple threads to initiate requests
-        self._api_lock = Lock()
+        self._api_lock = RLock()
 
         # Count the number of retries for API requests
         self._max_retries = max_retries
@@ -74,7 +73,7 @@ class MideaCloud:
         self._security = Security(appkey=self._appkey)
         self._appliance_list: list[dict] = []
 
-    def api_request(self, endpoint: str, args: dict[str, Any], authenticate=True):
+    def api_request(self, endpoint: str, args: dict[str, Any] = {}, authenticate=True):
         """
         Sends an API request to the Midea cloud service and returns the
         results or raises ValueError if there is an error
@@ -92,8 +91,8 @@ class MideaCloud:
         Returns:
             dict: value of result key in json response
         """
-        response = {}
         with self._api_lock:
+            response = {}
 
             try:
                 if authenticate:
@@ -121,17 +120,19 @@ class MideaCloud:
                 url = self._server_url + endpoint
 
                 data["sign"] = self._security.sign(url, data)
-                _LOGGER.log(5, "HTTP request = %s", data)
+                _LOGGER.log(5, "HTTP request %s: %s", endpoint, data)
                 # POST the endpoint with the payload
                 r = requests.post(url=url, data=data, timeout=9)
                 r.raise_for_status()
-                _LOGGER.log(5, "HTTP response text = %s", r.text)
+                if endpoint not in PROTECTED_RESPONSES:
+                    _LOGGER.log(5, "HTTP response text: %s", r.text)
 
                 response = json.loads(r.text)
             except RequestException as exc:
                 raise CloudRequestError(endpoint) from exc
 
-        _LOGGER.log(5, "HTTP response = %s", response)
+        if endpoint not in PROTECTED_RESPONSES:
+            _LOGGER.log(5, "HTTP response: %s", response)
 
         # Check for errors, raise if there are any
         if response["errorCode"] != "0":
@@ -140,7 +141,7 @@ class MideaCloud:
             self._retries += 1
             if self._retries < self._max_retries:
                 _LOGGER.debug(
-                    "Retrying API call: '%s' %d of",
+                    "Retrying API call %s: %d of",
                     endpoint,
                     self._retries,
                     self._max_retries,
@@ -198,26 +199,25 @@ class MideaCloud:
             return self._appliance_list
 
         # Get all home groups
-        if not self._home_groups:
-            response = self.api_request("homegroup/list/get", {})
-            _LOGGER.debug("Midea home group query result=%s", response)
-            if not response or not response.get("list"):
-                _LOGGER.error(
-                    "Unable to get home groups from Midea Cloud. response=%s",
-                    response,
-                )
-                return []
-            self._home_groups = response["list"]
+        response = self.api_request("homegroup/list/get")
+        _LOGGER.debug("Midea home group query result=%s", response)
+        if not response or not response.get("list"):
+            _LOGGER.error(
+                "Unable to get home groups from Midea Cloud. response=%s",
+                response,
+            )
+            return []
+        home_groups = response["list"]
 
         # Find default home group
-        home_group = next(g for g in self._home_groups if g["isDefault"] == "1")
+        home_group = next(grp for grp in home_groups if grp["isDefault"] == "1")
         if not home_group:
             _LOGGER.error("Unable to get default home group from Midea Cloud.")
             return []
 
         home_group_id = home_group["id"]
 
-        # Get list of appliances in selected home group
+        # Get list of appliances in default home group
         response = self.api_request(
             "appliance/list/get", {"homegroupId": home_group_id}
         )
@@ -263,7 +263,7 @@ class MideaCloud:
             self.authenticate()
 
         def authentication_error() -> None:
-            _LOGGER.warn("Authentication error: '%s' - '%s'", error, message)
+            _LOGGER.warning("Authentication error: '%s' - '%s'", error, message)
             raise CloudAuthenticationError(error, message)
 
         def retry_later() -> None:

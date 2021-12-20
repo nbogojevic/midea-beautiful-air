@@ -17,9 +17,11 @@ from midea_beautiful_dehumidifier.midea import (
     MSGTYPE_ENCRYPTED_RESPONSE,
 )
 
+ENCRYPTED_MESSAGE_TYPES: Final = (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST)
+
 
 def _strxor(plain_text, key):
-    # returns plain text by repeatedly xoring it with key
+    """returns encrypted plain text by repeatedly xoring it with key"""
     pt = plain_text
     len_key = len(key)
     encoded = bytearray(len(pt))
@@ -305,6 +307,8 @@ BLOCKSIZE: Final = 16
 
 
 class Security:
+    """Various security and cryptography services for Midea protocol"""
+
     def __init__(
         self,
         appkey: str = DEFAULT_APPKEY,
@@ -402,9 +406,10 @@ class Security:
         return self._tcp_key
 
     def encode_8370(self, data: bytes, msgtype: int) -> bytes:
+        """Encodes message in v3 (8370) protocol"""
         header = bytearray(b"\x83\x70")
         size, padding = len(data), 0
-        if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
+        if msgtype in ENCRYPTED_MESSAGE_TYPES:
             if (size + 2) % 16 != 0:
                 padding = 16 - (size + 2 & 0xF)
                 size += padding + 32
@@ -413,7 +418,7 @@ class Security:
         header.extend([0x20, padding << 4 | msgtype])
         data = self._request_count.to_bytes(2, "big") + data
         self._request_count += 1
-        if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
+        if msgtype in ENCRYPTED_MESSAGE_TYPES:
             if not self._tcp_key:
                 raise ProtocolError("Missing TCP key for local network access")
             sign = sha256(header + data).digest()
@@ -421,6 +426,7 @@ class Security:
         return bytes(header + data)
 
     def decode_8370(self, data: bytes) -> Tuple[list[bytes], bytes]:
+        """Decodes buffer in v3 (8370) protocol"""
         if len(data) < 6:
             return [], data
         header = data[:6]
@@ -428,9 +434,11 @@ class Security:
             raise ProtocolError("not an 8370 message")
         size = int.from_bytes(header[2:4], "big") + 8
         leftover = None
+        # If there is not enough data in buffer, we need to wait for more data
         if len(data) < size:
             return [], data
         elif len(data) > size:
+            # If there is too much data, save the overflow
             leftover = data[size:]
             data = data[:size]
         if header[4] != 0x20:
@@ -438,7 +446,8 @@ class Security:
         padding = header[5] >> 4
         msgtype = header[5] & 0xF
         data = data[6:]
-        if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
+        if msgtype in ENCRYPTED_MESSAGE_TYPES:
+            # Decrypt encrypted messages using TCP key
             sign = data[-32:]
             data = data[:-32]
             data = self.aes_cbc_decrypt(data, self._tcp_key)
@@ -448,6 +457,7 @@ class Security:
                 data = data[:-padding]
         self._response_count = int.from_bytes(data[:2], "big")
         data = data[2:]
+        # If we have remaining data, process it
         if leftover:
             packets, incomplete = self.decode_8370(leftover)
             return [data] + packets, incomplete
@@ -457,15 +467,14 @@ class Security:
         # We only need the path
         path = urlparse(url).path
 
-        # This next part cares about the field ordering in the
-        # payload signature
+        # Make sure that keys are in alphabetical order
         query = sorted(payload.items(), key=lambda x: x[0])
 
-        # Create a query string (?!?) and make sure to unescape the
-        # URL encoded characters (!!!)
+        # Create a query string and make sure to unescape the
+        # URL encoded characters
         query_str: str = unquote_plus(urlencode(query))
 
-        # Combine all the sign stuff to make one giant string, then SHA256 it
+        # Combine all the signing elements, then SHA256 it
         sign: str = path + query_str + self._appkey
         m = sha256()
         m.update(sign.encode("ascii"))
@@ -478,7 +487,7 @@ class Security:
         m.update(password.encode("ascii"))
 
         # Create the login hash with the loginID + password hash + appKey,
-        # then hash it all AGAIN
+        # then hash it all again
         loginHash = loginId + m.hexdigest() + self._appkey
         m = sha256()
         m.update(loginHash.encode("ascii"))

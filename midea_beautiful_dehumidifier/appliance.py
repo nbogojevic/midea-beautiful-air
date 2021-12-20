@@ -24,7 +24,7 @@ class Appliance:
     def instance(id, appliance_type: str = "") -> Appliance:
         if Appliance.supported(appliance_type):
             return DehumidifierAppliance(id=id, appliance_type=appliance_type)
-        _LOGGER.warn("Creating unsupported appliance %s %s", id, appliance_type)
+        _LOGGER.warning("Creating unsupported appliance %s %s", id, appliance_type)
         return Appliance(id, appliance_type)
 
     @staticmethod
@@ -75,6 +75,9 @@ class Appliance:
 
     def apply_command(self) -> MideaCommand:
         return MideaCommand()
+
+    def __str__(self) -> str:
+        return "{ id=%s type: '%s' }" % (self.id, self.type)
 
 
 class DehumidifierAppliance(Appliance):
@@ -179,5 +182,16 @@ class DehumidifierAppliance(Appliance):
     def model(self) -> str:
         return "Dehumidifier"
 
-    def __str__(self):
-        return str(self.__dict__)
+    def __str__(self) -> str:
+        return (
+            "[Dehumidifier]{ id: %s, type: '%s', mode: %d,"
+            " target_humidity: %d, fan_speed: %d, tank_full: %r }"
+            % (
+                self.id,
+                self.type,
+                self.mode,
+                self.target_humidity,
+                self.fan_speed,
+                self.tank_full,
+            )
+        )

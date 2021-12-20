@@ -9,7 +9,7 @@ from ifaddr import IP, Adapter, get_adapters
 
 from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.cloud import MideaCloud
-from midea_beautiful_dehumidifier.lan import DISCOVERY_MSG, LanDevice
+from midea_beautiful_dehumidifier.lan import DISCOVERY_MSG, _Hexlog, LanDevice
 from midea_beautiful_dehumidifier.midea import DISCOVERY_PORT
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,36 +26,34 @@ class MideaDiscovery:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self._socket.settimeout(broadcast_timeout)
-        self._found_appliances = set()
+        self._known_ips = set()
         self._networks = broadcast_networks
 
     def collect_appliances(self) -> list[LanDevice]:
         """Find all appliances on the local network."""
 
         self._broadcast_message()
-        self._result = set()
 
         scanned_appliances: set[LanDevice] = set()
         try:
             while True:
                 data, addr = self._socket.recvfrom(512)
                 ip = addr[0]
-                if ip not in self._found_appliances:
-                    _LOGGER.log(5, "Reply from ip=%s payload=%s", ip, data)
-                    self._found_appliances.add(ip)
-                    appliance = LanDevice(discovery_data=data)
-                    if appliance.version == 0:
-                        _LOGGER.error("Unable to load data from appliance ip=%s", ip)
-                        continue
-                    scanned_appliances.add(appliance)
+                if ip not in self._known_ips:
+                    _LOGGER.log(5, "Reply from ip=%s payload=%s", ip, _Hexlog(data))
+                    self._known_ips.add(ip)
+                    appliance = LanDevice(data=data)
+                    if appliance.is_supported:
+                        scanned_appliances.add(appliance)
+                    else:
+                        _LOGGER.error("Unable to load data for appliance %s", appliance)
 
         except socket.timeout:
+            # If we got timeout, it was enough time to wait for broadcast response
             _LOGGER.debug("Finished broadcast collection")
-        for sd in scanned_appliances:
-            if sd.identify_appliance(self._cloud):
-                self._result.add(sd)
 
-        return list(self._result)
+        # Return only successfully identified appliances
+        return [sd for sd in scanned_appliances if sd.identify_appliance(self._cloud)]
 
     def _broadcast_message(self) -> None:
         for addr in self._get_networks():
@@ -176,24 +174,16 @@ def find_appliances_on_lan(
                 if details["id"] == str(scanned.id):
                     scanned.name = details["name"]
                     appliances.append(scanned)
-                    _LOGGER.info(
-                        "Found appliance name=%s, id=%s, ip=%s:%d",
-                        scanned.state.name,
-                        scanned.id,
-                        scanned.ip,
-                        scanned.port,
-                    )
+                    _LOGGER.info("Found appliance %s", scanned)
                     break
             else:
                 _LOGGER.warning(
                     (
                         "Found an appliance that is"
                         " not registered to the account:"
-                        " id=%s, ip=%s, type=%s"
+                        " %s"
                     ),
-                    scanned.id,
-                    scanned.ip,
-                    scanned.type,
+                    scanned
                 )
         if len(appliances) >= appliances_count:
             _LOGGER.info(

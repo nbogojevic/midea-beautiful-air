@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from midea_beautiful_dehumidifier.__version__ import __version__
 from midea_beautiful_dehumidifier.cloud import MideaCloud
-from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 from midea_beautiful_dehumidifier.lan import LanDevice, get_appliance_state
+from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 from midea_beautiful_dehumidifier.scanner import find_appliances
 
 __version__ = __version__

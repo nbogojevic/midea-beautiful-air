@@ -198,90 +198,58 @@ class DehumidifierResponse:
 
         # self.faultFlag = (data[1] & 0x80) >> 7
 
-        self._is_on = data[4] & 1 != 0
+        self.is_on = data[4] & 1 != 0
 
         # self.quickChkSts = (data[1] & 32) >> 5
-        self._fault = data[1] & 0x10000000
-        self._run_status = data[1] & 0x00000001
-        self._i_mode = data[1] & 0x00000100
-        self._timing_mode = data[1] & 0x00010000
-        self._quick_check = data[1] & 0x00100000
+        self.fault = data[1] & 0x10000000
+        self.run_status = data[1] & 0x00000001
+        self.i_mode = data[1] & 0x00000100
+        self.timing_mode = data[1] & 0x00010000
+        self.quick_check = data[1] & 0x00100000
         # self.mode_FC_return = (data[2] & 240) >> 4
-        self._mode = data[2] & 0x0F
-        self._mode_fc = data[2] & 0xF0
-        self._fan_speed = data[3] & 0x7F
+        self.mode = data[2] & 0x0F
+        self.mode_fc = data[2] & 0xF0
+        self.fan_speed = data[3] & 0x7F
 
         self._on_timer_value = data[4]
         self._on_timer_minutes = data[6] & 0xF0
         self._off_timer_value = data[5]
         self._off_timer_minutes = data[6] & 0x0F
 
-        self._target_humidity = data[7]
-        if self._target_humidity > 100:
-            self._target_humidity = 99
+        self.target_humidity = data[7]
+        if self.target_humidity > 100:
+            self.target_humidity = 99
 
         # self.humidity_set_dot = data[8] & 15
         # self.mode_FD_return = data[10] & 7
         # self.filterShow = (data[9] & 0x80) >> 7
-        self._ion_mode = (data[9] & 0b01000000) != 0
+        self.ion_mode = (data[9] & 0b01000000) != 0
         # self.sleepSwitch = (data[9] & 32) >> 5
         # self.pumpSwitch_flag = (data[9] & 16) >> 4
         # self.pumpSwitch = (data[9] & 8) >> 3
         # self.displayClass = data[9] & 7
         # self.defrostingShow = (data[10] & 0x80) >> 7
-        self._tank_full = data[10] & 0x7F >= 100
+        self.tank_full = data[10] & 0x7F >= 100
         # self.dustTimeShow = data[11] * 2
         # self.rareShow = (data[12] & 56) >> 3
         # self.dustShow = data[12] & 7
         # self.pmLowValue = data[13]
         # self.pmHighValue = data[14]
         # self.rareValue = data[15]
-        self._current_humidity = data[16]
+        self.current_humidity = data[16]
 
-        self._indoorTmp = data[17]
+        self.indoorTmp = data[17]
         # self.humidity_cur_dot = data[18] & 240
         # self.indoorTmpT1_dot = (data[18] & 15) >> 4
         # self.lightClass = data[19] & 240
         # self.upAndDownSwing = data[19]
         # self.leftandrightSwing = (data[19] & 32) >> 4
         # self.lightValue = data[20]
-        self._err_code = data[21]
+        self.err_code = data[21]
         for i in range(len(data)):
             _LOGGER.log(
                 5, "%2d %3d 0x%2x %8s", i, data[i], data[i], bin(data[i])
             )
-
-    @property
-    def is_on(self):
-        return self._is_on
-
-    @property
-    def fan_speed(self):
-        return self._fan_speed
-
-    @property
-    def mode(self):
-        return self._mode
-
-    @property
-    def tank_full(self):
-        return self._tank_full
-
-    @property
-    def ion_mode(self):
-        return self._ion_mode
-
-    @property
-    def current_humidity(self):
-        return self._current_humidity
-
-    @property
-    def target_humidity(self):
-        return self._target_humidity
-
-    @property
-    def err_code(self):
-        return self._err_code
 
     # Byte 0x04 + 0x06
     @property

@@ -2,6 +2,10 @@
     "python.linting.enabled": true,
     "python.formatting.provider": "black",
     "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+        "--ignore=E203,W503",
+        "--max-line-length=88"
+    ],
     "cSpell.words": [
         "Comfee",
         "midea",
