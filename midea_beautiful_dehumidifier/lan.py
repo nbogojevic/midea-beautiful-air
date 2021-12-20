@@ -191,6 +191,7 @@ class LanDevice:
                 f"{reply[74 + ssid_len]}"
             )
             self.state = Appliance.instance(id=id, appliance_type=self.type)
+            self._online = True
 
             _LOGGER.debug("Descriptor data from %s: %r", self, self)
 
@@ -211,6 +212,7 @@ class LanDevice:
             self.protocol_version = None
             self.udp_version = None
             self.state = Appliance.instance(id=id, appliance_type=self.type)
+            self._online = True
             # Default interface version is 3
             self.version = 3
 
@@ -561,7 +563,7 @@ class LanDevice:
 
     def __repr__(self) -> str:
         return (
-            "{id=%s ip=%s port=%d version=%d name=%s"
+            "{id=%s ip=%s port=%d version=%d name=%s online=%s"
             " type=%s subtype=%x flags=%x extra=%x reserved=%x"
             " mac=%s ssid=%s udp version=%x protocol=%s version=%s"
             " enckey=%s sn=%s state=%s}"
@@ -571,6 +573,7 @@ class LanDevice:
             self.port,
             self.version,
             self.name,
+            self.online,
             self.type,
             self.subtype,
             self.flags,
@@ -608,7 +611,7 @@ class LanDevice:
 
     @property
     def online(self):
-        return self.online
+        return self._online
 
 
 def get_appliance_state(
