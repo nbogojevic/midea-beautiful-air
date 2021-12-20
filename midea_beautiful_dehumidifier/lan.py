@@ -7,7 +7,7 @@ from hashlib import sha256
 import logging
 import socket
 from threading import RLock
-from time import sleep, time
+from time import sleep
 from typing import Final
 
 from midea_beautiful_dehumidifier.appliance import Appliance
@@ -24,8 +24,10 @@ from midea_beautiful_dehumidifier.midea import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class _Hexlog:
-    def __init__(self, data: bytes | None) -> None:
+class _Hex:
+    """Helper class used to display bytes array as hexadecimal string"""
+
+    def __init__(self, data: bytes | bytearray | None) -> None:
         self.data = data
 
     def __str__(self) -> str:
@@ -136,7 +138,6 @@ class LanDevice:
         self._socket = None
         self.token = token
         self.key = key
-        self._timestamp = time()
         self._tcp_key = None
         self._max_retries = int(max_retries)
         self._connection_retries = 3
@@ -155,12 +156,7 @@ class LanDevice:
             encrypt_data = data[40:-16]
             reply = self._security.aes_decrypt(encrypt_data)
             self.ip = ".".join([str(i) for i in reply[3::-1]])
-            _LOGGER.log(
-                5,
-                "Decrypted reply from %s reply=%s",
-                self.ip,
-                _Hexlog(reply),
-            )
+            _LOGGER.log(5, "From %s decrypted reply=%s", self.ip, _Hex(reply))
             self.port = int.from_bytes(reply[4:8], "little")
             self.sn = reply[8:40].decode("ascii")
             ssid_len = reply[40]
@@ -225,7 +221,6 @@ class LanDevice:
         self._socket = None
         self._tcp_key = other._tcp_key
         self._max_retries = other._max_retries
-        self._timestamp = other._timestamp
         self._retries = other._retries
         self.ip = other.ip
         self.port = other.port
@@ -327,9 +322,7 @@ class LanDevice:
 
                 except Exception as error:
                     _LOGGER.error(
-                        "Connection error: %s for %s",
-                        self,
-                        error,
+                        "Connection error: %s for %s", self, error, exc_info=True
                     )
                     self._disconnect()
 
@@ -351,20 +344,10 @@ class LanDevice:
 
             # Send data
             try:
-                _LOGGER.log(
-                    5,
-                    "Sending to %s, message: %s",
-                    self,
-                    _Hexlog(message),
-                )
-                self._timestamp = time()
+                _LOGGER.log(5, "Sending to %s, message: %s", self, _Hex(message))
                 self._socket.sendall(message)
             except Exception as error:
-                _LOGGER.error(
-                    "Error sending to %s: %s",
-                    self,
-                    error,
-                )
+                _LOGGER.error("Error sending to %s: %s", self, error)
                 self._disconnect()
                 self._retries += 1
                 return b""
@@ -373,32 +356,18 @@ class LanDevice:
             try:
                 response = self._socket.recv(1024)
             except socket.timeout as error:
-                _LOGGER.debug(
-                    "Receiving from %s, time out error: %s",
-                    self,
-                    error,
-                )
-
+                _LOGGER.debug("Timeout receiving from %s: %s", self, error)
                 self._retries += 1
                 return b""
             except OSError as error:
-                _LOGGER.debug(
-                    "Error receiving from %s: %s",
-                    self,
-                    error,
-                )
+                _LOGGER.debug("Error receiving from %s: %s", self, error)
                 self._disconnect()
                 self._retries += 1
                 return b""
             else:
-                _LOGGER.log(
-                    5,
-                    "Receiving from %s, response: %s",
-                    self,
-                    _Hexlog(response),
-                )
+                _LOGGER.log(5, "From %s, got response: %s", self, _Hex(response))
                 if len(response) == 0:
-                    _LOGGER.debug("Socket closed from %s", self)
+                    _LOGGER.debug("Socket closed %s", self)
                     self._disconnect()
                     self._retries += 1
                     return b""
@@ -412,18 +381,14 @@ class LanDevice:
         byte_token = unhexlify(self.token)
 
         response = b""
-        for i in range(self._connection_retries):
+        for i in range(self._max_retries):
             request = self._security.encode_8370(byte_token, MSGTYPE_HANDSHAKE_REQUEST)
             response = self._request(request)
 
             if not response:
                 if i > 0:
                     # Retry handshake
-                    _LOGGER.info(
-                        "Unable to perform handshake, retrying %d of %d",
-                        i + 1,
-                        self._connection_retries,
-                    )
+                    _LOGGER.debug("Handshake retry %d of %d", i + 1, self._max_retries)
                     sleep(i + 1)
             else:
                 break
@@ -448,12 +413,7 @@ class LanDevice:
 
     def status(self, cmd: MideaCommand) -> list[bytes]:
         data = self._lan_packet(int(self.id), cmd)
-        _LOGGER.log(
-            5,
-            "Packet for: %s data: %s",
-            self,
-            _Hexlog(data),
-        )
+        _LOGGER.log(5, "Packet for: %s data: %s", self, _Hex(data))
         responses = self._appliance_send_8370(data)
         _LOGGER.log(5, "Got response(s) from: %s", self)
 
@@ -470,15 +430,15 @@ class LanDevice:
             _LOGGER.debug("Socket %s closed, creating new socket", self)
             self._disconnect()
 
-            for i in range(self._connection_retries):
+            for i in range(self._max_retries):
                 if not self._authenticate():
-                    if i == self._connection_retries - 1:
+                    if i == self._max_retries - 1:
                         _LOGGER.error("Failed to authenticate %s", self)
                         return []
                     _LOGGER.debug(
                         "Retrying authenticate, %d out of %d: %s",
                         i + 2,
-                        self._connection_retries,
+                        self._max_retries,
                         self,
                     )
                     self._disconnect()
@@ -521,12 +481,7 @@ class LanDevice:
     def _apply(self, cmd: MideaCommand) -> list[bytes]:
         data = self._lan_packet(int(self.id), cmd)
 
-        _LOGGER.log(
-            5,
-            "Packet for %s data: %s",
-            self,
-            _Hexlog(data),
-        )
+        _LOGGER.log(5, "Packet for %s data: %s", self, _Hex(data))
         responses = self._appliance_send_8370(data)
         _LOGGER.debug("Got response(s) from: %s", self)
 
@@ -543,7 +498,7 @@ class LanDevice:
         Works only with v3 appliances.
 
         Args:
-            cloud (CloudService): interface to Midea cloud
+            cloud (CloudService): interface to Midea cloud API
 
         Returns:
             bool: True if successful
@@ -614,7 +569,7 @@ class LanDevice:
             self.udp_version,
             self.protocol_version,
             self.firmware_version,
-            _Hexlog(self.randomkey),
+            _Hex(self.randomkey),
             self.sn,
             self.state,
         )
@@ -645,24 +600,24 @@ def get_appliance_state(
     port: int = DISCOVERY_PORT,
     token: str = "",
     key: str = "",
-    socket_timeout: int = 8,
+    timeout: int = 8,
     cloud: MideaCloud = None,
 ) -> LanDevice | None:
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(socket_timeout)
+    sock.settimeout(timeout)
 
     try:
         # Connect to the appliance
         sock.connect((ip, port))
 
         # Send the discovery query
-        _LOGGER.log(5, "Sending to %s:%d %s", ip, port, _Hexlog(DISCOVERY_MSG))
+        _LOGGER.log(5, "Sending to %s:%d %s", ip, port, _Hex(DISCOVERY_MSG))
         sock.sendall(DISCOVERY_MSG)
 
         # Received data
         response = sock.recv(512)
-        _LOGGER.log(5, "Received from %s:%d %s", ip, port, _Hexlog(response))
+        _LOGGER.log(5, "Received from %s:%d %s", ip, port, _Hex(response))
         appliance = LanDevice(data=response, token=token, key=key)
         _LOGGER.log(5, "Appliance %s", ip, port, appliance)
         if appliance.identify_appliance(cloud):
@@ -679,7 +634,7 @@ def get_appliance_state(
             "Timeout while connecting to appliance %s:%d for %ds.",
             ip,
             port,
-            socket_timeout,
+            timeout,
         )
     finally:
         sock.close()

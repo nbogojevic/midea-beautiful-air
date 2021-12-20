@@ -1,4 +1,4 @@
-"""Interface to Midea cloud."""
+"""Interface to Midea cloud API."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -203,7 +203,7 @@ class MideaCloud:
         _LOGGER.debug("Midea home group query result=%s", response)
         if not response or not response.get("list"):
             _LOGGER.error(
-                "Unable to get home groups from Midea Cloud. response=%s",
+                "Unable to get home groups from Midea cloud API. response=%s",
                 response,
             )
             return []
@@ -212,7 +212,7 @@ class MideaCloud:
         # Find default home group
         home_group = next(grp for grp in home_groups if grp["isDefault"] == "1")
         if not home_group:
-            _LOGGER.error("Unable to get default home group from Midea Cloud.")
+            _LOGGER.error("Unable to get default home group from Midea cloud API.")
             return []
 
         home_group_id = home_group["id"]

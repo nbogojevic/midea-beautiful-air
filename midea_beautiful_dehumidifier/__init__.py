@@ -24,19 +24,19 @@ def discover_appliances(
     Discovers appliances on local network
 
     Args:
-        appkey (str, optional): Midea cloud application key. If not
+        appkey (str, optional): Midea app application key. If not
             provided, cloud interface must be provided and will
             be used to discover appliance information and token.
             Defaults to None.
-        account (str, optional): Midea cloud user e-mail. If not
+        account (str, optional): Midea app user e-mail. If not
             provided, cloud interface must be provided and will
             be used to discover appliance information and token.
             Defaults to None.
-        password (str, optional): Midea cloud password. If not
+        password (str, optional): Midea app password. If not
             provided, cloud interface must be provided and will
             be used to discover appliance information and token.
             Defaults to None.
-        cloud (MideaCloud, optional): Interface to Midea cloud.
+        cloud (MideaCloud, optional): Interface to Midea cloud API.
             Used when credentials were not provided. Defaults to None.
         broadcast_retries (int, optional): Number of retries for UDP
             broadcast. Defaults to 2.
@@ -48,7 +48,7 @@ def discover_appliances(
 
     Returns:
         list[LanDevice]: List of appliances. Appliances that
-            are found on Midea cloud, but are not discovered will
+            are found via Midea cloud API, but are not discovered will
             have IP address set to None.
     """
     return find_appliances(
@@ -57,9 +57,9 @@ def discover_appliances(
         password=password,
         appid=appid,
         cloud=cloud,
-        broadcast_retries=broadcast_retries,
-        broadcast_timeout=broadcast_timeout,
-        broadcast_networks=broadcast_networks,
+        retries=broadcast_retries,
+        timeout=broadcast_timeout,
+        networks=broadcast_networks,
     )
 
 
@@ -78,7 +78,7 @@ def appliance_state(
         key (str, optional): Key for token. If not provided, cloud
             interface must be provided and will be used
             to discover token. Defaults to None.
-        cloud (MideaCloud, optional): Interface to Midea cloud.
+        cloud (MideaCloud, optional): Interface to Midea cloud API.
             Used to discover token if it was not provided in arguments.
             Defaults to None.
 
@@ -92,13 +92,13 @@ def connect_to_cloud(
     account: str, password: str, appkey=DEFAULT_APPKEY, appid=DEFAULT_APP_ID
 ) -> MideaCloud:
     """
-    Connects to Midea cloud
+    Connects to Midea cloud API
 
     Args:
-        appkey (str): Midea cloud API application key
-        account (str): Midea cloud user e-mail
-        password (str): Midea cloud password
-        appid (str): Midea cloud API application id
+        appkey (str): Midea app key
+        account (str): Midea app user e-mail
+        password (str): Midea app password
+        appid (str): Midea app id
 
     Returns:
         MideaCloud: Interface to Midea cloud API

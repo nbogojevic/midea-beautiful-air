@@ -50,9 +50,9 @@ def cli() -> None:
     parser_discover = subparsers.add_parser(
         "discover", help="discovers appliances on local network"
     )
-    parser_discover.add_argument("--account", help="Midea cloud account", required=True)
+    parser_discover.add_argument("--account", help="Midea app account", required=True)
     parser_discover.add_argument(
-        "--password", help="Midea cloud password", required=True
+        "--password", help="Midea app password", required=True
     )
     parser_discover.add_argument(
         "--appkey",
@@ -115,8 +115,8 @@ def cli() -> None:
             account=args.account,
             password=args.password,
             appid=args.appid,
-            broadcast_retries=2,
-            broadcast_timeout=3,
+            retries=2,
+            timeout=3,
         )
         for appliance in appliances:
             output(appliance, args.credentials)

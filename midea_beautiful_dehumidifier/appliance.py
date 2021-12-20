@@ -77,7 +77,7 @@ class Appliance:
         return MideaCommand()
 
     def __str__(self) -> str:
-        return "{ id=%s type: '%s' }" % (self.id, self.type)
+        return "[UnknownAppliance]{ id: %s type: '%s' }" % (self.id, self.type)
 
 
 class DehumidifierAppliance(Appliance):
@@ -107,7 +107,8 @@ class DehumidifierAppliance(Appliance):
         if len(data) > 0:
             self._online = True
             self._active = True
-
+            for i in range(len(data)):
+                _LOGGER.log(5, "%2d %3d 0x%2x %8s", i, data[i], data[i], bin(data[i]))
             response = DehumidifierResponse(data)
             _LOGGER.debug("Decoded response %s", response)
 

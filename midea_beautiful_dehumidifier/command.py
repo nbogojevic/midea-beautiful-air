@@ -1,11 +1,7 @@
 """ Commands for Midea appliance """
 from __future__ import annotations
 
-import logging
-
 from midea_beautiful_dehumidifier.crypto import crc8
-
-_LOGGER = logging.getLogger(__name__)
 
 _order: int = 0
 
@@ -190,7 +186,7 @@ class DehumidifierSetCommand(MideaCommand):
     @fan_speed.setter
     def fan_speed(self, speed: int) -> None:
         self.data[13] &= ~0x7F  # Clear the power bit
-        self.data[13] |= speed
+        self.data[13] |= speed & 0x7F
 
 
 class DehumidifierResponse:
@@ -246,10 +242,6 @@ class DehumidifierResponse:
         # self.leftandrightSwing = (data[19] & 32) >> 4
         # self.lightValue = data[20]
         self.err_code = data[21]
-        for i in range(len(data)):
-            _LOGGER.log(
-                5, "%2d %3d 0x%2x %8s", i, data[i], data[i], bin(data[i])
-            )
 
     # Byte 0x04 + 0x06
     @property
@@ -282,8 +274,7 @@ class DehumidifierResponse:
             "set": self._off_timer_value != 0x7F,
             "hour": (self._off_timer_value & 0x7C) >> 2,
             "minutes": (
-                (self._off_timer_value & 0x3)
-                | (self._off_timer_minutes & 0xF)
+                (self._off_timer_value & 0x3) | (self._off_timer_minutes & 0xF)
             ),
             "off_timer_value": self._off_timer_value,
             "off_timer_minutes": self._off_timer_minutes,

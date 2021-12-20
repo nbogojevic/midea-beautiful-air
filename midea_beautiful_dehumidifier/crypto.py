@@ -393,7 +393,7 @@ class Security:
             raise AuthenticationError("Authentication failed - error packet")
         if len(response) != 64:
             raise AuthenticationError(
-                f"Unexpected data length (expected 64, was {len(response)})"
+                f"Packet length error: {len(response)} instead of 64)"
             )
         payload = response[:32]
         sign = response[32:]
