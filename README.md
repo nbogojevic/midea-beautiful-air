@@ -61,7 +61,7 @@ Library logs additional information at log level 5. Credential information like 
 Install package:
 
 ```shell
-pip install midea-beautiful-dehumidifier
+pip install --upgrade midea-beautiful-dehumidifier
 ```
 
 ### Command line tool
@@ -78,7 +78,6 @@ python -m midea_beautiful_dehumidifier.cli status --help
 Discover dehumidifier appliances on the local network:
 
 ```shell
-pip install midea-beautiful-dehumidifier
 python -m midea_beautiful_dehumidifier.cli discover --account ACCOUNT_EMAIL --password PASSWORD
 # Show tokens used to connect to appliances via local network
 python -m midea_beautiful_dehumidifier.cli discover --account ACCOUNT_EMAIL --password PASSWORD --credentials
@@ -87,7 +86,6 @@ python -m midea_beautiful_dehumidifier.cli discover --account ACCOUNT_EMAIL --pa
 Get status of an appliance:
 
 ```shell
-pip install midea-beautiful-dehumidifier
 python -m midea_beautiful_dehumidifier.cli status --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY
 ```
 
@@ -96,7 +94,7 @@ python -m midea_beautiful_dehumidifier.cli status --ip APPLIANCE_IP_ADDRESS --to
 Set appliance attribute (target humidity, mode, ion switch, fan speed):
 
 ```shell
-pip install midea-beautiful-dehumidifier
+# Sets operating mode (number 1 to 4)
 python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode MODE
 ```
 
@@ -132,4 +130,4 @@ Library is automatically built, packaged and published to [PyPI](https://pypi.or
 
 ## See also
 
-* https://github.com/nbogojevic/midea-dehumidifier-lan
+* https://github.com/nbogojevic/homeassistant-midea-dehumidifier-lan
