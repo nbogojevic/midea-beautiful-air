@@ -24,7 +24,7 @@ If you are unsure about the version check the __version__.py file.
 <!-- Add your logs here. ATTENTION: there may be personal information in your logs that you should mask by XXXXXX:
 - appliance mac address; 
 - serial number (there is mac address inside too)
-- credentials/token should not be logged, but, please, double-check 
+- credentials/token can be logged at log level 5 or NOTSET, so, please, double-check 
 - local network IP address (please keep first octet(s) or use documentation network: e.g. 192.0.xx.xx) 
 -->
 

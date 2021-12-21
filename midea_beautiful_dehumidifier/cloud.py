@@ -31,7 +31,8 @@ CLOUD_API_FORMAT: Final = 2  # JSON
 CLOUD_API_LANGUAGE: Final = "en_US"
 CLOUD_API_SRC: Final = 17
 
-PROTECTED_RESPONSES: Final = ["iot/secure/getToken"]
+PROTECTED_REQUESTS: Final = ["user/login/id/get", "user/login"]
+PROTECTED_RESPONSES: Final = ["iot/secure/getToken", "user/login/id/get", "user/login"]
 
 _MAX_RETRIES: Final = 3
 
@@ -121,7 +122,8 @@ class MideaCloud:
                 url = self._server_url + endpoint
 
                 data["sign"] = self._security.sign(url, data)
-                _LOGGER.log(5, "HTTP request %s: %s", endpoint, data)
+                if endpoint not in PROTECTED_REQUESTS:
+                    _LOGGER.log(5, "HTTP request %s: %s", endpoint, data)
                 # POST the endpoint with the payload
                 r = requests.post(url=url, data=data, timeout=9)
                 r.raise_for_status()
