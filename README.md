@@ -118,6 +118,8 @@ python -m midea_beautiful_dehumidifier.cli --log DEBUG discover --account ACCOUN
 python -m midea_beautiful_dehumidifier.cli --log NOTSET discover --account ACCOUNT_EMAIL --password PASSWORD
 # WARNING level (default log level if option was not specified)
 python -m midea_beautiful_dehumidifier.cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
+```
+
 ### Code
 
 Discover appliances on local network:
