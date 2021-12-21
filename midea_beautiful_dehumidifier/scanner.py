@@ -12,7 +12,7 @@ from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.lan import DISCOVERY_MSG, _Hex, LanDevice
 from midea_beautiful_dehumidifier.midea import DISCOVERY_PORT
-from midea_beautiful_dehumidifier.__version__ import __version__
+from midea_beautiful_dehumidifier.version import __version__
 
 _LOGGER = logging.getLogger(__name__)
 

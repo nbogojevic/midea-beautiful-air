@@ -11,13 +11,12 @@ def read(rel_path: str) -> str:
         return fp.read()
 
 
-def get_version(rel_path: str) -> str:
-    for line in read(rel_path).splitlines():
-        if line.startswith("__version__"):
-            # __version__ = "0.9"
-            delim = '"' if '"' in line else "'"
-            return line.split(delim)[1]
-    raise RuntimeError("Unable to find version string.")
+def get_version(relative_path: str) -> str:
+    package_root = os.path.abspath(os.path.dirname(__file__))
+    version = {}
+    with open(os.path.join(package_root, relative_path)) as version_fp:
+        exec(version_fp.read(), version)
+        return version['__version__']
 
 
 with open("README.md", "r", encoding="utf-8") as fh:
@@ -25,13 +24,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="midea-beautiful-dehumidifier",
-    version=get_version("midea_beautiful_dehumidifier/__version__.py"),
+    version=get_version("midea_beautiful_dehumidifier/version.py"),
     url="https://github.com/nbogojevic/midea-beautiful-dehumidifier",
-    author="Nenad Bogojevic",
+    author="Nenad Bogojević",
     author_email="nenad.bogojevic@gmail.com",
     license="MIT",
     description=(
-        "A library to control Midea Dehumidifiers"
+        "A library to control Midea dehumidifiers"
         " via the Local area network"
     ),
     long_description=long_description,
