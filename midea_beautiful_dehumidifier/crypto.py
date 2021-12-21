@@ -292,6 +292,7 @@ crc8_854_table: Final = [
 
 
 def crc8(data: bytes) -> int:
+    """8-bit CRC calculation"""
     crc_value: int = 0
     for m in data:
         k = crc_value ^ m
@@ -389,6 +390,7 @@ class Security:
         return md5(raw + self._signkey).digest()
 
     def tcp_key(self, response: bytes, key: bytes) -> bytes:
+        """Retrieves key for local network communication"""
         if response == b"ERROR":
             raise AuthenticationError("Authentication failed - error packet")
         if len(response) != 64:
@@ -464,6 +466,7 @@ class Security:
         return [data], b""
 
     def sign(self, url: str, payload: dict[str, Any]) -> str:
+        """Signs payload for cloud API"""
         # We only need the path
         path = urlparse(url).path
 
@@ -482,6 +485,7 @@ class Security:
         return m.hexdigest()
 
     def encrypt_password(self, loginId: str, password: str) -> str:
+        """Encrypts password for cloud API"""
         # Hash the password
         m = sha256()
         m.update(password.encode("ascii"))

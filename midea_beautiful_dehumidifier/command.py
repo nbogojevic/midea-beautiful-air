@@ -1,9 +1,13 @@
 """ Commands for Midea appliance """
 from __future__ import annotations
+from multiprocessing import RLock
 
 from midea_beautiful_dehumidifier.crypto import crc8
 
-_order: int = 0
+# Each command has unique sequence id (single byte with roll-over)
+_command_sequence: int = 0
+# Lock for command sequence increment
+_order_lock = RLock()
 
 
 class MideaCommand:
@@ -13,10 +17,11 @@ class MideaCommand:
         self.data = bytearray()
 
     def finalize(self) -> bytes:
-        global _order
-        _order = (_order + 1) & 0xFF
+        global _command_sequence
+        with _order_lock:
+            _command_sequence = (_command_sequence + 1) & 0xFF
         # Add the CRC8
-        self.data[30] = _order
+        self.data[30] = _command_sequence
         # Add the CRC8
         self.data[31] = crc8(self.data[10:31])
         # Add checksum
@@ -26,6 +31,8 @@ class MideaCommand:
 
 
 class DehumidifierStatusCommand(MideaCommand):
+    """Command that retrieves dehumidifier status"""
+
     def __init__(self):
         # Command structure
         self.data = bytearray(
@@ -93,6 +100,8 @@ class DehumidifierStatusCommand(MideaCommand):
 
 
 class DehumidifierSetCommand(MideaCommand):
+    """Command that sets dehumidifier controls"""
+
     def __init__(self):
         self.data = bytearray(
             [
@@ -190,6 +199,7 @@ class DehumidifierSetCommand(MideaCommand):
 
 
 class DehumidifierResponse:
+    """Response from dehumidifier queries"""
     def __init__(self, data: bytes):
 
         # self.faultFlag = (data[1] & 0x80) >> 7

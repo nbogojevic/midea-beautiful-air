@@ -4,6 +4,7 @@ from __future__ import annotations
 from ipaddress import IPv4Network
 import logging
 import socket
+from typing import Final
 
 from ifaddr import IP, Adapter, get_adapters
 
@@ -14,20 +15,18 @@ from midea_beautiful_dehumidifier.midea import DISCOVERY_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
+_BROADCAST_TIMEOUT: Final = 3
+_BROADCAST_RETRIES: Final = 2
+
 
 class MideaDiscovery:
-    def __init__(
-        self,
-        cloud: MideaCloud,
-        timeout: float,
-        networks: list[str] | None,
-    ):
+    def __init__(self, cloud: MideaCloud):
         self._cloud = cloud
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self._socket.settimeout(timeout)
+        self._socket.settimeout(_BROADCAST_TIMEOUT)
         self._known_ips = set()
-        self._networks = networks
+        self._networks: list[str] = []
 
     def collect_appliances(self) -> list[LanDevice]:
         """Find all appliances on the local network."""
@@ -68,7 +67,7 @@ class MideaDiscovery:
         Returns:
             list[str]: list of local network broadcast addresses
         """
-        if self._networks is None:
+        if not self._networks:
             nets: list[IPv4Network] = []
             adapters: list[Adapter] = get_adapters()
             for adapter in adapters:
@@ -99,7 +98,7 @@ class MideaDiscovery:
 
 
 def _add_missing_appliances(
-    cloud: MideaCloud, appliances: list[LanDevice], appliances_count: int
+    cloud: MideaCloud, appliances: list[LanDevice], count: int
 ) -> None:
     """
     Utility method to add placeholders for appliances which were not
@@ -111,7 +110,7 @@ def _add_missing_appliances(
             " %d discovered out of %d"
         ),
         len(appliances),
-        appliances_count,
+        count,
     )
     for details in cloud.list_appliances():
         appliance_type = details["type"]
@@ -135,23 +134,15 @@ def _add_missing_appliances(
             appliance.name = details["name"]
 
 
-def find_appliances_on_lan(
-    cloud: MideaCloud,
-    appliances: list[LanDevice],
-    retries: int,
-    timeout: float,
-    networks: list[str] | None,
-) -> None:
+def _find_appliances_on_lan(cloud: MideaCloud, appliances: list[LanDevice]) -> None:
 
     discovery = MideaDiscovery(
         cloud=cloud,
-        timeout=timeout,
-        networks=networks,
     )
     _LOGGER.debug("Starting LAN discovery")
     count = sum(Appliance.supported(a["type"]) for a in cloud.list_appliances())
-    for i in range(retries):
-        _LOGGER.debug("Broadcast attempt %d of max %d", i + 1, retries)
+    for i in range(_BROADCAST_RETRIES):
+        _LOGGER.debug("Broadcast attempt %d of max %d", i + 1, _BROADCAST_RETRIES)
 
         scanned_appliances = list(discovery.collect_appliances())
         scanned_appliances.sort(key=lambda appliance: appliance.id)
@@ -183,14 +174,11 @@ def find_appliances_on_lan(
 
 
 def find_appliances(
+    cloud: MideaCloud | None = None,
     appkey=None,
     account=None,
     password=None,
     appid=None,
-    cloud: MideaCloud | None = None,
-    retries: int = 2,
-    timeout: int = 3,
-    networks: list[str] | None = None,
 ) -> list[LanDevice]:
     if cloud is None:
         cloud = MideaCloud(appkey, account, password, appid)
@@ -199,12 +187,6 @@ def find_appliances(
     appliances: list[LanDevice] = []
 
     _LOGGER.debug("Scanning for midea dehumidifier appliances")
-    find_appliances_on_lan(
-        appliances=appliances,
-        cloud=cloud,
-        retries=retries,
-        timeout=timeout,
-        networks=networks,
-    )
+    _find_appliances_on_lan(cloud, appliances)
 
     return appliances

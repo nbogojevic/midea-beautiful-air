@@ -33,6 +33,8 @@ CLOUD_API_SRC: Final = 17
 
 PROTECTED_RESPONSES: Final = ["iot/secure/getToken"]
 
+_MAX_RETRIES: Final = 3
+
 
 class MideaCloud:
     def __init__(
@@ -42,7 +44,6 @@ class MideaCloud:
         password: str,
         appid: int = DEFAULT_APP_ID,
         server_url: str = CLOUD_API_SERVER_URL,
-        max_retries: int = 3,
     ):
         # Get this from any of the Midea based apps
         self._appkey = appkey
@@ -67,7 +68,7 @@ class MideaCloud:
         self._api_lock = RLock()
 
         # Count the number of retries for API requests
-        self._max_retries = max_retries
+        self._max_retries = _MAX_RETRIES
         self._retries = 0
 
         self._security = Security(appkey=self._appkey)

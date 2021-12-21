@@ -16,9 +16,6 @@ def discover_appliances(
     password: str = None,
     appid: int = DEFAULT_APP_ID,
     cloud: MideaCloud | None = None,
-    broadcast_retries: int = 2,
-    broadcast_timeout: int = 3,
-    broadcast_networks=None,
 ) -> list[LanDevice]:
     """
     Discovers appliances on local network
@@ -40,27 +37,13 @@ def discover_appliances(
             Used when credentials were not provided. Defaults to None.
         broadcast_retries (int, optional): Number of retries for UDP
             broadcast. Defaults to 2.
-        broadcast_timeout (int, optional): Timeout in seconds for waiting
-            for reply on UDP broadcast. Defaults to 3.
-        broadcast_networks (list[str], optional): List of network broadcast
-            addresses. When not provided, all network interfaces are used.
-            Defaults to None.
 
     Returns:
         list[LanDevice]: List of appliances. Appliances that
             are found via Midea cloud API, but are not discovered will
             have IP address set to None.
     """
-    return find_appliances(
-        appkey=appkey,
-        account=account,
-        password=password,
-        appid=appid,
-        cloud=cloud,
-        retries=broadcast_retries,
-        timeout=broadcast_timeout,
-        networks=broadcast_networks,
-    )
+    return find_appliances(cloud, appkey, account, password, appid)
 
 
 def appliance_state(

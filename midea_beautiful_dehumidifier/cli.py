@@ -62,7 +62,7 @@ def cli() -> None:
     )
     parser_discover.add_argument(
         "--appid",
-        help="Midea app id",
+        help="Midea app id. Note that appid must correspond to app key",
         default=DEFAULT_APP_ID,
     )
     parser_discover.add_argument(
@@ -116,8 +116,6 @@ def cli() -> None:
             account=args.account,
             password=args.password,
             appid=args.appid,
-            retries=2,
-            timeout=3,
         )
         for appliance in appliances:
             output(appliance, args.credentials)

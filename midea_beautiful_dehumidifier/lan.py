@@ -23,6 +23,8 @@ from midea_beautiful_dehumidifier.midea import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_STATE_SOCKET_TIMEOUT: Final = 3
+
 
 class _Hex:
     """Helper class used to display bytes array as hexadecimal string"""
@@ -437,7 +439,7 @@ class LanDevice:
 
         return responses
 
-    def _appliance_send_8370(self, data) -> list[bytes]:
+    def _appliance_send_8370(self, data: bytes | bytearray) -> list[bytes]:
         """Sends data using v3 (8370) protocol"""
         if self._socket is None or self._tcp_key is None:
             _LOGGER.debug("Socket %s closed, creating new socket", self)
@@ -619,12 +621,11 @@ def get_appliance_state(
     port: int = DISCOVERY_PORT,
     token: str = "",
     key: str = "",
-    timeout: int = 8,
     cloud: MideaCloud = None,
 ) -> LanDevice | None:
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(timeout)
+    sock.settimeout(_STATE_SOCKET_TIMEOUT)
 
     try:
         # Connect to the appliance
@@ -653,7 +654,7 @@ def get_appliance_state(
             "Timeout while connecting to appliance %s:%d for %ds.",
             ip,
             port,
-            timeout,
+            _STATE_SOCKET_TIMEOUT,
         )
     finally:
         sock.close()
