@@ -48,6 +48,7 @@ def cli() -> None:
         choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR"],
     )
     subparsers = parser.add_subparsers(help="sub-commands", dest="command")
+
     parser_discover = subparsers.add_parser(
         "discover", help="discovers appliances on local network"
     )

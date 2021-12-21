@@ -163,8 +163,11 @@ class LanDevice:
             ssid_len = reply[40]
             # ssid like midea_xx_xxxx net_xx_xxxx
             self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
-            self.mac = reply[63 + ssid_len : 69 + ssid_len].hex(":")
-            if reply[55 + ssid_len] != 0:
+            if len(reply) > (69 + ssid_len):
+                self.mac = reply[63 + ssid_len : 69 + ssid_len].hex(":")
+            else:
+                self.mac = self.sn[16:32]
+            if len(reply) >= (55 + ssid_len) and reply[55 + ssid_len] != 0:
                 # Get type
                 self.type = hex(reply[55 + ssid_len])
                 self.subtype = int.from_bytes(
@@ -174,9 +177,14 @@ class LanDevice:
                 # Get from SSID
                 self.type = self.ssid.split("_")[1].lower()
                 self.subtype = 0
-            self.reserved = reply[43 + ssid_len]
-            self.flags = reply[44 + ssid_len]
-            self.extra = reply[45 + ssid_len]
+            if len(reply) >= (45 + ssid_len):
+                self.reserved = reply[43 + ssid_len]
+                self.flags = reply[44 + ssid_len]
+                self.extra = reply[45 + ssid_len]
+            else:
+                self.reserved = 0
+                self.flags = 0
+                self.extra = 0
             # m_enable_extra = (b >> 7) == 1
             # m_support_extra_auth = (b & 1) == 1
             # m_support_extra_channel = (b & 2) == 2
