@@ -48,6 +48,8 @@ This library discovers appliances on local network. This is done by broadcasting
 
 Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
+The discovery should work on Linux and Windows, however it doesn't work in Windows Subsystem for Linux (e.g. Docker Desktop, Ubuntu on Windows).
+
 
 ## Logging
 
