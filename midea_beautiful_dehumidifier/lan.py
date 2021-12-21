@@ -163,21 +163,22 @@ class LanDevice:
             ssid_len = reply[40]
             # ssid like midea_xx_xxxx net_xx_xxxx
             self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
-            if len(reply) > (69 + ssid_len):
+            if len(reply) >= (69 + ssid_len):
                 self.mac = reply[63 + ssid_len : 69 + ssid_len].hex(":")
             else:
                 self.mac = self.sn[16:32]
-            if len(reply) >= (55 + ssid_len) and reply[55 + ssid_len] != 0:
+            if len(reply) >= (56 + ssid_len) and reply[55 + ssid_len] != 0:
                 # Get type
                 self.type = hex(reply[55 + ssid_len])
-                self.subtype = int.from_bytes(
-                    reply[57 + ssid_len : 59 + ssid_len], "little"
-                )
+                if len(reply) >= (59 + ssid_len):
+                    self.subtype = int.from_bytes(
+                        reply[57 + ssid_len : 59 + ssid_len], "little"
+                    )
             else:
                 # Get from SSID
                 self.type = self.ssid.split("_")[1].lower()
                 self.subtype = 0
-            if len(reply) >= (45 + ssid_len):
+            if len(reply) >= (46 + ssid_len):
                 self.reserved = reply[43 + ssid_len]
                 self.flags = reply[44 + ssid_len]
                 self.extra = reply[45 + ssid_len]
@@ -190,16 +191,20 @@ class LanDevice:
             # m_support_extra_channel = (b & 2) == 2
             # m_support_extra_last_error_code = (b & 4) == 4
 
-            self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
-            self.udp_version = int.from_bytes(
-                reply[46 + ssid_len : 50 + ssid_len], "little"
-            )
-            self.protocol_version = reply[69 + ssid_len : 72 + ssid_len].hex()
-            self.firmware_version = (
-                f"{reply[72 + ssid_len]}."
-                f"{reply[73 + ssid_len]}."
-                f"{reply[74 + ssid_len]}"
-            )
+            if len(reply) >= (94 + ssid_len):
+                self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
+            if len(reply) >= (50 + ssid_len):
+                self.udp_version = int.from_bytes(
+                    reply[46 + ssid_len : 50 + ssid_len], "little"
+                )
+            if len(reply) >= (72 + ssid_len):
+                self.protocol_version = reply[69 + ssid_len : 72 + ssid_len].hex()
+            if len(reply) >= (75 + ssid_len):
+                self.firmware_version = (
+                    f"{reply[72 + ssid_len]}."
+                    f"{reply[73 + ssid_len]}."
+                    f"{reply[74 + ssid_len]}"
+                )
             self.state = Appliance.instance(id=id, appliance_type=self.type)
             self._online = True
 
