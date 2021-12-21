@@ -30,13 +30,13 @@ It may as well work with other Midea Wi-Fi dehumidifiers.
 The following dehumidifier data is accessible via library: 
 
 * on/off switch (boolean, can be set)
-* current humidity (read-only)
-* target humidity (can be set)
+* current relative humidity (read-only)
+* target relative humidity (can be set)
 * active mode (can be set)
 * fan speed (can be set)
-* ion switch status (boolean, can be set)
+* ion mode status (boolean, can be set)
 * tank is full (boolean, read-only)
-* appliance name (read-only). This one is set through Midea application.
+* appliance name (read-only). Set through Midea mobile application.
 * appliance serial number (read-only) 
 * appliance IPv4 address (read-only)
 * token and key for local network access (read-only)
@@ -78,6 +78,7 @@ python -m midea_beautiful_dehumidifier.cli status --help
 Discover dehumidifier appliances on the local network:
 
 ```shell
+# Find appliances on local network
 python -m midea_beautiful_dehumidifier.cli discover --account ACCOUNT_EMAIL --password PASSWORD
 # Show tokens used to connect to appliances via local network
 python -m midea_beautiful_dehumidifier.cli discover --account ACCOUNT_EMAIL --password PASSWORD --credentials
@@ -94,10 +95,29 @@ python -m midea_beautiful_dehumidifier.cli status --ip APPLIANCE_IP_ADDRESS --to
 Set appliance attribute (target humidity, mode, ion switch, fan speed):
 
 ```shell
+# Set target relative humidity (0-100)
+python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --humidity 55
 # Sets operating mode (number 1 to 4)
-python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode MODE
+python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode 1
+# Set fan strength (0-100)
+python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 40
+# Turn on/off ion mode (0 or 1)
+python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --ion 1
+# Turn on/off ion mode (0 or 1)
+python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --on 1
+# Combinations are possible
+python -m midea_beautiful_dehumidifier.cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 60 --humidity 50
 ```
 
+Log level is specified using `--log` option:
+
+```shell
+# DEBUG level
+python -m midea_beautiful_dehumidifier.cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
+# VERY verbose level
+python -m midea_beautiful_dehumidifier.cli --log NOTSET discover --account ACCOUNT_EMAIL --password PASSWORD
+# WARNING level (default log level if option was not specified)
+python -m midea_beautiful_dehumidifier.cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
 ### Code
 
 Discover appliances on local network:
@@ -108,8 +128,6 @@ from midea_beautiful_dehumidifier import find_appliances
 appliances = find_appliances(
     account=USER_EMAIL,
     password=PASSWORD,
-    broadcast_retries=2,
-    broadcast_timeout=3,
 )
 for appliance in appliances:
     output(appliance, args.credentials)
