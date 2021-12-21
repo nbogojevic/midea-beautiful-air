@@ -140,6 +140,7 @@ class LanDevice:
         self.token = token
         self.key = key
         self._tcp_key = None
+        self._last_error = ""
         self._max_retries = 3
         self._no_responses = 0
         self._lock = RLock()
@@ -370,7 +371,8 @@ class LanDevice:
                 _LOGGER.log(5, "Sending to %s, message: %s", self, _Hex(message))
                 self._socket.sendall(message)
             except Exception as error:
-                _LOGGER.error("Error sending to %s: %s", self, error)
+                _LOGGER.debug("Error sending to %s: %s", self, error)
+                self._last_error = str(error)
                 self._disconnect()
                 self._retries += 1
                 return b""
@@ -484,10 +486,18 @@ class LanDevice:
         # wait few seconds before re-sending data, default is 0
         sleep(self._retries)
         response_buf = self._request(data)
-        if not response_buf and self._retries < self._max_retries:
-            packets = self._appliance_send_8370(original_data)
-            self._retries = 0
-            return packets
+        if not response_buf:
+            if self._retries < self._max_retries:
+                packets = self._appliance_send_8370(original_data)
+                self._retries = 0
+                return packets
+            else:
+                _LOGGER.error(
+                    "Unable to send data after %d retries, last error %s",
+                    self._max_retries,
+                    self._last_error,
+                )
+                self._last_error = ""
         responses, self._buffer = self._security.decode_8370(
             self._buffer + response_buf
         )
