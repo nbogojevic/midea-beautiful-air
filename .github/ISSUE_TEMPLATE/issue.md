@@ -19,11 +19,22 @@ Issues not containing the minimum requirements will be closed:
 If you are unsure about the version check the __version__.py file.
 -->
 
-## Configuration
+## Logs
 
-```yaml
+<!-- Add your logs here. ATTENTION: there may be personal information in your logs that you should mask by XXXXXX:
+- appliance mac address; 
+- serial number (there is mac address inside too)
+- credentials/token should not be logged, but, please, double-check 
+- local network IP address (please keep first octet(s) or use documentation network: e.g. 192.0.xx.xx) 
+-->
 
-Add your logs here.
+```
+Example log:
+2021-12-31 23:59:00 example.com midea_beautiful_dehumidifier.scanner[25840] DEBUG Library version=0.1.0
+2021-12-31 23:59:00 example.com midea_beautiful_dehumidifier.cloud[25840] Level 5 HTTP request user/login/id/get: {'appId': '1117', 'format': 2, 'clientType': 1, 'language': 'en_US', 'src': 17, 'stamp': '20211231235900', 'loginAccount': 'email@example.com', 'sign': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}
+2021-12-31 23:59:00 example.com urllib3.connectionpool[123456] DEBUG Starting new HTTPS connection (1): mapp.appsmb.com:443
+
+
 
 ```
 
@@ -31,14 +42,3 @@ Add your logs here.
 A clear and concise description of what the bug is.
 
 
-## Debug log
-
-<!-- To enable debug logs in Home Assistant check this https://www.home-assistant.io/components/logger/ 
-When using command line use --log DEBUG option 
--->
-
-```text
-
-Add your logs here.
-
-```
