@@ -9,6 +9,7 @@ from midea_beautiful_dehumidifier.command import (
     DehumidifierStatusCommand,
     MideaCommand,
 )
+from midea_beautiful_dehumidifier.util import _Hex
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class DehumidifierAppliance(Appliance):
             5,
             "Processing response for dehumidifier id=%s data=%s",
             self._id,
-            data,
+            _Hex(data),
         )
         if len(data) > 0:
             self._online = True

@@ -1,6 +1,7 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
+# Use colored logs if installed
 try:
     from coloredlogs import install as coloredlogs_install
 except Exception:
@@ -24,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def output(appliance: LanDevice, show_credentials: bool = False):
-    print(f"addr={appliance.ip}:{appliance.port}")
+    print(f"addr={appliance.ip if appliance.ip else 'Unknown'}:{appliance.port}")
     print(f"        id      = {appliance.id}")
     print(f"        s/n     = {appliance.sn}")
     print(f"        model   = {appliance.model}")
@@ -42,43 +43,63 @@ def output(appliance: LanDevice, show_credentials: bool = False):
         print(f"        key     = {appliance.key}")
 
 
+def _add_standard_options(parser: ArgumentParser, with_token: bool = True) -> None:
+    if with_token:
+        parser.add_argument("--ip", help="IP address of the appliance", required=True)
+        parser.add_argument(
+            "--token",
+            help="token used to communicate with appliance",
+            default="",
+        )
+        parser.add_argument(
+            "--key", help="key used to communicate with appliance", default=""
+        )
+    parser.add_argument(
+        "--account", help="Midea app account", default="", required=not with_token
+    )
+    parser.add_argument(
+        "--password", help="Midea app password", default="", required=not with_token
+    )
+    parser.add_argument(
+        "--appkey",
+        help="Midea app key",
+        default=DEFAULT_APPKEY,
+    )
+    parser.add_argument(
+        "--appid",
+        help="Midea app id. Note that appid must correspond to app key",
+        default=DEFAULT_APP_ID,
+    )
+    parser.add_argument(
+        "--credentials", action="store_true", help="show credentials in output"
+    )
+
+
 def cli() -> None:
+    """Command line interface for the library"""
     parser = ArgumentParser(
-        prog="midea_beautiful_dehumidifier.cli",
+        prog="midea-beautiful-dehumidifier-cli",
         description="Discovers and manages Midea dehumidifiers on local network(s).",
     )
 
     parser.add_argument(
         "--log",
-        help="sets logging level (numeric or one of python logging levels) ",
+        help="sets the logging level (DEBUG, INFO, WARNING, ERROR or numeric 0-50) ",
         default="WARNING",
+        dest="loglevel"
     )
-    subparsers = parser.add_subparsers(help="sub-commands", dest="command")
+    subparsers = parser.add_subparsers(metavar="subcommand", help="", dest="command")
 
     parser_discover = subparsers.add_parser(
         "discover",
         help="discovers appliances on local network(s)",
         description="Discovers appliances on local network(s)",
     )
-    parser_discover.add_argument("--account", help="Midea app account", required=True)
-    parser_discover.add_argument("--password", help="Midea app password", required=True)
-    parser_discover.add_argument(
-        "--appkey",
-        help="Midea app key",
-        default=DEFAULT_APPKEY,
-    )
-    parser_discover.add_argument(
-        "--appid",
-        help="Midea app id. Note that appid must correspond to app key",
-        default=DEFAULT_APP_ID,
-    )
-    parser_discover.add_argument(
-        "--credentials", action="store_true", help="show credentials in output"
-    )
+    _add_standard_options(parser_discover, False)
     parser_discover.add_argument(
         "--network",
         nargs="+",
-        help="network range(s) for discovery (e.g. 192.0.0.0/24).",
+        help="network addresses or range(s) for discovery (e.g. 192.0.0.0/24).",
     )
 
     parser_status = subparsers.add_parser(
@@ -86,62 +107,14 @@ def cli() -> None:
         help="gets status from appliance",
         description="Gets status from appliance.",
     )
-    parser_status.add_argument(
-        "--ip", help="IP address of the appliance", required=True
-    )
-    parser_status.add_argument(
-        "--token",
-        help="token used to communicate with appliance",
-        default="",
-    )
-    parser_status.add_argument(
-        "--key", help="key used to communicate with appliance", default=""
-    )
-    parser_status.add_argument("--account", help="Midea app account", required=True)
-    parser_status.add_argument("--password", help="Midea app password", required=True)
-    parser_status.add_argument(
-        "--appkey",
-        help="Midea app key",
-        default=DEFAULT_APPKEY,
-    )
-    parser_status.add_argument(
-        "--appid",
-        help="Midea app id. Note that appid must correspond to app key",
-        default=DEFAULT_APP_ID,
-    )
-    parser_status.add_argument(
-        "--credentials", action="store_true", help="show credentials in output"
-    )
+    _add_standard_options(parser_status)
 
     parser_set = subparsers.add_parser(
         "set",
         help="sets status of appliance",
         description="Sets status of an appliance.",
     )
-    parser_set.add_argument("--ip", help="IP address of the appliance", required=True)
-    parser_set.add_argument(
-        "--token",
-        help="token used to communicate with appliance",
-        default="",
-    )
-    parser_set.add_argument(
-        "--key", help="key used to communicate with appliance", default=""
-    )
-    parser_set.add_argument("--account", help="Midea app account", required=True)
-    parser_set.add_argument("--password", help="Midea app password", required=True)
-    parser_set.add_argument(
-        "--appkey",
-        help="Midea app key",
-        default=DEFAULT_APPKEY,
-    )
-    parser_set.add_argument(
-        "--appid",
-        help="Midea app id. Note that appid must correspond to app key",
-        default=DEFAULT_APP_ID,
-    )
-    parser_set.add_argument(
-        "--credentials", action="store_true", help="show credentials in output"
-    )
+    _add_standard_options(parser_set)
     parser_set.add_argument("--humidity", help="target humidity", default=None)
     parser_set.add_argument("--fan", help="fan strength", default=None)
     parser_set.add_argument("--mode", help="dehumidifier mode switch", default=None)
@@ -149,7 +122,8 @@ def cli() -> None:
     parser_set.add_argument("--on", help="turn on/off", default=None)
 
     args = parser.parse_args()
-    log_level = int(args.log) if args.log.isdigit() else args.log
+
+    log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
     try:
         coloredlogs_install(level=log_level)
     except Exception:

@@ -10,9 +10,10 @@ from ifaddr import IP, Adapter, get_adapters
 
 from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.cloud import MideaCloud
-from midea_beautiful_dehumidifier.lan import DISCOVERY_MSG, _Hex, LanDevice
+from midea_beautiful_dehumidifier.lan import DISCOVERY_MSG, LanDevice
 from midea_beautiful_dehumidifier.midea import DISCOVERY_PORT
 from midea_beautiful_dehumidifier.version import __version__
+from midea_beautiful_dehumidifier.util import _Hex
 
 _LOGGER = logging.getLogger(__name__)
 
