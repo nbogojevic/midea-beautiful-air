@@ -144,6 +144,15 @@ class LanDevice:
         self._max_retries = 3
         self._no_responses = 0
         self._lock = RLock()
+        self.firmware_version = None
+        self.protocol_version = None
+        self.udp_version = None
+        self.randomkey = None
+        self.reserved = None
+        self.flags = None
+        self.extra = None
+        self.subtype = None
+
         if data is not None:
             data = bytes(data)
             if data[:2] == b"\x5a\x5a":  # 5a5a
@@ -183,10 +192,7 @@ class LanDevice:
                 self.reserved = reply[43 + ssid_len]
                 self.flags = reply[44 + ssid_len]
                 self.extra = reply[45 + ssid_len]
-            else:
-                self.reserved = 0
-                self.flags = 0
-                self.extra = 0
+
             # m_enable_extra = (b >> 7) == 1
             # m_support_extra_auth = (b & 1) == 1
             # m_support_extra_channel = (b & 2) == 2
@@ -216,17 +222,10 @@ class LanDevice:
             self.ip = ip
             self.port = int(port)
             self.sn = None
-            self.subtype = None
-            self.reserved = None
-            self.flags = None
-            self.extra = None
-            self.randomkey = None
             self.mac = None
             self.ssid = None
             self.type = appliance_type
-            self.firmware_version = None
-            self.protocol_version = None
-            self.udp_version = None
+
             self.state = Appliance.instance(id=id, appliance_type=self.type)
             self._online = True
             # Default interface version is 3

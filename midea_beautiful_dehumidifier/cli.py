@@ -8,12 +8,19 @@ except Exception:
     def coloredlogs_install(level):
         pass
 
+
 from argparse import ArgumentParser
 import logging
 
-from midea_beautiful_dehumidifier import appliance_state, find_appliances
+from midea_beautiful_dehumidifier import (
+    appliance_state,
+    connect_to_cloud,
+    find_appliances,
+)
 from midea_beautiful_dehumidifier.lan import LanDevice
 from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def output(appliance: LanDevice, show_credentials: bool = False):
@@ -38,24 +45,23 @@ def output(appliance: LanDevice, show_credentials: bool = False):
 def cli() -> None:
     parser = ArgumentParser(
         prog="midea_beautiful_dehumidifier.cli",
-        description="Discovers Midea dehumidifiers on local network.",
+        description="Discovers and manages Midea dehumidifiers on local network(s).",
     )
 
     parser.add_argument(
         "--log",
-        help="sets logging level",
+        help="sets logging level (numeric or one of python logging levels) ",
         default="WARNING",
-        choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR"],
     )
     subparsers = parser.add_subparsers(help="sub-commands", dest="command")
 
     parser_discover = subparsers.add_parser(
-        "discover", help="discovers appliances on local network"
+        "discover",
+        help="discovers appliances on local network(s)",
+        description="Discovers appliances on local network(s)",
     )
     parser_discover.add_argument("--account", help="Midea app account", required=True)
-    parser_discover.add_argument(
-        "--password", help="Midea app password", required=True
-    )
+    parser_discover.add_argument("--password", help="Midea app password", required=True)
     parser_discover.add_argument(
         "--appkey",
         help="Midea app key",
@@ -67,10 +73,19 @@ def cli() -> None:
         default=DEFAULT_APP_ID,
     )
     parser_discover.add_argument(
-        "--credentials", action="store_true", help="show credentials"
+        "--credentials", action="store_true", help="show credentials in output"
+    )
+    parser_discover.add_argument(
+        "--network",
+        nargs="+",
+        help="network range(s) for discovery (e.g. 192.0.0.0/24).",
     )
 
-    parser_status = subparsers.add_parser("status", help="gets status from appliance")
+    parser_status = subparsers.add_parser(
+        "status",
+        help="gets status from appliance",
+        description="Gets status from appliance.",
+    )
     parser_status.add_argument(
         "--ip", help="IP address of the appliance", required=True
     )
@@ -82,11 +97,27 @@ def cli() -> None:
     parser_status.add_argument(
         "--key", help="key used to communicate with appliance", default=""
     )
+    parser_status.add_argument("--account", help="Midea app account", required=True)
+    parser_status.add_argument("--password", help="Midea app password", required=True)
     parser_status.add_argument(
-        "--credentials", action="store_true", help="show credentials"
+        "--appkey",
+        help="Midea app key",
+        default=DEFAULT_APPKEY,
+    )
+    parser_status.add_argument(
+        "--appid",
+        help="Midea app id. Note that appid must correspond to app key",
+        default=DEFAULT_APP_ID,
+    )
+    parser_status.add_argument(
+        "--credentials", action="store_true", help="show credentials in output"
     )
 
-    parser_set = subparsers.add_parser("set", help="sets status of appliance")
+    parser_set = subparsers.add_parser(
+        "set",
+        help="sets status of appliance",
+        description="Sets status of an appliance.",
+    )
     parser_set.add_argument("--ip", help="IP address of the appliance", required=True)
     parser_set.add_argument(
         "--token",
@@ -96,8 +127,20 @@ def cli() -> None:
     parser_set.add_argument(
         "--key", help="key used to communicate with appliance", default=""
     )
+    parser_set.add_argument("--account", help="Midea app account", required=True)
+    parser_set.add_argument("--password", help="Midea app password", required=True)
     parser_set.add_argument(
-        "--credentials", action="store_true", help="show credentials"
+        "--appkey",
+        help="Midea app key",
+        default=DEFAULT_APPKEY,
+    )
+    parser_set.add_argument(
+        "--appid",
+        help="Midea app id. Note that appid must correspond to app key",
+        default=DEFAULT_APP_ID,
+    )
+    parser_set.add_argument(
+        "--credentials", action="store_true", help="show credentials in output"
     )
     parser_set.add_argument("--humidity", help="target humidity", default=None)
     parser_set.add_argument("--fan", help="fan strength", default=None)
@@ -106,10 +149,11 @@ def cli() -> None:
     parser_set.add_argument("--on", help="turn on/off", default=None)
 
     args = parser.parse_args()
+    log_level = int(args.log) if args.log.isdigit() else args.log
     try:
-        coloredlogs_install(level=args.log)
+        coloredlogs_install(level=log_level)
     except Exception:
-        logging.basicConfig(level=args.log)
+        logging.basicConfig(level=log_level)
 
     if args.command == "discover":
         appliances = find_appliances(
@@ -117,17 +161,40 @@ def cli() -> None:
             account=args.account,
             password=args.password,
             appid=args.appid,
+            networks=args.network,
         )
         for appliance in appliances:
             output(appliance, args.credentials)
 
     elif args.command == "status":
-        appliance = appliance_state(args.ip, token=args.token, key=args.key)
+        if not args.token:
+            if args.account and args.password:
+                cloud = connect_to_cloud(
+                    args.account, args.password, args.appkey, args.appid
+                )
+                appliance = appliance_state(args.ip, cloud=cloud)
+            else:
+                _LOGGER.error("Missing token/key or cloud credentials")
+                return
+        else:
+            appliance = appliance_state(args.ip, token=args.token, key=args.key)
         if appliance is not None:
             output(appliance, args.credentials)
+        else:
+            _LOGGER.error("Unable to get appliance status %s", args.ip)
 
     elif args.command == "set":
-        appliance = appliance_state(args.ip, token=args.token, key=args.key)
+        if not args.token:
+            if args.account and args.password:
+                cloud = connect_to_cloud(
+                    args.account, args.password, args.appkey, args.appid
+                )
+                appliance = appliance_state(args.ip, cloud=cloud)
+            else:
+                _LOGGER.error("Missing token/key or cloud credentials")
+                return
+        else:
+            appliance = appliance_state(args.ip, token=args.token, key=args.key)
         if appliance is not None:
             appliance.set_state(
                 target_humidity=args.humidity,

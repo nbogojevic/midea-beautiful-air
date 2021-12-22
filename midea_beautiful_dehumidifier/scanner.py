@@ -20,6 +20,48 @@ _BROADCAST_TIMEOUT: Final = 3
 _BROADCAST_RETRIES: Final = 2
 
 
+def _get_broadcast_addresses(addresses: list[str] = []) -> list[str]:
+    """Retrieves local networks by iterating local network adapters
+
+    Returns:
+        list[str]: list of local network broadcast addresses
+    """
+    # If addresses were provided, then we will send discovery to them
+    # even if they are not in private ip range
+    provided_address = True
+    if not addresses:
+        addresses = []
+        provided_address = False
+        adapters: list[Adapter] = get_adapters()
+        for adapter in adapters:
+            ip: IP
+            for ip in adapter.ips:
+                if ip.is_IPv4:
+                    addresses.append(f"{ip.ip}/{ip.network_prefix}")
+    nets: list[IPv4Network] = []
+
+    for addr in addresses:
+        localNet = IPv4Network(addr, strict=False)
+        if (
+            (localNet.is_private or provided_address)
+            and not localNet.is_loopback
+            and not localNet.is_link_local
+        ):
+            nets.append(localNet)
+    networks = list()
+    if not nets:
+        _LOGGER.error("No valid networks to send broadcast to")
+    else:
+        for net in nets:
+            _LOGGER.debug(
+                "Network %s, broadcast address %s",
+                net.network_address,
+                net.broadcast_address,
+            )
+            networks.append(str(net.broadcast_address))
+    return networks
+
+
 class MideaDiscovery:
     def __init__(self, cloud: MideaCloud):
         self._cloud = cloud
@@ -29,10 +71,10 @@ class MideaDiscovery:
         self._known_ips = set()
         self._networks: list[str] = []
 
-    def collect_appliances(self) -> list[LanDevice]:
+    def collect_appliances(self, networks: list[str] = []) -> list[LanDevice]:
         """Find all appliances on the local network."""
 
-        self._broadcast_message()
+        self._broadcast_message(networks)
 
         scanned_appliances: set[LanDevice] = set()
         try:
@@ -55,47 +97,14 @@ class MideaDiscovery:
         # Return only successfully identified appliances
         return [sd for sd in scanned_appliances if sd.identify_appliance(self._cloud)]
 
-    def _broadcast_message(self) -> None:
-        for addr in self._get_networks():
+    def _broadcast_message(self, networks: list[str]) -> None:
+
+        for addr in networks:
+            _LOGGER.debug("Broadcasting to %s", addr)
             try:
                 self._socket.sendto(DISCOVERY_MSG, (addr, DISCOVERY_PORT))
             except Exception:
                 _LOGGER.debug("Unable to send broadcast to: %s", addr)
-
-    def _get_networks(self) -> list[str]:
-        """Retrieves local networks by iterating local network adapters
-
-        Returns:
-            list[str]: list of local network broadcast addresses
-        """
-        if not self._networks:
-            nets: list[IPv4Network] = []
-            adapters: list[Adapter] = get_adapters()
-            for adapter in adapters:
-                ip: IP
-                for ip in adapter.ips:
-                    if ip.is_IPv4 and ip.network_prefix < 32:
-                        localNet = IPv4Network(
-                            f"{ip.ip}/{ip.network_prefix}", strict=False
-                        )
-                        if (
-                            localNet.is_private
-                            and not localNet.is_loopback
-                            and not localNet.is_link_local
-                        ):
-                            nets.append(localNet)
-            self._networks = list()
-            if not nets:
-                _LOGGER.error("No valid networks to send broadcast to")
-            else:
-                for net in nets:
-                    _LOGGER.debug(
-                        "Network %s, broadcast address %s",
-                        net.network_address,
-                        net.broadcast_address,
-                    )
-                    self._networks.append(str(net.broadcast_address))
-        return self._networks
 
 
 def _add_missing_appliances(
@@ -135,17 +144,16 @@ def _add_missing_appliances(
             appliance.name = details["name"]
 
 
-def _find_appliances_on_lan(cloud: MideaCloud, appliances: list[LanDevice]) -> None:
+def _find_appliances_on_lan(cloud: MideaCloud, networks: list[str]) -> list[LanDevice]:
 
-    discovery = MideaDiscovery(
-        cloud=cloud,
-    )
+    discovery = MideaDiscovery(cloud=cloud)
+    appliances: list[LanDevice] = []
     _LOGGER.debug("Starting LAN discovery")
     count = sum(Appliance.supported(a["type"]) for a in cloud.list_appliances())
     for i in range(_BROADCAST_RETRIES):
         _LOGGER.debug("Broadcast attempt %d of max %d", i + 1, _BROADCAST_RETRIES)
 
-        scanned_appliances = list(discovery.collect_appliances())
+        scanned_appliances = list(discovery.collect_appliances(networks))
         scanned_appliances.sort(key=lambda appliance: appliance.id)
         for scanned in scanned_appliances:
             for appliance in appliances:
@@ -172,6 +180,7 @@ def _find_appliances_on_lan(cloud: MideaCloud, appliances: list[LanDevice]) -> N
             break
     if len(appliances) < count:
         _add_missing_appliances(cloud, appliances, count)
+    return appliances
 
 
 def find_appliances(
@@ -180,15 +189,13 @@ def find_appliances(
     account=None,
     password=None,
     appid=None,
+    networks=list[str],
 ) -> list[LanDevice]:
     _LOGGER.debug("Library version=%s", __version__)
     if cloud is None:
         cloud = MideaCloud(appkey, account, password, appid)
         cloud.authenticate()
 
-    appliances: list[LanDevice] = []
-
-    _LOGGER.debug("Scanning for midea dehumidifier appliances")
-    _find_appliances_on_lan(cloud, appliances)
-
-    return appliances
+    addresses = _get_broadcast_addresses(networks)
+    _LOGGER.debug("Scanning for midea dehumidifier appliances via %s", addresses)
+    return _find_appliances_on_lan(cloud, addresses)

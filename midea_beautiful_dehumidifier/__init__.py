@@ -16,6 +16,7 @@ def discover_appliances(
     password: str = None,
     appid: int = DEFAULT_APP_ID,
     cloud: MideaCloud | None = None,
+    networks: list[str] = []
 ) -> list[LanDevice]:
     """
     Discovers appliances on local network
@@ -43,7 +44,7 @@ def discover_appliances(
             are found via Midea cloud API, but are not discovered will
             have IP address set to None.
     """
-    return find_appliances(cloud, appkey, account, password, appid)
+    return find_appliances(cloud, appkey, account, password, appid, networks)
 
 
 def appliance_state(
