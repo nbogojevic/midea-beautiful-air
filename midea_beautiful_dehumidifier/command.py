@@ -226,7 +226,8 @@ class DehumidifierResponse:
         if self.target_humidity > 100:
             self.target_humidity = 99
 
-        # self.humidity_set_dot = data[8] & 15
+        humidity_decimal: float = (data[8] & 15) * 0.0625
+        self.target_humidity += humidity_decimal
         # self.mode_FD_return = data[10] & 7
         # self.filterShow = (data[9] & 0x80) >> 7
         self.ion_mode = (data[9] & 0b01000000) != 0
@@ -243,9 +244,9 @@ class DehumidifierResponse:
         # self.pmHighValue = data[14]
         # self.rareValue = data[15]
         self.current_humidity = data[16]
-
-        self.indoorTmp = data[17]
-        # self.humidity_cur_dot = data[18] & 240
+        self.indoor_temperature = data[17] / 4
+        humidity_decimal = ((data[18] & 0xf0) >> 4) * 0.0625
+        self.current_humidity += humidity_decimal
         # self.indoorTmpT1_dot = (data[18] & 15) >> 4
         # self.lightClass = data[19] & 240
         # self.upAndDownSwing = data[19]

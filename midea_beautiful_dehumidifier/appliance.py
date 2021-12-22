@@ -15,10 +15,18 @@ from midea_beautiful_dehumidifier.util import _Hex
 
 _LOGGER = logging.getLogger(__name__)
 
+# Used when watch mechanism is active
+_watch_level: int = 5
+
+
+def set_watch_level(level):
+    global _watch_level
+    _watch_level = level
+
 
 class Appliance:
     def __init__(self, id, appliance_type: str = ""):
-        self._id = int(id)
+        self._id = str(id)
         self._type = appliance_type
         self._online = False
         self._active = False
@@ -47,8 +55,8 @@ class Appliance:
         return self._id
 
     @property
-    def name(self):
-        return self._name if hasattr(self, "_name") else self._id
+    def name(self) -> str:
+        return getattr(self, "_name", str(self._id))
 
     @name.setter
     def name(self, name) -> None:
@@ -94,6 +102,7 @@ class DehumidifierAppliance(Appliance):
         self._current_humidity = 45
         self._fan_speed = 40
         self._tank_full = False
+        self._current_temperature: float = 0
 
     @staticmethod
     def supported(type: str | int) -> bool:
@@ -101,8 +110,9 @@ class DehumidifierAppliance(Appliance):
         return lwr == "a1" or lwr == "0xa1" or type == 161
 
     def process_response(self, data: bytes):
+        global _watch_level
         _LOGGER.log(
-            5,
+            _watch_level,
             "Processing response for dehumidifier id=%s data=%s",
             self._id,
             _Hex(data),
@@ -111,18 +121,33 @@ class DehumidifierAppliance(Appliance):
             self._online = True
             self._active = True
             for i in range(len(data)):
-                _LOGGER.log(5, "%2d %3d 0x%2x %8s", i, data[i], data[i], bin(data[i]))
+                _LOGGER.log(
+                    _watch_level, "%2d %3d 0x%2x %8s", i, data[i], data[i], bin(data[i])
+                )
             response = DehumidifierResponse(data)
             _LOGGER.debug("Decoded response %s", response)
 
-            self._is_on = bool(response.run_status)
+            self.running = bool(response.run_status)
 
             self._ion_mode = response.ion_mode
             self.mode = response.mode
             self.target_humidity = response.target_humidity
-            self._current_humidity = response.current_humidity
+            self._current_humidity = int(response.current_humidity)
+            if self._current_humidity < 0:
+                _LOGGER.warning(
+                    "Current humidity measurement less than 0%, was %s",
+                    response.current_humidity,
+                )
+                self._current_humidity = 0
+            elif self._current_humidity > 100:
+                _LOGGER.warning(
+                    "Current humidity measurement grater than 100%, was %s",
+                    response.current_humidity,
+                )
+                self._current_humidity = 0
             self.fan_speed = response.fan_speed
             self._tank_full = response.tank_full
+            self._current_temperature = response.indoor_temperature
 
         else:
             self._online = False
@@ -140,12 +165,16 @@ class DehumidifierAppliance(Appliance):
         return cmd
 
     @property
-    def tank_full(self):
+    def tank_full(self) -> bool:
         return self._tank_full
 
     @property
-    def current_humidity(self):
+    def current_humidity(self) -> int:
         return self._current_humidity
+
+    @property
+    def current_temperature(self) -> float:
+        return self._current_temperature
 
     @property
     def running(self) -> bool:
@@ -166,8 +195,16 @@ class DehumidifierAppliance(Appliance):
     def fan_speed(self, fan_speed: int) -> None:
         fan_speed = int(fan_speed)
         if fan_speed < 0:
+            _LOGGER.warning(
+                "Tried to set fan speed to less than 0: %s",
+                fan_speed,
+            )
             self._fan_speed = 0
         elif fan_speed > 100:
+            _LOGGER.warning(
+                "Tried to set fan speed to greater than 100: %s",
+                fan_speed,
+            )
             self._fan_speed = 100
         else:
             self._fan_speed = fan_speed
@@ -188,14 +225,21 @@ class DehumidifierAppliance(Appliance):
         return self._target_humidity
 
     @target_humidity.setter
-    def target_humidity(self, target_humidity: int) -> None:
-        target_humidity = int(target_humidity)
+    def target_humidity(self, target_humidity: float) -> None:
         if target_humidity < 0:
+            _LOGGER.warning(
+                "Tried to set target humidity to less than 0%: %s",
+                target_humidity,
+            )
             self._target_humidity = 0
         elif target_humidity > 100:
+            _LOGGER.warning(
+                "Tried to set target humidity to greater than 100%: %s",
+                target_humidity,
+            )
             self._target_humidity = 100
         else:
-            self._target_humidity = target_humidity
+            self._target_humidity = int(target_humidity)
 
     @property
     def mode(self):
@@ -206,6 +250,11 @@ class DehumidifierAppliance(Appliance):
         mode = int(mode)
         if 0 <= mode and mode <= 15:
             self._mode = mode
+        else:
+            _LOGGER.warning(
+                "Tried to set mode to invalid value: %s",
+                mode,
+            )
 
     @property
     def model(self) -> str:

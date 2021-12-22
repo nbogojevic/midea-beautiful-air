@@ -12,12 +12,14 @@ except Exception:
 
 from argparse import ArgumentParser
 import logging
+from time import sleep
 
 from midea_beautiful_dehumidifier import (
     appliance_state,
     connect_to_cloud,
     find_appliances,
 )
+from midea_beautiful_dehumidifier.appliance import set_watch_level
 from midea_beautiful_dehumidifier.lan import LanDevice
 from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 
@@ -87,7 +89,7 @@ def cli() -> None:
         "--log",
         help="sets the logging level (DEBUG, INFO, WARNING, ERROR or numeric 0-50) ",
         default="WARNING",
-        dest="loglevel"
+        dest="loglevel",
     )
     subparsers = parser.add_subparsers(metavar="subcommand", help="", dest="command")
 
@@ -121,7 +123,18 @@ def cli() -> None:
     parser_set.add_argument("--mode", help="dehumidifier mode switch", default=None)
     parser_set.add_argument("--ion", help="ion mode switch", default=None)
     parser_set.add_argument("--on", help="turn on/off", default=None)
-
+    parser_watch = subparsers.add_parser(
+        "watch",
+        help="watches status of appliance",
+        description="Watches status of an appliance.",
+    )
+    _add_standard_options(parser_watch)
+    parser_watch.add_argument(
+        "--interval", help="time to sleep between polling", default=10, type=int
+    )
+    parser_watch.add_argument(
+        "--watchlevel", help="level of watch logging", default=20, type=int
+    )
     args = parser.parse_args()
 
     log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
@@ -153,7 +166,7 @@ def cli() -> None:
                 return
         else:
             appliance = appliance_state(args.ip, token=args.token, key=args.key)
-        if appliance is not None:
+        if appliance:
             output(appliance, args.credentials)
         else:
             _LOGGER.error("Unable to get appliance status %s", args.ip)
@@ -170,15 +183,46 @@ def cli() -> None:
                 return
         else:
             appliance = appliance_state(args.ip, token=args.token, key=args.key)
-        if appliance is not None:
+        if appliance:
             appliance.set_state(
                 target_humidity=args.humidity,
                 fan_speed=args.fan,
                 mode=args.mode,
                 ion_mode=args.ion,
-                is_on=args.on,
+                running=args.on,
             )
             output(appliance, args.credentials)
+
+    elif args.command == "watch":
+        cloud = None
+        if not args.token:
+            if args.account and args.password:
+                cloud = connect_to_cloud(
+                    args.account, args.password, args.appkey, args.appid
+                )
+            else:
+                _LOGGER.error("Missing token/key or cloud credentials")
+                return
+        else:
+            set_watch_level(args.watchlevel)
+            if not _LOGGER.isEnabledFor(args.watchlevel):
+                try:
+                    coloredlogs_install(level=args.watchlevel)
+                except Exception:
+                    logging.basicConfig(level=args.watchlevel)
+            _LOGGER.info("Watching %s with period %d", args.ip, args.interval)
+            try:
+                while True:
+                    appliance = appliance_state(
+                        args.ip, token=args.token, key=args.key, cloud=cloud
+                    )
+                    if appliance:
+                        output(appliance, args.credentials)
+                    else:
+                        _LOGGER.error("Unable to get appliance status %s", args.ip)
+                    sleep(args.interval)
+            except KeyboardInterrupt:
+                _LOGGER.info("Finished watching")
 
 
 if __name__ == "__main__":

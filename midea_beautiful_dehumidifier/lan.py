@@ -118,7 +118,7 @@ def _get_udp_id(data) -> str:
 class LanDevice:
     def __init__(
         self,
-        id: int | str = 0,
+        id: str = "",
         ip: str = None,
         port: int | str = 6444,
         token: str = "",
@@ -145,7 +145,7 @@ class LanDevice:
         self.extra = None
         self.subtype = None
 
-        if data is not None:
+        if data:
             data = bytes(data)
             if data[:2] == b"\x5a\x5a":  # 5a5a
                 self.version = 2
@@ -155,7 +155,7 @@ class LanDevice:
                 self.version = 0
             if data[8:10] == b"\x5a\x5a":  # 5a5a
                 data = data[8:-16]
-            id = int.from_bytes(data[20:26], "little")
+            id = str(int.from_bytes(data[20:26], "little"))
             encrypt_data = data[40:-16]
             reply = self._security.aes_decrypt(encrypt_data)
             self.ip = ".".join([str(i) for i in reply[3::-1]])
@@ -210,7 +210,7 @@ class LanDevice:
             _LOGGER.debug("Descriptor data from %s: %r", self, self)
 
         else:
-            id = int(id)
+            id = id
             self.ip = ip
             self.port = int(port)
             self.sn = None
@@ -325,7 +325,7 @@ class LanDevice:
 
     def _connect(self, socket_timeout=2) -> None:
         with self._lock:
-            if self._socket is None:
+            if not self._socket:
                 self._disconnect()
                 _LOGGER.debug("Attempting new connection to %s", self)
                 self._buffer = b""
@@ -352,8 +352,8 @@ class LanDevice:
         with self._lock:
             # Create a TCP/IP socket
             self._connect()
-            if self._socket is None:
-                _LOGGER.debug("Socket is None for %s", self)
+            if not self._socket:
+                _LOGGER.debug("Socket not open for %s", self)
                 self._retries += 1
                 return b""
 
@@ -447,7 +447,7 @@ class LanDevice:
 
     def _appliance_send_8370(self, data: bytes | bytearray) -> list[bytes]:
         """Sends data using v3 (8370) protocol"""
-        if self._socket is None or self._tcp_key is None:
+        if not self._socket or not self._tcp_key:
             _LOGGER.debug("Socket %s closed, creating new socket", self)
             self._disconnect()
 
@@ -534,8 +534,8 @@ class LanDevice:
             bool: True if successful
         """
         for udp_id in [
-            _get_udp_id(self.id.to_bytes(6, "little")),
-            _get_udp_id(self.id.to_bytes(6, "big")),
+            _get_udp_id(int(self.id).to_bytes(6, "little")),
+            _get_udp_id(int(self.id).to_bytes(6, "big")),
         ]:
             self.token, self.key = cloud.get_token(udp_id)
             if self._authenticate():
@@ -548,7 +548,7 @@ class LanDevice:
     def identify_appliance(self, cloud: MideaCloud = None) -> bool:
         if self.version == 3:
             if not self.token or not self.key:
-                if cloud is None:
+                if not cloud:
                     raise ValueError("Provide either token/key pair or cloud")
                 if not self._get_valid_token(cloud):
                     return False
@@ -611,7 +611,7 @@ class LanDevice:
         return self.state.id
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.state.name
 
     @property
@@ -634,11 +634,13 @@ class LanDevice:
 def get_appliance_state(
     ip: str,
     port: int = DISCOVERY_PORT,
-    token: str = "",
-    key: str = "",
+    token: str = None,
+    key: str = None,
     cloud: MideaCloud = None,
 ) -> LanDevice | None:
     # Create a TCP/IP socket
+    token = token or ""
+    key = key or ""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(_STATE_SOCKET_TIMEOUT)
 
@@ -656,7 +658,7 @@ def get_appliance_state(
         appliance = LanDevice(data=response, token=token, key=key)
         _LOGGER.log(5, "Appliance %s", appliance)
         if appliance.identify_appliance(cloud):
-            if cloud is not None:
+            if cloud:
                 for details in cloud.list_appliances():
                     if details["id"] == appliance.id:
                         appliance.name = details["name"]

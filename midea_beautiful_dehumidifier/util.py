@@ -9,4 +9,4 @@ class _Hex:
         self.data = data
 
     def __str__(self) -> str:
-        return self.data.hex() if self.data is not None else "None"
+        return self.data.hex() if self.data else "None"

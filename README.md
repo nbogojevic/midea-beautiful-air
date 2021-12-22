@@ -144,6 +144,22 @@ Combinations multiple settings
 midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 60 --humidity 50
 ```
 
+### Watch appliance status
+
+Watch appliance status allows to debug packets received when polling it. It will repeatedly retrieve appliance status with specified pauses between each poll. Polling can be interrupted via keyboard.
+
+Continuously watch status of an appliance using known TOKEN and KEY (e.g. retrieved using `discover` command) with interval of 10 seconds between polling
+
+```shell
+midea_beautiful_dehumidifier-cli watch --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --interval 10
+```
+
+Continuously watch status of an appliance using Midea app credentials with interval of 30 seconds between polling
+
+```shell
+midea_beautiful_dehumidifier-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD --interval 30
+```
+
 ### Specifying log level
 
 Log level is specified using `--log` option:

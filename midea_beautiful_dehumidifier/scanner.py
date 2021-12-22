@@ -193,7 +193,7 @@ def find_appliances(
     networks=list[str],
 ) -> list[LanDevice]:
     _LOGGER.debug("Library version=%s", __version__)
-    if cloud is None:
+    if not cloud:
         cloud = MideaCloud(appkey, account, password, appid)
         cloud.authenticate()
 

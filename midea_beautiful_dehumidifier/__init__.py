@@ -16,7 +16,7 @@ def discover_appliances(
     password: str = None,
     appid: int = DEFAULT_APP_ID,
     cloud: MideaCloud | None = None,
-    networks: list[str] = []
+    networks: list[str] = [],
 ) -> list[LanDevice]:
     """
     Discovers appliances on local network
@@ -48,7 +48,7 @@ def discover_appliances(
 
 
 def appliance_state(
-    ip: str, token=None, key=None, cloud: MideaCloud = None
+    ip: str, token: str = None, key: str = None, cloud: MideaCloud = None
 ) -> LanDevice | None:
     """
     Retrieves appliance state

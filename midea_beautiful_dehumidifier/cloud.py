@@ -191,7 +191,7 @@ class MideaCloud:
             authenticate=False,
         )
 
-        if self._session is None or self._session.get("sessionId") is None:
+        if not self._session or not self._session.get("sessionId"):
             raise AuthenticationError("no sessionId")
 
     def list_appliances(self, force: bool = False):
