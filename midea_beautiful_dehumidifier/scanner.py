@@ -190,7 +190,7 @@ def find_appliances(
     account=None,
     password=None,
     appid=None,
-    networks=list[str],
+    networks: list[str] = [],
 ) -> list[LanDevice]:
     _LOGGER.debug("Library version=%s", __version__)
     if not cloud:
