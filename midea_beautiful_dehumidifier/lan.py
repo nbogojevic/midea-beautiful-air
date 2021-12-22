@@ -566,9 +566,10 @@ class LanDevice:
         return True
 
     def set_state(self, **kwargs):
-        for attr, value in kwargs:
+        for attr, value in kwargs.items():
             if hasattr(self.state, attr):
-                setattr(self.state, attr, value)
+                if value is not None:
+                    setattr(self.state, attr, value)
             else:
                 _LOGGER.warning("Unknown state attribute %s", attr)
 
@@ -653,7 +654,7 @@ def get_appliance_state(
         response = sock.recv(512)
         _LOGGER.log(5, "Received from %s:%d %s", ip, port, _Hex(response))
         appliance = LanDevice(data=response, token=token, key=key)
-        _LOGGER.log(5, "Appliance %s", ip, port, appliance)
+        _LOGGER.log(5, "Appliance %s", appliance)
         if appliance.identify_appliance(cloud):
             if cloud is not None:
                 for details in cloud.list_appliances():

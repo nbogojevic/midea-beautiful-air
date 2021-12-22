@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 
+from distutils.util import strtobool
+
 from midea_beautiful_dehumidifier.command import (
     DehumidifierResponse,
     DehumidifierSetCommand,
@@ -85,8 +87,8 @@ class DehumidifierAppliance(Appliance):
     def __init__(self, id, appliance_type: str = ""):
         super().__init__(id, appliance_type)
 
-        self.is_on = False
-        self.ion_mode = False
+        self._running = False
+        self._ion_mode = False
         self._mode = 0
         self._target_humidity = 50
         self._current_humidity = 45
@@ -113,9 +115,9 @@ class DehumidifierAppliance(Appliance):
             response = DehumidifierResponse(data)
             _LOGGER.debug("Decoded response %s", response)
 
-            self.is_on = response.is_on
+            self._is_on = bool(response.run_status)
 
-            self.ion_mode = response.ion_mode
+            self._ion_mode = response.ion_mode
             self.mode = response.mode
             self.target_humidity = response.target_humidity
             self._current_humidity = response.current_humidity
@@ -130,7 +132,7 @@ class DehumidifierAppliance(Appliance):
 
     def apply_command(self) -> DehumidifierSetCommand:
         cmd = DehumidifierSetCommand()
-        cmd.is_on = self.is_on
+        cmd.running = self.running
         cmd.target_humidity = self.target_humidity
         cmd.mode = self.mode
         cmd.fan_speed = self.fan_speed
@@ -146,11 +148,23 @@ class DehumidifierAppliance(Appliance):
         return self._current_humidity
 
     @property
+    def running(self) -> bool:
+        return self._running
+
+    @running.setter
+    def running(self, value):
+        if isinstance(value, str):
+            self._running = strtobool(value)
+        else:
+            self._running = bool(value)
+
+    @property
     def fan_speed(self):
         return self._fan_speed
 
     @fan_speed.setter
     def fan_speed(self, fan_speed: int) -> None:
+        fan_speed = int(fan_speed)
         if fan_speed < 0:
             self._fan_speed = 0
         elif fan_speed > 100:
@@ -159,11 +173,23 @@ class DehumidifierAppliance(Appliance):
             self._fan_speed = fan_speed
 
     @property
+    def ion_mode(self) -> bool:
+        return self._ion_mode
+
+    @ion_mode.setter
+    def ion_mode(self, value) -> None:
+        if isinstance(value, str):
+            self._ion_mode = strtobool(value)
+        else:
+            self._ion_mode = bool(value)
+
+    @property
     def target_humidity(self):
         return self._target_humidity
 
     @target_humidity.setter
     def target_humidity(self, target_humidity: int) -> None:
+        target_humidity = int(target_humidity)
         if target_humidity < 0:
             self._target_humidity = 0
         elif target_humidity > 100:
@@ -177,6 +203,7 @@ class DehumidifierAppliance(Appliance):
 
     @mode.setter
     def mode(self, mode: int) -> None:
+        mode = int(mode)
         if 0 <= mode and mode <= 15:
             self._mode = mode
 
@@ -187,7 +214,7 @@ class DehumidifierAppliance(Appliance):
     def __str__(self) -> str:
         return (
             "[Dehumidifier]{ id: %s, type: '%s', mode: %d,"
-            " target_humidity: %d, fan_speed: %d, tank_full: %r }"
+            " target_humidity: %d, fan_speed: %d, tank_full: %s }"
             % (
                 self.id,
                 self.type,

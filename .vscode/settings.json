@@ -28,6 +28,7 @@
         "recvfrom",
         "sendto",
         "ssid",
+        "strtobool",
         "udpid",
         "unhexlify",
         "unpadder",

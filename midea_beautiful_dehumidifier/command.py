@@ -153,11 +153,11 @@ class DehumidifierSetCommand(MideaCommand):
         )
 
     @property
-    def is_on(self):
+    def running(self):
         return self.data[11] & 0x01 != 0
 
-    @is_on.setter
-    def is_on(self, state: bool) -> None:
+    @running.setter
+    def running(self, state: bool) -> None:
         self.data[11] &= ~0x01  # Clear the power bit
         self.data[11] |= 0x01 if state else 0
 

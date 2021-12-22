@@ -32,6 +32,7 @@ def output(appliance: LanDevice, show_credentials: bool = False):
     print(f"        ssid    = {appliance.ssid}")
     print(f"        online  = {appliance.online}")
     print(f"        name    = {getattr(appliance.state, 'name')}")
+    print(f"        running = {getattr(appliance.state, 'running')}")
     print(f"        humid%  = {getattr(appliance.state, 'current_humidity')}")
     print(f"        target% = {getattr(appliance.state, 'target_humidity')}")
     print(f"        fan     = {getattr(appliance.state, 'fan_speed')}")
