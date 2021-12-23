@@ -2,23 +2,23 @@ from __future__ import annotations
 
 
 class MideaError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
+class MideaNetworkError(MideaError):
     pass
 
 
 class ProtocolError(MideaError):
-    def __init__(self, message: str):
-        self.message = message
-
-    def __str__(self):
-        return f"ProtocolException {self.message}"
+    pass
 
 
 class AuthenticationError(MideaError):
-    def __init__(self, message: str):
-        self.message = message
-
-    def __str__(self):
-        return f"AuthenticationError {self.message}"
+    pass
 
 
 class CloudError(MideaError):
@@ -27,15 +27,11 @@ class CloudError(MideaError):
         self.message = message
 
     def __str__(self):
-        return f"CloudError {self.error_code} {self.message}"
+        return f"Midea cloud API error {self.error_code} {self.message}"
 
 
 class CloudRequestError(MideaError):
-    def __init__(self, endpoint: str):
-        self.endpoint = endpoint
-
-    def __str__(self):
-        return f"CloudRequestError {self.endpoint}"
+    pass
 
 
 class RetryLaterError(MideaError):
@@ -44,7 +40,7 @@ class RetryLaterError(MideaError):
         self.message = message
 
     def __str__(self):
-        return f"RetryLaterError {self.error_code} {self.message}"
+        return f"Retry later {self.error_code} {self.message}"
 
 
 class CloudAuthenticationError(MideaError):
@@ -53,4 +49,4 @@ class CloudAuthenticationError(MideaError):
         self.message = message
 
     def __str__(self):
-        return f"CloudAuthenticationError {self.error_code} {self.message}"
+        return f"Authentication {self.error_code} {self.message}"

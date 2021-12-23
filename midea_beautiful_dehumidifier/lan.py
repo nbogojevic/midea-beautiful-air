@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from binascii import unhexlify
+import binascii
 from datetime import datetime
 from hashlib import sha256
 import logging
@@ -14,7 +15,12 @@ from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.cloud import MideaCloud
 from midea_beautiful_dehumidifier.command import MideaCommand
 from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.exceptions import AuthenticationError, ProtocolError
+from midea_beautiful_dehumidifier.exceptions import (
+    AuthenticationError,
+    MideaError,
+    MideaNetworkError,
+    ProtocolError,
+)
 from midea_beautiful_dehumidifier.midea import (
     DISCOVERY_PORT,
     MSGTYPE_ENCRYPTED_REQUEST,
@@ -394,7 +400,10 @@ class LanDevice:
     def _authenticate(self) -> bool:
         if not self.token or not self.key:
             raise AuthenticationError("missing token/key pair")
-        byte_token = unhexlify(self.token)
+        try:
+            byte_token = unhexlify(self.token)
+        except binascii.Error as ex:
+            raise AuthenticationError(f"Invalid token {ex}")
 
         response = b""
         for i in range(self._max_retries):
@@ -454,8 +463,8 @@ class LanDevice:
             for i in range(self._max_retries):
                 if not self._authenticate():
                     if i == self._max_retries - 1:
-                        _LOGGER.error("Failed to authenticate %s", self)
-                        return []
+                        _LOGGER.debug("Failed to authenticate %s", self)
+                        raise AuthenticationError(f"Failed to authenticate {self}")
                     _LOGGER.debug(
                         "Retrying authenticate, %d out of %d: %s",
                         i + 2,
@@ -545,25 +554,31 @@ class LanDevice:
             self.token, self.key = "", ""
         return False
 
-    def identify_appliance(self, cloud: MideaCloud = None) -> bool:
+    def is_identified(self, cloud: MideaCloud = None) -> bool:
+        try:
+            self.identify(cloud)
+            return True
+        except MideaError as ex:
+            _LOGGER.debug("Error identifying appliance %s", ex)
+            return False
+
+    def identify(self, cloud: MideaCloud = None):
         if self.version == 3:
             if not self.token or not self.key:
                 if not cloud:
                     raise ValueError("Provide either token/key pair or cloud")
                 if not self._get_valid_token(cloud):
-                    return False
+                    raise AuthenticationError("Unable to get valid token")
             elif not self._authenticate():
-                return False
+                raise AuthenticationError(f"Unable to authenticate with {self}")
         else:
             raise ProtocolError(f"Only version 3 is supported, was {self}")
 
-        if Appliance.supported(self.type):
-            self.refresh()
-            _LOGGER.debug("Appliance data: %r", self)
-        else:
-            _LOGGER.debug("Found unsupported appliance: %s", self)
-            return False
-        return True
+        if not Appliance.supported(self.type):
+            raise ProtocolError(f"Unsupported appliance: {self}")
+
+        self.refresh()
+        _LOGGER.debug("Appliance data: %r", self)
 
     def set_state(self, **kwargs):
         for attr, value in kwargs.items():
@@ -636,7 +651,7 @@ def get_appliance_state(
     token: str = None,
     key: str = None,
     cloud: MideaCloud = None,
-) -> LanDevice | None:
+) -> LanDevice:
     # Create a TCP/IP socket
     token = token or ""
     key = key or ""
@@ -656,23 +671,16 @@ def get_appliance_state(
         _LOGGER.log(5, "Received from %s:%d %s", ip, port, _Hex(response))
         appliance = LanDevice(data=response, token=token, key=key)
         _LOGGER.log(5, "Appliance %s", appliance)
-        if appliance.identify_appliance(cloud):
-            if cloud:
-                for details in cloud.list_appliances():
-                    if details["id"] == appliance.id:
-                        appliance.name = details["name"]
-                        break
-            return appliance
+        appliance.identify(cloud)
+        if cloud:
+            for details in cloud.list_appliances():
+                if details["id"] == appliance.id:
+                    appliance.name = details["name"]
+                    break
+        return appliance
     except socket.error:
-        _LOGGER.warning("Could not connect with appliance %s:%d", ip, port)
+        raise MideaNetworkError("Could not connect to appliance %s:%d")
     except socket.timeout:
-        _LOGGER.warning(
-            "Timeout while connecting to appliance %s:%d for %ds.",
-            ip,
-            port,
-            _STATE_SOCKET_TIMEOUT,
-        )
+        raise MideaNetworkError("Timeout while connecting to appliance %s:%d")
     finally:
         sock.close()
-
-    return None

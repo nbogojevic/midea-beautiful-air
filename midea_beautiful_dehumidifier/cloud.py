@@ -132,7 +132,7 @@ class MideaCloud:
 
                 response = json.loads(r.text)
             except RequestException as exc:
-                raise CloudRequestError(endpoint) from exc
+                raise CloudRequestError(f"Request error {endpoint}") from exc
 
         if endpoint not in PROTECTED_RESPONSES:
             _LOGGER.log(5, "HTTP response: %s", response)
@@ -151,7 +151,7 @@ class MideaCloud:
                 )
                 return self.api_request(endpoint, args)
             else:
-                raise RecursionError()
+                raise CloudRequestError(f"Too many retries {endpoint}")
 
         self._retries = 0
         return response["result"]
@@ -205,18 +205,18 @@ class MideaCloud:
         response = self.api_request("homegroup/list/get")
         _LOGGER.debug("Midea home group query result=%s", response)
         if not response or not response.get("list"):
-            _LOGGER.error(
-                "Unable to get home groups from Midea cloud API. response=%s",
+            _LOGGER.debug(
+                "Unable to get home groups from Midea API. response=%s",
                 response,
             )
-            return []
+            raise CloudRequestError("Unable to get home groups from Midea API.")
         home_groups = response["list"]
 
         # Find default home group
         home_group = next(grp for grp in home_groups if grp["isDefault"] == "1")
         if not home_group:
-            _LOGGER.error("Unable to get default home group from Midea cloud API.")
-            return []
+            _LOGGER.debug("Unable to get default home group from Midea API.")
+            raise CloudRequestError("Unable to get default home group from Midea API.")
 
         home_group_id = home_group["id"]
 

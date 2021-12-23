@@ -96,7 +96,7 @@ class MideaDiscovery:
             _LOGGER.debug("Finished broadcast collection")
 
         # Return only successfully identified appliances
-        return [sd for sd in scanned_appliances if sd.identify_appliance(self._cloud)]
+        return [sd for sd in scanned_appliances if sd.is_identified(self._cloud)]
 
     def _broadcast_message(self, networks: list[str]) -> None:
 
