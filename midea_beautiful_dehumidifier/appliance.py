@@ -88,7 +88,7 @@ class Appliance:
         return MideaCommand()
 
     def __str__(self) -> str:
-        return "[UnknownAppliance]{ id: %s type: '%s' }" % (self.id, self.type)
+        return "[UnknownAppliance]{id=%s type=%s}" % (self.id, self.type)
 
 
 class DehumidifierAppliance(Appliance):
@@ -121,9 +121,11 @@ class DehumidifierAppliance(Appliance):
             self._online = True
             self._active = True
             for i in range(len(data)):
-                _LOGGER.log(
-                    _watch_level, "%2d %3d 0x%2x %8s", i, data[i], data[i], bin(data[i])
-                )
+                if _LOGGER.isEnabledFor(_watch_level):
+                    _LOGGER.log(
+                        _watch_level,
+                        f"{i:2} {data[i]:3} {data[i]:02X} {data[i]:08b}",
+                    )
             response = DehumidifierResponse(data)
             _LOGGER.debug("Decoded response %s", response)
 
@@ -262,14 +264,19 @@ class DehumidifierAppliance(Appliance):
 
     def __str__(self) -> str:
         return (
-            "[Dehumidifier]{ id: %s, type: '%s', mode: %d,"
-            " target_humidity: %d, fan_speed: %d, tank_full: %s }"
+            "[Dehumidifier]{id=%s, type=%s,mode=%d,"
+            " running=%s,"
+            " target_humidity=%d, fan_speed=%d, tank_full=%s"
+            " current_humidity=%s, current_temperature=%s}"
             % (
                 self.id,
                 self.type,
                 self.mode,
+                self.running,
                 self.target_humidity,
                 self.fan_speed,
                 self.tank_full,
+                self.current_humidity,
+                self.current_temperature,
             )
         )

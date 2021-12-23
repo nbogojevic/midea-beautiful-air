@@ -10,7 +10,7 @@ except Exception:
         pass
 
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 import logging
 from time import sleep
 
@@ -44,6 +44,91 @@ def output(appliance: LanDevice, show_credentials: bool = False):
     if show_credentials:
         print(f"        token   = {appliance.token}")
         print(f"        key     = {appliance.key}")
+
+
+def run_discover_command(args: Namespace):
+    appliances = find_appliances(
+        appkey=args.appkey,
+        account=args.account,
+        password=args.password,
+        appid=args.appid,
+        networks=args.network,
+    )
+    for appliance in appliances:
+        output(appliance, args.credentials)
+
+
+def run_status_command(args: Namespace):
+    if not args.token:
+        if args.account and args.password:
+            cloud = connect_to_cloud(
+                args.account, args.password, args.appkey, args.appid
+            )
+            appliance = appliance_state(args.ip, cloud=cloud)
+        else:
+            _LOGGER.error("Missing token/key or cloud credentials")
+            return
+    else:
+        appliance = appliance_state(args.ip, token=args.token, key=args.key)
+    if appliance:
+        output(appliance, args.credentials)
+    else:
+        _LOGGER.error("Unable to get appliance status %s", args.ip)
+
+
+def run_set_command(args: Namespace):
+    if not args.token:
+        if args.account and args.password:
+            cloud = connect_to_cloud(
+                args.account, args.password, args.appkey, args.appid
+            )
+            appliance = appliance_state(args.ip, cloud=cloud)
+        else:
+            _LOGGER.error("Missing token/key or cloud credentials")
+            return
+    else:
+        appliance = appliance_state(args.ip, token=args.token, key=args.key)
+    if appliance:
+        appliance.set_state(
+            target_humidity=args.humidity,
+            fan_speed=args.fan,
+            mode=args.mode,
+            ion_mode=args.ion,
+            running=args.on,
+        )
+        output(appliance, args.credentials)
+
+
+def run_watch_command(args: Namespace):
+    cloud = None
+    if not args.token:
+        if args.account and args.password:
+            cloud = connect_to_cloud(
+                args.account, args.password, args.appkey, args.appid
+            )
+        else:
+            _LOGGER.error("Missing token/key or cloud credentials")
+            return
+    else:
+        set_watch_level(args.watchlevel)
+        if not _LOGGER.isEnabledFor(args.watchlevel):
+            try:
+                coloredlogs_install(level=args.watchlevel)
+            except Exception:
+                logging.basicConfig(level=args.watchlevel)
+        _LOGGER.info("Watching %s with period %d", args.ip, args.interval)
+        try:
+            while True:
+                appliance = appliance_state(
+                    args.ip, token=args.token, key=args.key, cloud=cloud
+                )
+                if appliance:
+                    _LOGGER.log(args.watchlevel, "%r", appliance)
+                else:
+                    _LOGGER.error("Unable to get appliance status %s", args.ip)
+                sleep(args.interval)
+        except KeyboardInterrupt:
+            _LOGGER.info("Finished watching")
 
 
 def _add_standard_options(parser: ArgumentParser, with_token: bool = True) -> None:
@@ -144,85 +229,16 @@ def cli() -> None:
         logging.basicConfig(level=log_level)
 
     if args.command == "discover":
-        appliances = find_appliances(
-            appkey=args.appkey,
-            account=args.account,
-            password=args.password,
-            appid=args.appid,
-            networks=args.network,
-        )
-        for appliance in appliances:
-            output(appliance, args.credentials)
+        run_discover_command(args)
 
     elif args.command == "status":
-        if not args.token:
-            if args.account and args.password:
-                cloud = connect_to_cloud(
-                    args.account, args.password, args.appkey, args.appid
-                )
-                appliance = appliance_state(args.ip, cloud=cloud)
-            else:
-                _LOGGER.error("Missing token/key or cloud credentials")
-                return
-        else:
-            appliance = appliance_state(args.ip, token=args.token, key=args.key)
-        if appliance:
-            output(appliance, args.credentials)
-        else:
-            _LOGGER.error("Unable to get appliance status %s", args.ip)
+        run_status_command(args)
 
     elif args.command == "set":
-        if not args.token:
-            if args.account and args.password:
-                cloud = connect_to_cloud(
-                    args.account, args.password, args.appkey, args.appid
-                )
-                appliance = appliance_state(args.ip, cloud=cloud)
-            else:
-                _LOGGER.error("Missing token/key or cloud credentials")
-                return
-        else:
-            appliance = appliance_state(args.ip, token=args.token, key=args.key)
-        if appliance:
-            appliance.set_state(
-                target_humidity=args.humidity,
-                fan_speed=args.fan,
-                mode=args.mode,
-                ion_mode=args.ion,
-                running=args.on,
-            )
-            output(appliance, args.credentials)
+        run_set_command(args)
 
     elif args.command == "watch":
-        cloud = None
-        if not args.token:
-            if args.account and args.password:
-                cloud = connect_to_cloud(
-                    args.account, args.password, args.appkey, args.appid
-                )
-            else:
-                _LOGGER.error("Missing token/key or cloud credentials")
-                return
-        else:
-            set_watch_level(args.watchlevel)
-            if not _LOGGER.isEnabledFor(args.watchlevel):
-                try:
-                    coloredlogs_install(level=args.watchlevel)
-                except Exception:
-                    logging.basicConfig(level=args.watchlevel)
-            _LOGGER.info("Watching %s with period %d", args.ip, args.interval)
-            try:
-                while True:
-                    appliance = appliance_state(
-                        args.ip, token=args.token, key=args.key, cloud=cloud
-                    )
-                    if appliance:
-                        output(appliance, args.credentials)
-                    else:
-                        _LOGGER.error("Unable to get appliance status %s", args.ip)
-                    sleep(args.interval)
-            except KeyboardInterrupt:
-                _LOGGER.info("Finished watching")
+        run_watch_command(args)
 
 
 if __name__ == "__main__":

@@ -580,10 +580,10 @@ class LanDevice:
 
     def __repr__(self) -> str:
         return (
-            "{id=%s ip=%s port=%d version=%d name=%s online=%s"
-            " type=%s subtype=%x flags=%x extra=%x reserved=%x"
-            " mac=%s ssid=%s udp version=%x protocol=%s version=%s"
-            " enckey=%s sn=%s state=%s}"
+            "{id=%s, ip=%s, port=%d, version=%d, name=%s, online=%s,"
+            " type=%s, subtype=%x, flags=%x, extra=%x, reserved=%x,"
+            " mac=%s, ssid=%s, udp_version=%x, protocol=%s, version=%s,"
+            " sn=%s, state=%s}"
         ) % (
             self.id,
             self.ip,
@@ -601,7 +601,6 @@ class LanDevice:
             self.udp_version,
             self.protocol_version,
             self.firmware_version,
-            _Hex(self.randomkey),
             self.sn,
             self.state,
         )
