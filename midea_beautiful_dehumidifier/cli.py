@@ -41,6 +41,7 @@ def output(appliance: LanDevice, show_credentials: bool = False):
     print(f"        tank    = {getattr(appliance.state, 'tank_full')}")
     print(f"        mode    = {getattr(appliance.state, 'mode')}")
     print(f"        ion     = {getattr(appliance.state, 'ion_mode')}")
+    print(f"        error   = {getattr(appliance.state, 'error_code')}")
     if show_credentials:
         print(f"        token   = {appliance.token}")
         print(f"        key     = {appliance.key}")

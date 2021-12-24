@@ -103,6 +103,7 @@ class DehumidifierAppliance(Appliance):
         self._fan_speed = 40
         self._tank_full = False
         self._current_temperature: float = 0
+        self._error = 0
 
     @staticmethod
     def supported(type: str | int) -> bool:
@@ -150,7 +151,7 @@ class DehumidifierAppliance(Appliance):
             self.fan_speed = response.fan_speed
             self._tank_full = response.tank_full
             self._current_temperature = response.indoor_temperature
-
+            self._error = response.err_code
         else:
             self._online = False
 
@@ -192,6 +193,10 @@ class DehumidifierAppliance(Appliance):
     @property
     def fan_speed(self):
         return self._fan_speed
+
+    @property
+    def error_code(self):
+        return self._error
 
     @fan_speed.setter
     def fan_speed(self, fan_speed: int) -> None:
@@ -268,7 +273,8 @@ class DehumidifierAppliance(Appliance):
             "[Dehumidifier]{id=%s, type=%s, mode=%d,"
             " running=%s,"
             " target_humidity=%d, fan_speed=%d, tank_full=%s"
-            " current_humidity=%s, current_temperature=%s}"
+            " current_humidity=%s, current_temperature=%s"
+            " error_code=%s}"
             % (
                 self.id,
                 self.type,
@@ -279,5 +285,6 @@ class DehumidifierAppliance(Appliance):
                 self.tank_full,
                 self.current_humidity,
                 self.current_temperature,
+                self.error_code
             )
         )
