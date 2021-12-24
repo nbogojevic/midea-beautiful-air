@@ -19,7 +19,7 @@ from midea_beautiful_dehumidifier.exceptions import (
     AuthenticationError,
     MideaError,
     MideaNetworkError,
-    ProtocolError,
+    UnsupportedError,
 )
 from midea_beautiful_dehumidifier.midea import (
     DISCOVERY_PORT,
@@ -33,6 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _STATE_SOCKET_TIMEOUT: Final = 3
 
+_SUPPORTED_VERSION: Final = 3
 
 DISCOVERY_MSG: Final = bytes(
     [
@@ -563,19 +564,24 @@ class LanDevice:
             return False
 
     def identify(self, cloud: MideaCloud = None):
-        if self.version == 3:
+        if self.version == _SUPPORTED_VERSION:
             if not self.token or not self.key:
                 if not cloud:
                     raise ValueError("Provide either token/key pair or cloud")
                 if not self._get_valid_token(cloud):
-                    raise AuthenticationError("Unable to get valid token")
+                    raise AuthenticationError(f"Unable to get valid token for {self}")
             elif not self._authenticate():
-                raise AuthenticationError(f"Unable to authenticate with {self}")
+                raise AuthenticationError(
+                    f"Unable to authenticate with appliance {self}"
+                )
         else:
-            raise ProtocolError(f"Only version 3 is supported, was {self}")
+            raise UnsupportedError(
+                f"Appliance {self} is not supported:"
+                f" needs to support protocol version {_SUPPORTED_VERSION}"
+            )
 
         if not Appliance.supported(self.type):
-            raise ProtocolError(f"Unsupported appliance: {self}")
+            raise UnsupportedError(f"Unsupported appliance: {self!r}")
 
         self.refresh()
         _LOGGER.debug("Appliance data: %r", self)

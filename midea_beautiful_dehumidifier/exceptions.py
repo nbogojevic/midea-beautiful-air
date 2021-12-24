@@ -17,6 +17,10 @@ class ProtocolError(MideaError):
     pass
 
 
+class UnsupportedError(MideaError):
+    pass
+
+
 class AuthenticationError(MideaError):
     pass
 

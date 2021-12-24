@@ -132,7 +132,9 @@ class MideaCloud:
 
                 response = json.loads(r.text)
             except RequestException as exc:
-                raise CloudRequestError(f"Request error {endpoint}") from exc
+                raise CloudRequestError(
+                    f"Request error {exc} while calling {endpoint}"
+                ) from exc
 
         if endpoint not in PROTECTED_RESPONSES:
             _LOGGER.log(5, "HTTP response: %s", response)
@@ -151,7 +153,7 @@ class MideaCloud:
                 )
                 return self.api_request(endpoint, args)
             else:
-                raise CloudRequestError(f"Too many retries {endpoint}")
+                raise CloudRequestError(f"Too many retries while calling {endpoint}")
 
         self._retries = 0
         return response["result"]
@@ -192,7 +194,7 @@ class MideaCloud:
         )
 
         if not self._session or not self._session.get("sessionId"):
-            raise AuthenticationError("no sessionId")
+            raise AuthenticationError("Unable to retrieve session id from Midea API")
 
     def list_appliances(self, force: bool = False):
         """
@@ -209,14 +211,14 @@ class MideaCloud:
                 "Unable to get home groups from Midea API. response=%s",
                 response,
             )
-            raise CloudRequestError("Unable to get home groups from Midea API.")
+            raise CloudRequestError("Unable to get home groups from Midea API")
         home_groups = response["list"]
 
         # Find default home group
         home_group = next(grp for grp in home_groups if grp["isDefault"] == "1")
         if not home_group:
-            _LOGGER.debug("Unable to get default home group from Midea API.")
-            raise CloudRequestError("Unable to get default home group from Midea API.")
+            _LOGGER.debug("Unable to get default home group from Midea API")
+            raise CloudRequestError("Unable to get default home group from Midea API")
 
         home_group_id = home_group["id"]
 

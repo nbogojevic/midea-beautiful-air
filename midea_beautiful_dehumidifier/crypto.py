@@ -433,7 +433,7 @@ class Security:
             return [], data
         header = data[:6]
         if header[0] != 0x83 or header[1] != 0x70:
-            raise ProtocolError("not an 8370 message")
+            raise ProtocolError("Message was not a v3 (8370) message")
         size = int.from_bytes(header[2:4], "big") + 8
         leftover = None
         # If there is not enough data in buffer, we need to wait for more data

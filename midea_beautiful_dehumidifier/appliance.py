@@ -228,6 +228,7 @@ class DehumidifierAppliance(Appliance):
 
     @target_humidity.setter
     def target_humidity(self, target_humidity: float) -> None:
+        target_humidity = float(target_humidity)
         if target_humidity < 0:
             _LOGGER.warning(
                 "Tried to set target humidity to less than 0%: %s",
