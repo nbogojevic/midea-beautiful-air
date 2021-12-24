@@ -265,7 +265,7 @@ class DehumidifierAppliance(Appliance):
 
     def __str__(self) -> str:
         return (
-            "[Dehumidifier]{id=%s, type=%s,mode=%d,"
+            "[Dehumidifier]{id=%s, type=%s, mode=%d,"
             " running=%s,"
             " target_humidity=%d, fan_speed=%d, tank_full=%s"
             " current_humidity=%s, current_temperature=%s}"

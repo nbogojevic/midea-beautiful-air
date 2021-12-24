@@ -64,7 +64,7 @@ def _get_broadcast_addresses(addresses: list[str] = []) -> list[str]:
 
 
 class MideaDiscovery:
-    def __init__(self, cloud: MideaCloud):
+    def __init__(self, cloud: MideaCloud | None):
         self._cloud = cloud
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -109,7 +109,7 @@ class MideaDiscovery:
 
 
 def _add_missing_appliances(
-    cloud: MideaCloud, appliances: list[LanDevice], count: int
+    cloud_appliances: list[dict], appliances: list[LanDevice], count: int
 ) -> None:
     """
     Utility method to add placeholders for appliances which were not
@@ -123,7 +123,7 @@ def _add_missing_appliances(
         len(appliances),
         count,
     )
-    for details in cloud.list_appliances():
+    for details in cloud_appliances:
         appliance_type = details["type"]
         if Appliance.supported(appliance_type):
             id = details["id"]
@@ -145,12 +145,15 @@ def _add_missing_appliances(
             appliance.name = details["name"]
 
 
-def _find_appliances_on_lan(cloud: MideaCloud, networks: list[str]) -> list[LanDevice]:
+def _find_appliances_on_lan(
+    cloud: MideaCloud | None, networks: list[str]
+) -> list[LanDevice]:
 
     discovery = MideaDiscovery(cloud=cloud)
     appliances: list[LanDevice] = []
     _LOGGER.debug("Starting LAN discovery")
-    count = sum(Appliance.supported(a["type"]) for a in cloud.list_appliances())
+    cloud_appliances = cloud.list_appliances() if cloud else []
+    count = sum(Appliance.supported(a["type"]) for a in cloud_appliances)
     for i in range(_BROADCAST_RETRIES):
         _LOGGER.debug("Broadcast attempt %d of max %d", i + 1, _BROADCAST_RETRIES)
 
@@ -165,7 +168,7 @@ def _find_appliances_on_lan(cloud: MideaCloud, networks: list[str]) -> list[LanD
                         appliance.update(scanned)
                     break
 
-            for details in cloud.list_appliances():
+            for details in cloud_appliances:
                 if details["id"] == str(scanned.id):
                     scanned.name = details["name"]
                     appliances.append(scanned)
@@ -180,7 +183,7 @@ def _find_appliances_on_lan(cloud: MideaCloud, networks: list[str]) -> list[LanD
             _LOGGER.info("Found %d of %d appliance(s)", len(appliances), count)
             break
     if len(appliances) < count:
-        _add_missing_appliances(cloud, appliances, count)
+        _add_missing_appliances(cloud_appliances, appliances, count)
     return appliances
 
 
@@ -193,7 +196,7 @@ def find_appliances(
     networks: list[str] = [],
 ) -> list[LanDevice]:
     _LOGGER.debug("Library version=%s", __version__)
-    if not cloud:
+    if not cloud and account and password:
         cloud = MideaCloud(appkey, account, password, appid)
         cloud.authenticate()
 

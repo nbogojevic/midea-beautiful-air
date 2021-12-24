@@ -143,10 +143,10 @@ def _add_standard_options(parser: ArgumentParser, with_token: bool = True) -> No
             "--key", help="key used to communicate with appliance", default=""
         )
     parser.add_argument(
-        "--account", help="Midea app account", default="", required=not with_token
+        "--account", help="Midea app account", default="", required=False
     )
     parser.add_argument(
-        "--password", help="Midea app password", default="", required=not with_token
+        "--password", help="Midea app password", default="", required=False
     )
     parser.add_argument(
         "--appkey",

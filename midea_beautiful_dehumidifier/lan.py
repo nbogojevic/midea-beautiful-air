@@ -567,7 +567,7 @@ class LanDevice:
         if self.version == _SUPPORTED_VERSION:
             if not self.token or not self.key:
                 if not cloud:
-                    raise ValueError("Provide either token/key pair or cloud")
+                    raise MideaError(f"Provide either token/key pair or cloud {self!r}")
                 if not self._get_valid_token(cloud):
                     raise AuthenticationError(f"Unable to get valid token for {self}")
             elif not self._authenticate():
