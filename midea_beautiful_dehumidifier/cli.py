@@ -41,7 +41,12 @@ def output(appliance: LanDevice, show_credentials: bool = False):
     print(f"        tank    = {getattr(appliance.state, 'tank_full')}")
     print(f"        mode    = {getattr(appliance.state, 'mode')}")
     print(f"        ion     = {getattr(appliance.state, 'ion_mode')}")
+    print(f"        filter  = {getattr(appliance.state, 'filter_indicator')}")
+    print(f"        pump    = {getattr(appliance.state, 'pump')}")
+    print(f"        defrost = {getattr(appliance.state, 'defrosting')}")
     print(f"        error   = {getattr(appliance.state, 'error_code')}")
+    print(f"        version = {appliance.version}")
+
     if show_credentials:
         print(f"        token   = {appliance.token}")
         print(f"        key     = {appliance.key}")
@@ -59,36 +64,64 @@ def run_discover_command(args: Namespace):
         output(appliance, args.credentials)
 
 
+def _check_ip_id(args: Namespace) -> bool:
+    if args.ip and args.id:
+        _LOGGER.error("Both ip address and id provided. Please provide only one")
+        return False
+    if not args.ip and not args.id:
+        _LOGGER.error("Missing ip or appliance id")
+        return False
+    return True
+
+
 def run_status_command(args: Namespace):
+    if not _check_ip_id(args):
+        return
+    _LOGGER.debug("run_status_command args: %r", args)
     if not args.token:
         if args.account and args.password:
             cloud = connect_to_cloud(
                 args.account, args.password, args.appkey, args.appid
             )
-            appliance = appliance_state(args.ip, cloud=cloud)
+            appliance = appliance_state(
+                ip=args.ip, cloud=cloud, use_cloud=args.cloud, id=args.id
+            )
+
         else:
             _LOGGER.error("Missing token/key or cloud credentials")
             return
     else:
-        appliance = appliance_state(args.ip, token=args.token, key=args.key)
+        appliance = appliance_state(
+            ip=args.ip, token=args.token, key=args.key, id=args.id
+        )
     if appliance:
         output(appliance, args.credentials)
     else:
-        _LOGGER.error("Unable to get appliance status %s", args.ip)
+        _LOGGER.error(
+            "Unable to get appliance status %s",
+            args.ip if hasattr(args, "ip") else args.id,
+        )
 
 
 def run_set_command(args: Namespace):
+    if not _check_ip_id(args):
+        return
+    cloud = None
     if not args.token:
         if args.account and args.password:
             cloud = connect_to_cloud(
                 args.account, args.password, args.appkey, args.appid
             )
-            appliance = appliance_state(args.ip, cloud=cloud)
+            appliance = appliance_state(
+                ip=args.ip, cloud=cloud, use_cloud=args.cloud, id=args.id
+            )
         else:
             _LOGGER.error("Missing token/key or cloud credentials")
             return
     else:
-        appliance = appliance_state(args.ip, token=args.token, key=args.key)
+        appliance = appliance_state(
+            ip=args.ip, token=args.token, key=args.key, id=args.id
+        )
     if appliance:
         appliance.set_state(
             target_humidity=args.humidity,
@@ -96,11 +129,19 @@ def run_set_command(args: Namespace):
             mode=args.mode,
             ion_mode=args.ion,
             running=args.on,
+            cloud=cloud,
         )
         output(appliance, args.credentials)
+    else:
+        _LOGGER.error(
+            "Unable to get appliance status %s",
+            args.ip if hasattr(args, "ip") else args.id,
+        )
 
 
 def run_watch_command(args: Namespace):
+    if not _check_ip_id(args):
+        return
     cloud = None
     if not args.token:
         if args.account and args.password:
@@ -132,17 +173,17 @@ def run_watch_command(args: Namespace):
             _LOGGER.info("Finished watching")
 
 
-def _add_standard_options(parser: ArgumentParser, with_token: bool = True) -> None:
-    if with_token:
-        parser.add_argument("--ip", help="IP address of the appliance", required=True)
-        parser.add_argument(
-            "--token",
-            help="token used to communicate with appliance",
-            default="",
-        )
-        parser.add_argument(
-            "--key", help="key used to communicate with appliance", default=""
-        )
+def _add_standard_options(parser: ArgumentParser) -> None:
+    parser.add_argument("--ip", help="IP address of the appliance")
+    parser.add_argument("--id", help="appliance id")
+    parser.add_argument(
+        "--token",
+        help="token used to communicate with appliance",
+        default="",
+    )
+    parser.add_argument(
+        "--key", help="key used to communicate with appliance", default=""
+    )
     parser.add_argument(
         "--account", help="Midea app account", default="", required=False
     )
@@ -184,7 +225,7 @@ def cli() -> None:
         help="discovers appliances on local network(s)",
         description="Discovers appliances on local network(s)",
     )
-    _add_standard_options(parser_discover, False)
+    _add_standard_options(parser_discover)
     parser_discover.add_argument(
         "--network",
         nargs="+",
@@ -197,6 +238,7 @@ def cli() -> None:
         description="Gets status from appliance.",
     )
     _add_standard_options(parser_status)
+    parser_status.add_argument("--cloud", action="store_true")
 
     parser_set = subparsers.add_parser(
         "set",
@@ -204,6 +246,7 @@ def cli() -> None:
         description="Sets status of an appliance.",
     )
     _add_standard_options(parser_set)
+    parser_set.add_argument("--cloud", action="store_true")
     parser_set.add_argument("--humidity", help="target humidity", default=None)
     parser_set.add_argument("--fan", help="fan strength", default=None)
     parser_set.add_argument("--mode", help="dehumidifier mode switch", default=None)

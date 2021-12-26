@@ -163,12 +163,12 @@ class DehumidifierSetCommand(MideaCommand):
 
     @property
     def ion_mode(self) -> bool:
-        return self.data[19] & 0x60 != 0
+        return self.data[19] & 0b01000000 != 0
 
     @ion_mode.setter
-    def ion_mode(self, mode: bool) -> None:
-        self.data[19] &= ~0x60  # Clear the power bit
-        self.data[19] |= 0x60 if mode else 0
+    def ion_mode(self, on_off: bool) -> None:
+        self.data[19] &= ~0b01000000  # Clear the ion switch bit
+        self.data[19] |= 0b01000000 if on_off else 0
 
     @property
     def target_humidity(self):
@@ -176,7 +176,7 @@ class DehumidifierSetCommand(MideaCommand):
 
     @target_humidity.setter
     def target_humidity(self, humidity: int) -> None:
-        self.data[17] &= ~0x7F  # Clear the power bit
+        self.data[17] &= ~0x7F  # Clear the humidity part
         self.data[17] |= humidity
 
     @property
@@ -185,7 +185,7 @@ class DehumidifierSetCommand(MideaCommand):
 
     @mode.setter
     def mode(self, mode: int) -> None:
-        self.data[12] &= ~0x0F  # Clear the power bit
+        self.data[12] &= ~0x0F  # Clear the mode bits
         self.data[12] |= mode
 
     @property
@@ -194,8 +194,26 @@ class DehumidifierSetCommand(MideaCommand):
 
     @fan_speed.setter
     def fan_speed(self, speed: int) -> None:
-        self.data[13] &= ~0x7F  # Clear the power bit
+        self.data[13] &= ~0x7F  # Clear the fan speed part
         self.data[13] |= speed & 0x7F
+
+    @property
+    def pump_switch(self):
+        return self.data[19] & 0b00001000 != 0
+
+    @pump_switch.setter
+    def pump_switch(self, on_off: bool) -> None:
+        self.data[19] &= ~0b00001000  # Clear the pump switch bit
+        self.data[19] |= 0b00001000 if on_off else 0
+
+    @property
+    def sleep_switch(self):
+        return self.data[19] & 0b00100000 != 0
+
+    @sleep_switch.setter
+    def sleep_switch(self, on_off: bool) -> None:
+        self.data[19] &= ~0b00100000  # Clear the sleep switch bit
+        self.data[19] |= 0b00100000 if on_off else 0
 
 
 class DehumidifierResponse:
@@ -229,13 +247,13 @@ class DehumidifierResponse:
         humidity_decimal: float = (data[8] & 15) * 0.0625
         self.target_humidity += humidity_decimal
         # self.mode_FD_return = data[10] & 7
-        # self.filterShow = (data[9] & 0x80) >> 7
+        self.filter_indicator = (data[9] & 0x10000000) != 0
         self.ion_mode = (data[9] & 0b01000000) != 0
-        # self.sleepSwitch = (data[9] & 32) >> 5
+        self.sleep_switch = (data[9] & 0b00100000) != 0
         # self.pumpSwitch_flag = (data[9] & 16) >> 4
-        # self.pumpSwitch = (data[9] & 8) >> 3
+        self.pump_switch = (data[9] & 0b00001000) != 0
         # self.displayClass = data[9] & 7
-        # self.defrostingShow = (data[10] & 0x80) >> 7
+        self.defrosting = (data[10] & 0x10000000) != 0
         self.tank_full = data[10] & 0x7F >= 100
         # self.dustTimeShow = data[11] * 2
         # self.rareShow = (data[12] & 56) >> 3
@@ -244,10 +262,15 @@ class DehumidifierResponse:
         # self.pmHighValue = data[14]
         # self.rareValue = data[15]
         self.current_humidity = data[16]
-        self.indoor_temperature = data[17] / 4
-        humidity_decimal = ((data[18] & 0xf0) >> 4) * 0.0625
+        self.indoor_temperature = int((data[17] - 50) / 2)
+        if self.indoor_temperature < -19:
+            self.indoor_temperature = -20
+        if self.indoor_temperature > 50:
+            self.indoor_temperature = 50
+        humidity_decimal = ((data[18] & 0b11110000) >> 4) * 0.1
         self.current_humidity += humidity_decimal
-        # self.indoorTmpT1_dot = (data[18] & 15) >> 4
+        temperature_decimal = (data[18] & 0b00001111) * 0.1
+        self.indoor_temperature += temperature_decimal
         # self.lightClass = data[19] & 240
         # self.upAndDownSwing = data[19]
         # self.leftandrightSwing = (data[19] & 32) >> 4

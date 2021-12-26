@@ -19,9 +19,11 @@ from midea_beautiful_dehumidifier.exceptions import (
     AuthenticationError,
     MideaError,
     MideaNetworkError,
+    ProtocolError,
     UnsupportedError,
 )
 from midea_beautiful_dehumidifier.midea import (
+    APPLIANCE_TYPE_DEHUMIDIFIER,
     DISCOVERY_PORT,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
@@ -33,7 +35,8 @@ _LOGGER = logging.getLogger(__name__)
 
 _STATE_SOCKET_TIMEOUT: Final = 3
 
-_SUPPORTED_VERSION: Final = 3
+_SUPPORTED_VERSIONS: Final = [2, 3]
+_TOKEN_VERSIONS: Final = [3]
 
 DISCOVERY_MSG: Final = bytes(
     [
@@ -132,6 +135,7 @@ class LanDevice:
         key: str = "",
         appliance_type: str = "",
         data=None,
+        use_cloud=False,
     ):
         self._security = Security()
         self._retries = 0
@@ -145,12 +149,13 @@ class LanDevice:
         self._lock = RLock()
         self.firmware_version = None
         self.protocol_version = None
-        self.udp_version = None
+        self.udp_version = 0
         self.randomkey = None
-        self.reserved = None
-        self.flags = None
-        self.extra = None
-        self.subtype = None
+        self.reserved = 0
+        self.flags = 0
+        self.extra = 0
+        self.subtype = 0
+        self._use_cloud = use_cloud
 
         if data:
             data = bytes(data)
@@ -246,7 +251,9 @@ class LanDevice:
         self.mac = other.mac
         self.ssid = other.ssid
 
-    def _lan_packet(self, id: int, command: MideaCommand) -> bytes:
+    def _lan_packet(
+        self, id: int, command: MideaCommand, encrypt: bool = True
+    ) -> bytes:
         # Init the packet with the header data.
         packet = bytearray(
             [
@@ -308,18 +315,20 @@ class LanDevice:
         packet[20:28] = id.to_bytes(8, "little")
 
         # Append the encrypted command data to the packet
-
-        encrypted = self._security.aes_encrypt(command.finalize())
-        packet.extend(encrypted)
+        if encrypt:
+            encrypted = self._security.aes_encrypt(command.finalize())
+            packet.extend(encrypted)
+        else:
+            packet.extend(command.finalize())
         # Set packet length
         packet[4:6] = (len(packet) + 16).to_bytes(2, "little")
         # Append a checksum to the packet
         packet.extend(self._security.md5fingerprint(packet))
         return bytes(packet)
 
-    def refresh(self) -> None:
+    def refresh(self, cloud: MideaCloud = None) -> None:
         cmd = self.state.refresh_command()
-        responses = self._status(cmd)
+        responses = self._status(cmd, cloud)
         if not responses:
             self._no_responses += 1
             if self._no_responses > self._max_retries:
@@ -437,10 +446,14 @@ class LanDevice:
             _LOGGER.warning("Failed to get TCP key for %s", self)
             return False
 
-    def _status(self, cmd: MideaCommand) -> list[bytes]:
-        data = self._lan_packet(int(self.id), cmd)
+    def _status(self, cmd: MideaCommand, cloud: MideaCloud | None) -> list[bytes]:
+        data = self._lan_packet(int(self.id), cmd, cloud is None)
         _LOGGER.log(5, "Packet for: %s data: %s", self, _Hex(data))
-        responses = self._appliance_send_8370(data)
+        if cloud is not None:
+            _LOGGER.debug("Sending request to cloud %s", self)
+            responses = cloud.appliance_transparent_send(self.id, data)
+        else:
+            responses = self._appliance_send(data)
 
         if len(responses) == 0:
             _LOGGER.debug("Got no responses on status from: %s", self)
@@ -455,7 +468,7 @@ class LanDevice:
 
         return responses
 
-    def _appliance_send_8370(self, data: bytes | bytearray) -> list[bytes]:
+    def _appliance_send_8370(self, data: bytes) -> list[bytes]:
         """Sends data using v3 (8370) protocol"""
         if not self._socket or not self._tcp_key:
             _LOGGER.debug("Socket %s closed, creating new socket", self)
@@ -494,11 +507,14 @@ class LanDevice:
                 return packets
             else:
                 _LOGGER.error(
-                    "Unable to send data after %d retries, last error %s",
+                    "Unable to send data after %d retries, last error %s for %s",
                     self._max_retries,
                     self._last_error,
+                    self,
                 )
                 self._last_error = ""
+                return []
+
         responses, self._buffer = self._security.decode_8370(
             self._buffer + response_buf
         )
@@ -510,18 +526,66 @@ class LanDevice:
                 packets.append(response[10:])
         return packets
 
-    def apply(self) -> None:
+    def _appliance_send_v2_v1(self, data: bytes) -> list[bytes]:
+        # wait few seconds before re-sending data, default is 0
+        sleep(self._retries)
+        response_buf = self._request(data)
+        if not response_buf:
+            if self._retries < self._max_retries:
+                packets = self._appliance_send_v2_v1(data)
+                self._retries = 0
+                return packets
+            else:
+                _LOGGER.error(
+                    "Unable to send data after %d retries, last error %s for %s",
+                    self._max_retries,
+                    self._last_error,
+                    self,
+                )
+                self._last_error = ""
+                return []
+
+        packets = []
+        response_len = len(response_buf)
+        if response_buf[:2] == b"\x5a\x5a" and response_len > 5:
+            i = 0
+            # maybe multiple response
+            while i < response_len:
+                size = response_buf[i + 4]
+                data = self._security.aes_decrypt(response_buf[i : i + size][40:-16])
+                # header length is 10 bytes
+                if len(data) > 10:
+                    packets.append(data)
+                i += size
+        elif response_buf[0] == 0xAA and response_len > 2:
+            i = 0
+            while i < response_len:
+                size = response_buf[i + 1]
+                data = response_buf[i : i + size + 1]
+                # header length is 10 bytes
+                if len(data) > 10:
+                    packets.append(data)
+                i += size + 1
+        else:
+            raise ProtocolError(f"Unknown response format {self} {_Hex(response_buf)}")
+        return packets
+
+    def _appliance_send(self, data: bytes | bytearray) -> list[bytes]:
+        if self.version in _TOKEN_VERSIONS:
+            return self._appliance_send_8370(data)
+        return self._appliance_send_v2_v1(data)
+
+    def apply(self, cloud: MideaCloud = None) -> None:
         cmd = self.state.apply_command()
 
-        responses = self._apply(cmd)
-        for response in responses:
-            self.state.process_response(response)
-
-    def _apply(self, cmd: MideaCommand) -> list[bytes]:
-        data = self._lan_packet(int(self.id), cmd)
+        data = self._lan_packet(int(self.id), cmd, cloud is None)
 
         _LOGGER.log(5, "Packet for %s data: %s", self, _Hex(data))
-        responses = self._appliance_send_8370(data)
+        if cloud is not None:
+            _LOGGER.debug("Sending request to cloud %s", self)
+            responses = cloud.appliance_transparent_send(self.id, data)
+        else:
+            responses = self._appliance_send(data)
         _LOGGER.debug("Got response(s) from: %s", self)
 
         if len(responses) == 0:
@@ -530,7 +594,8 @@ class LanDevice:
             self._disconnect()
         else:
             self._online = True
-        return responses
+        for response in responses:
+            self.state.process_response(response)
 
     def _get_valid_token(self, cloud: MideaCloud) -> bool:
         """
@@ -563,38 +628,49 @@ class LanDevice:
             _LOGGER.debug("Error identifying appliance %s", ex)
             return False
 
-    def identify(self, cloud: MideaCloud = None):
-        if self.version == _SUPPORTED_VERSION:
-            if not self.token or not self.key:
-                if not cloud:
-                    raise MideaError(f"Provide either token/key pair or cloud {self!r}")
-                if not self._get_valid_token(cloud):
-                    raise AuthenticationError(f"Unable to get valid token for {self}")
-            elif not self._authenticate():
-                raise AuthenticationError(
-                    f"Unable to authenticate with appliance {self}"
-                )
+    def identify(self, cloud: MideaCloud = None, use_cloud: bool = False):
+        if self.version in _SUPPORTED_VERSIONS or use_cloud:
+            if self.version in _TOKEN_VERSIONS and not use_cloud:
+                if not self.token or not self.key:
+                    if not cloud:
+                        raise MideaError(
+                            f"Provide either token/key pair or cloud {self!r}"
+                        )
+                    if not self._get_valid_token(cloud):
+                        raise AuthenticationError(
+                            f"Unable to get valid token for {self}"
+                        )
+                elif not self._authenticate():
+                    raise AuthenticationError(
+                        f"Unable to authenticate with appliance {self}"
+                    )
+            else:
+                # TODO
+                pass
         else:
             raise UnsupportedError(
                 f"Appliance {self} is not supported:"
-                f" needs to support protocol version {_SUPPORTED_VERSION}"
+                f" needs to support protocol version {_SUPPORTED_VERSIONS}"
             )
 
         if not Appliance.supported(self.type):
             raise UnsupportedError(f"Unsupported appliance: {self!r}")
 
-        self.refresh()
+        self.refresh(cloud if use_cloud else None)
         _LOGGER.debug("Appliance data: %r", self)
 
     def set_state(self, **kwargs):
+        cloud = None
         for attr, value in kwargs.items():
-            if hasattr(self.state, attr):
+            if attr == "cloud":
+                cloud = value
+            elif hasattr(self.state, attr):
                 if value is not None:
                     setattr(self.state, attr, value)
             else:
                 _LOGGER.warning("Unknown state attribute %s", attr)
 
-        return self.apply()
+        return self.apply(cloud)
 
     def __str__(self):
         return f"id={self.id} ip={self.ip}:{self.port} version={self.version}"
@@ -644,7 +720,7 @@ class LanDevice:
 
     @property
     def is_supported(self):
-        return self.version == 3
+        return self.version in _SUPPORTED_VERSIONS
 
     @property
     def online(self):
@@ -652,41 +728,55 @@ class LanDevice:
 
 
 def get_appliance_state(
-    ip: str,
+    ip: str | None = None,
     port: int = DISCOVERY_PORT,
     token: str = None,
     key: str = None,
     cloud: MideaCloud = None,
+    use_cloud: bool = False,
+    id: str | None = None,
 ) -> LanDevice:
     # Create a TCP/IP socket
-    token = token or ""
-    key = key or ""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(_STATE_SOCKET_TIMEOUT)
+    if ip:
+        token = token or ""
+        key = key or ""
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(_STATE_SOCKET_TIMEOUT)
 
-    try:
-        # Connect to the appliance
-        sock.connect((ip, port))
+        try:
+            # Connect to the appliance
+            sock.connect((ip, port))
 
-        # Send the discovery query
-        _LOGGER.log(5, "Sending to %s:%d %s", ip, port, _Hex(DISCOVERY_MSG))
-        sock.sendall(DISCOVERY_MSG)
+            # Send the discovery query
+            _LOGGER.log(5, "Sending to %s:%d %s", ip, port, _Hex(DISCOVERY_MSG))
+            sock.sendall(DISCOVERY_MSG)
 
-        # Received data
-        response = sock.recv(512)
-        _LOGGER.log(5, "Received from %s:%d %s", ip, port, _Hex(response))
-        appliance = LanDevice(data=response, token=token, key=key)
-        _LOGGER.log(5, "Appliance %s", appliance)
-        appliance.identify(cloud)
-        if cloud:
-            for details in cloud.list_appliances():
-                if details["id"] == appliance.id:
-                    appliance.name = details["name"]
-                    break
-        return appliance
-    except socket.error:
-        raise MideaNetworkError("Could not connect to appliance %s:%d")
-    except socket.timeout:
-        raise MideaNetworkError("Timeout while connecting to appliance %s:%d")
-    finally:
-        sock.close()
+            # Received data
+            response = sock.recv(512)
+            _LOGGER.log(5, "Received from %s:%d %s", ip, port, _Hex(response))
+            appliance = LanDevice(data=response, token=token, key=key)
+            _LOGGER.log(5, "Appliance %s", appliance)
+
+        except socket.error:
+            raise MideaNetworkError("Could not connect to appliance %s:%d")
+        except socket.timeout:
+            raise MideaNetworkError("Timeout while connecting to appliance %s:%d")
+        finally:
+            sock.close()
+    elif id is not None:
+        if use_cloud and cloud:
+            appliance = LanDevice(
+                id=id, appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER, use_cloud=use_cloud
+            )
+        else:
+            raise MideaError("Missing cloud credentials")
+    else:
+        raise MideaError("Must provide appliance id or ip")
+
+    appliance.identify(cloud, use_cloud)
+    if cloud:
+        for details in cloud.list_appliances():
+            if details["id"] == appliance.id:
+                appliance.name = details["name"]
+                break
+    return appliance

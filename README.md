@@ -6,10 +6,10 @@ This is a library that allows communication with Midea dehumidifier appliances v
 
 This library allows discovering Midea dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
 
-This library inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners.
+This library inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners and [barban-dev/midea_inventor_dehumidifier](https://github.com/barban-dev/midea_inventor_dehumidifier) cloud based functionality for dehumidifiers. This library may include verbatim or adapted portions of the code from those two projects.
 
 
-Thanks for [yitsushi's project](https://github.com/yitsushi/midea-air-condition), [NeoAcheron's project](https://github.com/NeoAcheron/midea-ac-py), [andersonshatch's project](https://github.com/andersonshatch/midea-ac-py), [barban's project](https://github.com/barban-dev/midea_inventor_dehumidifier)
+Thanks also to [yitsushi's project](https://github.com/yitsushi/midea-air-condition), [NeoAcheron's project](https://github.com/NeoAcheron/midea-ac-py), [andersonshatch's project](https://github.com/andersonshatch/midea-ac-py).
 
 
 ## Supported appliances
@@ -209,3 +209,4 @@ Library is automatically built, packaged and published to [PyPI](https://pypi.or
 ## See also
 
 * https://github.com/nbogojevic/homeassistant-midea-dehumidifier-lan
+

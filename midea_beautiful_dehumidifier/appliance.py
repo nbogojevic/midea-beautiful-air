@@ -104,6 +104,10 @@ class DehumidifierAppliance(Appliance):
         self._tank_full = False
         self._current_temperature: float = 0
         self._error = 0
+        self._defrosting: bool = False
+        self._filter_indicator: bool = False
+        self._pump: bool = False
+        self._sleep_switch: bool = False
 
     @staticmethod
     def supported(type: str | int) -> bool:
@@ -152,6 +156,10 @@ class DehumidifierAppliance(Appliance):
             self._tank_full = response.tank_full
             self._current_temperature = response.indoor_temperature
             self._error = response.err_code
+            self._defrosting = response.defrosting
+            self._filter_indicator = response.filter_indicator
+            self._pump = response.pump_switch
+            self._sleep = response.sleep_switch
         else:
             self._online = False
 
@@ -165,6 +173,8 @@ class DehumidifierAppliance(Appliance):
         cmd.mode = self.mode
         cmd.fan_speed = self.fan_speed
         cmd.ion_mode = self.ion_mode
+        cmd.pump_switch = self.pump
+        cmd.sleep_switch = self.sleep
         return cmd
 
     @property
@@ -267,6 +277,36 @@ class DehumidifierAppliance(Appliance):
     @property
     def model(self) -> str:
         return "Dehumidifier"
+
+    @property
+    def filter_indicator(self) -> bool:
+        return self._filter_indicator
+
+    @property
+    def defrosting(self) -> bool:
+        return self._defrosting
+
+    @property
+    def pump(self) -> bool:
+        return self._pump
+
+    @pump.setter
+    def pump(self, value):
+        if isinstance(value, str):
+            self._pump = strtobool(value)
+        else:
+            self._pump = bool(value)
+
+    @property
+    def sleep(self) -> bool:
+        return self._sleep
+
+    @sleep.setter
+    def sleep(self, value):
+        if isinstance(value, str):
+            self._sleep = strtobool(value)
+        else:
+            self._sleep = bool(value)
 
     def __str__(self) -> str:
         return (

@@ -24,3 +24,5 @@ DEFAULT_APP_ID: Final[int] = SUPPORTED_APPS["NetHome Plus"]["appid"]
 DEFAULT_SIGNKEY: Final = "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S"
 
 ERROR_CODE_P2: Final = 38
+
+APPLIANCE_TYPE_DEHUMIDIFIER: Final = "0xa1"

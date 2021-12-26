@@ -48,7 +48,12 @@ def discover_appliances(
 
 
 def appliance_state(
-    ip: str, token: str = None, key: str = None, cloud: MideaCloud = None
+    ip: str | None = None,
+    token: str | None = None,
+    key: str | None = None,
+    cloud: MideaCloud = None,
+    use_cloud: bool = False,
+    id: str | None = None,
 ) -> LanDevice | None:
     """
     Retrieves appliance state
@@ -65,11 +70,15 @@ def appliance_state(
         cloud (MideaCloud, optional): Interface to Midea cloud API.
             Used to discover token if it was not provided in arguments.
             Defaults to None.
+        use_cloud (bool, optional): Set to True if state should be
+            retrieved from cloud.
 
     Returns:
         LanDevice: Appliance descriptor and state
     """
-    return get_appliance_state(ip, token=token, key=key, cloud=cloud)
+    return get_appliance_state(
+        ip=ip, token=token, key=key, cloud=cloud, use_cloud=use_cloud, id=id
+    )
 
 
 def connect_to_cloud(
