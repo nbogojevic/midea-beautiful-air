@@ -1,7 +1,9 @@
 """Cryptographic tools."""
 from __future__ import annotations
+import binascii
 
 from hashlib import md5, sha256
+import logging
 from os import urandom
 from typing import Any, Final, Tuple
 from urllib.parse import unquote_plus, urlencode, urlparse
@@ -9,7 +11,11 @@ from urllib.parse import unquote_plus, urlencode, urlparse
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from midea_beautiful_dehumidifier.exceptions import AuthenticationError, ProtocolError
+from midea_beautiful_dehumidifier.exceptions import (
+    AuthenticationError,
+    MideaError,
+    ProtocolError,
+)
 from midea_beautiful_dehumidifier.midea import (
     DEFAULT_APPKEY,
     DEFAULT_SIGNKEY,
@@ -18,6 +24,8 @@ from midea_beautiful_dehumidifier.midea import (
 )
 
 ENCRYPTED_MESSAGE_TYPES: Final = (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _strxor(plain_text, key):
@@ -323,6 +331,8 @@ class Security:
         self._tcp_key = b""
         self._request_count = 0
         self._response_count = 0
+        self._access_token = None
+        self._data_key = None
 
     def aes_decrypt(self, raw: bytes) -> bytes:
         """
@@ -496,3 +506,56 @@ class Security:
         m = sha256()
         m.update(loginHash.encode("ascii"))
         return m.hexdigest()
+
+    @property
+    def access_token(self):
+        return self._access_token
+
+    @access_token.setter
+    def access_token(self, token):
+        self._access_token = token
+        if token:
+            md5appkey = md5(self._appkey.encode("utf-8")).hexdigest()[:16]
+
+            self._data_key = self.aes_decrypt_string(self._access_token, md5appkey)
+        else:
+            self._data_key = None
+
+    @property
+    def data_key(self):
+        return self._data_key
+
+    def aes_decrypt_string(self, data: str, key=None) -> str:
+        """
+        Decrypt string data using key or data_key if key omitted
+        """
+        key = key or self._data_key
+        if key is None:
+            raise MideaError("Missing access token")
+        encrypted_data = binascii.unhexlify(data)
+
+        cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())
+        decryptor = cipher.decryptor()
+        decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
+        unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
+        result = unpadder.update(decrypted) + unpadder.finalize()
+        return result.decode("utf-8")
+
+    def aes_encrypt_string(self, data: str, key=None) -> str:
+        """
+        Encrypt string data using key or data_key if key omitted
+        """
+        key = key or self._data_key
+        if key is None:
+            raise MideaError("Missing access token")
+
+        raw = data.encode("utf-8")
+
+        padder = padding.PKCS7(BLOCKSIZE * 8).padder()
+        raw = padder.update(raw) + padder.finalize()
+
+        cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())
+        encryptor = cipher.encryptor()
+        result = encryptor.update(raw) + encryptor.finalize()
+
+        return result.hex()
