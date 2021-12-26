@@ -11,6 +11,7 @@ from midea_beautiful_dehumidifier.exceptions import (
     CloudAuthenticationError,
     CloudError,
     CloudRequestError,
+    ProtocolError,
     RetryLaterError,
 )
 from midea_beautiful_dehumidifier.midea import (
@@ -35,6 +36,25 @@ PROTECTED_REQUESTS: Final = ["user/login/id/get", "user/login"]
 PROTECTED_RESPONSES: Final = ["iot/secure/getToken", "user/login/id/get", "user/login"]
 
 _MAX_RETRIES: Final = 3
+
+
+def _encode_as_csv(data: bytes | bytearray) -> str:
+    normalized = []
+    for b in data:
+        if b >= 128:
+            b = b - 256
+        normalized.append(str(b))
+
+    string = ",".join(normalized)
+    return string
+
+
+def _decode_from_csv(data: str):
+    int_data = [int(a) for a in data.split(",")]
+    for i in range(len(int_data)):
+        if int_data[i] < 0:
+            int_data[i] = int_data[i] + 256
+    return bytes(int_data)
 
 
 class MideaCloud:
@@ -195,6 +215,32 @@ class MideaCloud:
 
         if not self._session or not self._session.get("sessionId"):
             raise AuthenticationError("Unable to retrieve session id from Midea API")
+        self._security.access_token = self._session.get("accessToken")
+
+    def appliance_transparent_send(self, id, data) -> list[bytes]:
+
+        _LOGGER.debug("Sending to id=%s data=%s", id, data)
+        encoded = _encode_as_csv(data)
+        _LOGGER.log(5, "Encoded id=%s data=%s", id, encoded)
+
+        order = self._security.aes_encrypt_string(encoded)
+        response = self.api_request(
+            "appliance/transparent/send",
+            {"order": order, "funId": "0000", "applianceId": id},
+        )
+
+        decrypted = self._security.aes_decrypt_string(response["reply"])
+        _LOGGER.log(5, "decrypted reply %s", decrypted)
+        reply = _decode_from_csv(decrypted)
+        _LOGGER.debug("Received from id=%s data=%s", id, reply.hex())
+        if len(reply) < 50:
+            raise ProtocolError(
+                f"Invalid size of cloud reply expected 50+, was {len(reply)}"
+            )
+        else:
+            reply = reply[50:]
+
+        return [reply]
 
     def list_appliances(self, force: bool = False):
         """
