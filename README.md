@@ -39,21 +39,34 @@ The following dehumidifier data is accessible via library:
 * appliance name (read-only). Set through Midea mobile application.
 * appliance serial number (read-only) 
 * appliance IPv4 address (read-only)
-* token and key for local network access (read-only)
+* token and key for local network access (read-only, only v3 appliances)
+* filter replacement indicator (boolean, read-only, if supported on appliance)
+* pump on/off switch (boolean, can be set, if supported on appliance)
+* defrosting mode indicator (boolean, read-only, if supported on appliance)
+* internal error code (read-only)
 
 
 ## Discovery
 
-This library discovers appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and the library needs a token and a key for each appliance. This can be either provided or retrieved from Midea app account. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
+This library is able to discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
 
 Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
 The discovery should work on Linux and Windows based systems, however it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs depending on network setup. For example, VM or container needs to have rights to broadcast to physical network to make discovery work. On workaround is to run discovery from non-virtualized environment host. 
 
+If this discovery mechanism doesn't work on particular set-up, it is still possible to either target appliances directly using their IP address when it is known or to retrieve or setting their status using cloud service. 
+
 ### Network considerations
 
 Discovery requires that both appliance and the machine performing discovery are present on the same subnet. Discovery process will issue UDP broadcast request on the local private networks discovered from host's network adapters. The library only scans private network ranges using this method (e.g. 10.0.0.0 – 10.255.255.255, 	172.16.0.0 – 172.31.255.255 and 192.168.0.0 – 192.168.255.255) It is also possible to explicitly provide networks or even single addresses to scan and in this case there is no limitation on address ranges, however, beware of sending broadcast requests to public ip networks.
 
+## Local protocol support
+
+Library supports following protocols:
+
+* cloud based status reading and writing (no local access needed)
+* v3 local protocol with compatible devices (requires TOKEN/KEY combination)
+* v2 local protocol with compatible devices (TO BE TESTED) 
 
 ## Logging
 
@@ -116,6 +129,12 @@ Get status of an appliance using Midea app credentials
 midea_beautiful_dehumidifier-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
+Get status of an appliance via Midea cloud API (note the usage of `--id` and `--cloud` options)
+
+```shell
+midea_beautiful_dehumidifier-cli status --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --cloud
+```
+
 ### Set appliance attribute
 
 Set target relative humidity (0-100)
@@ -139,9 +158,17 @@ Turn on/off ion mode (0 or 1)
 ```shell
 midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --on 1
 ```
+Turn on/off pump (0 or 1)
+```shell
+midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --pump 1
+```
 Combinations multiple settings
 ```shell
 midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 60 --humidity 50
+```
+Set target humidity via Midea cloud API (note the usage of `--id` and `--cloud` options)
+```shell
+midea_beautiful_dehumidifier-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --humidity 55 --cloud
 ```
 
 ### Watch appliance status
@@ -164,7 +191,7 @@ midea_beautiful_dehumidifier-cli status --ip APPLIANCE_IP_ADDRESS --account ACCO
 
 Log level is specified using `--log` option:
 
-`DEBUG` level
+Set `DEBUG` level
 
 ```shell
 midea_beautiful_dehumidifier-cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
@@ -173,9 +200,9 @@ Very verbose level (may contain confidential information)
 ```shell
 midea_beautiful_dehumidifier-cli --log NOTSET discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
-`WARNING` level (default log level if option was not specified)
+Set `WARNING` level (default log level if option was not specified)
 ```shell
-midea_beautiful_dehumidifier-cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
+midea_beautiful_dehumidifier-cli --log WARNING discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
 ## Code examples
@@ -186,11 +213,11 @@ Discover appliances on local network:
 from midea_beautiful_dehumidifier import find_appliances
 
 appliances = find_appliances(
-    account=USER_EMAIL,
-    password=PASSWORD,
+    account="USER_EMAIL@example.com",  # Account e-mail
+    password="secret_password",  # Account password
 )
 for appliance in appliances:
-    output(appliance, args.credentials)
+    print(f"{appliance!r}")
 ```
 
 Get appliance state:
@@ -198,8 +225,26 @@ Get appliance state:
 ```python
 from midea_beautiful_dehumidifier import appliance_state
 
-appliance = appliance_state(APPLIANCE_IP_ADDRESS, token=TOKEN, key=KEY)
-print(appliance)
+appliance = appliance_state(
+    ip=192.0.1.2,  # APPLIANCE_IP_ADDRESS 
+    token="TOKEN",  # TOKEN obtained from Midea API
+    key="KEY",  # Token KEY obtained from Midea API
+)
+print(f"{appliance!r}")
+```
+
+
+Get appliance state from cloud:
+
+```python
+from midea_beautiful_dehumidifier import appliance_state
+
+appliance = appliance_state( 
+    account="USER_EMAIL@example.com",  # Account e-mail
+    password="secret_password",  # Account password
+    id=123412341234,  # Appliance id obtained from Midea API 
+)
+print(f"{appliance!r}")
 ```
 
 ## Build the library

@@ -134,15 +134,15 @@ class LanDevice:
         token: str = "",
         key: str = "",
         appliance_type: str = "",
-        data=None,
-        use_cloud=False,
+        data: bytes = None,
+        use_cloud: bool = False,
     ):
         self._security = Security()
         self._retries = 0
         self._socket = None
         self.token = token
         self.key = key
-        self._tcp_key = None
+        self._got_tcp_key = False
         self._last_error = ""
         self._max_retries = 3
         self._no_responses = 0
@@ -159,6 +159,7 @@ class LanDevice:
 
         if data:
             data = bytes(data)
+            _LOGGER.error(data.hex())
             if data[:2] == b"\x5a\x5a":  # 5a5a
                 self.version = 2
             elif data[:2] == b"\x83\x70":  # 8370
@@ -168,8 +169,8 @@ class LanDevice:
             if data[8:10] == b"\x5a\x5a":  # 5a5a
                 data = data[8:-16]
             id = str(int.from_bytes(data[20:26], "little"))
-            encrypt_data = data[40:-16]
-            reply = self._security.aes_decrypt(encrypt_data)
+            encrypted_data = data[40:-16]
+            reply = self._security.aes_decrypt(encrypted_data)
             self.ip = ".".join([str(i) for i in reply[3::-1]])
             _LOGGER.log(5, "From %s decrypted reply=%s", self.ip, _Hex(reply))
             self.port = int.from_bytes(reply[4:8], "little")
@@ -239,7 +240,7 @@ class LanDevice:
         self.token = other.token
         self.key = other.key
         self._socket = None
-        self._tcp_key = other._tcp_key
+        self._got_tcp_key = False
         self._max_retries = other._max_retries
         self._retries = other._retries
         self.ip = other.ip
@@ -252,7 +253,7 @@ class LanDevice:
         self.ssid = other.ssid
 
     def _lan_packet(
-        self, id: int, command: MideaCommand, encrypt: bool = True
+        self, id: int, command: MideaCommand, local_packet: bool = True
     ) -> bytes:
         # Init the packet with the header data.
         packet = bytearray(
@@ -315,7 +316,7 @@ class LanDevice:
         packet[20:28] = id.to_bytes(8, "little")
 
         # Append the encrypted command data to the packet
-        if encrypt:
+        if local_packet:
             encrypted = self._security.aes_encrypt(command.finalize())
             packet.extend(encrypted)
         else:
@@ -362,7 +363,7 @@ class LanDevice:
             if self._socket:
                 self._socket.close()
             self._socket = None
-            self._tcp_key = None
+            self._got_tcp_key = False
 
     def _request(self, message) -> bytes:
         with self._lock:
@@ -434,9 +435,9 @@ class LanDevice:
         response = response[8:72]
 
         try:
-            tcp_key = self._security.tcp_key(response, unhexlify(self.key))
+            self._security.tcp_key(response, unhexlify(self.key))
 
-            self._tcp_key = tcp_key.hex()
+            self._got_tcp_key = True
             _LOGGER.log(5, "Got TCP key for %s", self)
             # After authentication, don’t send data immediately,
             # so sleep 500ms.
@@ -470,7 +471,7 @@ class LanDevice:
 
     def _appliance_send_8370(self, data: bytes) -> list[bytes]:
         """Sends data using v3 (8370) protocol"""
-        if not self._socket or not self._tcp_key:
+        if not self._socket or not self._got_tcp_key:
             _LOGGER.debug("Socket %s closed, creating new socket", self)
             self._disconnect()
 
