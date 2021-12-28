@@ -1,15 +1,16 @@
 import binascii
+from typing import Final
 import unittest
 
 from midea_beautiful_dehumidifier.crypto import Security
 from midea_beautiful_dehumidifier.lan import LanDevice
 from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 
-APP_KEY = DEFAULT_APPKEY
+APP_KEY: Final = DEFAULT_APPKEY
 
 
 class TestSecurityMethods(unittest.TestCase):
-    def test_aes_encrypt_string(self):
+    def test_aes_encrypt_string(self) -> None:
         access_token = (
             "87836529d24810fb715db61f2d3eba2ab920ebb829d567559397ded751813801"
         )
@@ -31,7 +32,7 @@ class TestSecurityMethods(unittest.TestCase):
         encrypted_string = security.aes_encrypt_string(query)
         self.assertEqual(expected_encrypted_str, encrypted_string)
 
-    def test_aes_decrypt_string(self):
+    def test_aes_decrypt_string(self) -> None:
         access_token = (
             "f4fe051b7611d07d54a7f0a5e07ca2beb920ebb829d567559397ded751813801"
         )
@@ -55,7 +56,7 @@ class TestSecurityMethods(unittest.TestCase):
         decoded_reply = security.aes_decrypt_string(reply)
         self.assertEqual(expected_decoded_reply, decoded_reply)
 
-    def test_encrypt_password(self):
+    def test_encrypt_password(self) -> None:
         security = Security(APP_KEY)
         expected_encrypted_password = (
             "f6a8f970344eb9b84f770d8eb9e8b511f4799bbce29bdef6990277783c243b5f"
@@ -65,7 +66,7 @@ class TestSecurityMethods(unittest.TestCase):
         )
         self.assertEqual(expected_encrypted_password, encrypted_password)
 
-    def test_sign(self):
+    def test_sign(self) -> None:
         security = Security(APP_KEY)
         expected_sign = (
             "d1d0b37a6cc407e9b8fcecc1f2e250f6a9cfd83cfbf7e4443d30a34cb4e9a62d"
@@ -82,7 +83,7 @@ class TestSecurityMethods(unittest.TestCase):
         sign = security.sign("/v1/user/login/id/get", args)
         self.assertEqual(expected_sign, sign)
 
-    def test_data_key(self):
+    def test_data_key(self) -> None:
         security = Security(APP_KEY)
         security.access_token = (
             "f4fe051b7611d07d54a7f0a5e07ca2beb920ebb829d567559397ded751813801"
@@ -91,7 +92,7 @@ class TestSecurityMethods(unittest.TestCase):
 
 
 class TestLanDevice(unittest.TestCase):
-    def test_lan_packet(self):
+    def test_lan_packet(self) -> None:
         expected_header = binascii.unhexlify("5a5a01116800200000000000")
         expected_payload = binascii.unhexlify(
             "0a1b0c151"

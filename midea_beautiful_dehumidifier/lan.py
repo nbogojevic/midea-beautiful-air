@@ -136,7 +136,7 @@ class LanDevice:
         appliance_type: str = "",
         data: bytes = None,
         use_cloud: bool = False,
-    ):
+    ) -> None:
         self._security = Security()
         self._retries = 0
         self._socket = None
@@ -159,7 +159,6 @@ class LanDevice:
 
         if data:
             data = bytes(data)
-            _LOGGER.error(data.hex())
             if data[:2] == b"\x5a\x5a":  # 5a5a
                 self.version = 2
             elif data[:2] == b"\x83\x70":  # 8370
@@ -236,7 +235,7 @@ class LanDevice:
             # Default interface version is 3
             self.version = 3
 
-    def update(self, other: LanDevice):
+    def update(self, other: LanDevice) -> None:
         self.token = other.token
         self.key = other.key
         self._socket = None
@@ -328,17 +327,23 @@ class LanDevice:
         return bytes(packet)
 
     def refresh(self, cloud: MideaCloud = None) -> None:
-        cmd = self.state.refresh_command()
-        responses = self._status(cmd, cloud)
-        if not responses:
-            self._no_responses += 1
-            if self._no_responses > self._max_retries:
-                self._online = False
-        else:
-            self._no_responses = 0
-            self._online = True
-            for response in responses:
-                self.state.process_response(response)
+        with self._lock:
+            cmd = self.state.refresh_command()
+            responses = self._status(cmd, cloud)
+            if responses:
+                self._no_responses = 0
+                if len(responses) > 1:
+                    _LOGGER.debug(
+                        "Got several responses on refresh from: %s, %d",
+                        self,
+                        len(responses),
+                    )
+                self._online = True
+                self.state.process_response(responses[-1])
+            else:
+                self._no_responses += 1
+                if self._no_responses > self._max_retries:
+                    self._online = False
 
     def _connect(self, socket_timeout=2) -> None:
         with self._lock:
@@ -577,26 +582,32 @@ class LanDevice:
         return self._appliance_send_v2_v1(data)
 
     def apply(self, cloud: MideaCloud = None) -> None:
-        cmd = self.state.apply_command()
+        with self._lock:
+            cmd = self.state.apply_command()
 
-        data = self._lan_packet(int(self.id), cmd, cloud is None)
+            data = self._lan_packet(int(self.id), cmd, cloud is None)
 
-        _LOGGER.log(5, "Packet for %s data: %s", self, _Hex(data))
-        if cloud is not None:
-            _LOGGER.debug("Sending request to cloud %s", self)
-            responses = cloud.appliance_transparent_send(self.id, data)
-        else:
-            responses = self._appliance_send(data)
-        _LOGGER.debug("Got response(s) from: %s", self)
+            _LOGGER.log(5, "Packet for %s data: %s", self, _Hex(data))
+            if cloud:
+                _LOGGER.debug("Sending request via cloud to %s", self)
+                responses = cloud.appliance_transparent_send(self.id, data)
+            else:
+                responses = self._appliance_send(data)
+            _LOGGER.debug("Got response(s) from: %s", self)
 
-        if len(responses) == 0:
-            _LOGGER.debug("Got no responses on apply from: %s", self)
-            self._online = False
-            self._disconnect()
-        else:
-            self._online = True
-        for response in responses:
-            self.state.process_response(response)
+            if responses:
+                if len(responses) > 1:
+                    _LOGGER.debug(
+                        "Got several responses on apply from: %s, %d",
+                        self,
+                        len(responses),
+                    )
+                self._online = True
+                self.state.process_response(responses[-1])
+            else:
+                _LOGGER.debug("Got no responses on apply from: %s", self)
+                self._online = False
+                self._disconnect()
 
     def _get_valid_token(self, cloud: MideaCloud) -> bool:
         """
@@ -629,7 +640,7 @@ class LanDevice:
             _LOGGER.debug("Error identifying appliance %s", ex)
             return False
 
-    def identify(self, cloud: MideaCloud = None, use_cloud: bool = False):
+    def identify(self, cloud: MideaCloud = None, use_cloud: bool = False) -> None:
         if self.version in _SUPPORTED_VERSIONS or use_cloud:
             if self.version in _TOKEN_VERSIONS and not use_cloud:
                 if not self.token or not self.key:
@@ -660,7 +671,7 @@ class LanDevice:
         self.refresh(cloud if use_cloud else None)
         _LOGGER.debug("Appliance data: %r", self)
 
-    def set_state(self, **kwargs):
+    def set_state(self, **kwargs) -> None:
         cloud = None
         for attr, value in kwargs.items():
             if attr == "cloud":
@@ -671,9 +682,9 @@ class LanDevice:
             else:
                 _LOGGER.warning("Unknown state attribute %s", attr)
 
-        return self.apply(cloud)
+        self.apply(cloud)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"id={self.id} ip={self.ip}:{self.port} version={self.version}"
 
     def __repr__(self) -> str:
@@ -704,7 +715,7 @@ class LanDevice:
         )
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self.state.id
 
     @property
@@ -712,19 +723,19 @@ class LanDevice:
         return self.state.name
 
     @property
-    def model(self):
+    def model(self) -> str:
         return self.state.model
 
     @name.setter
-    def name(self, name):
+    def name(self, name: str) -> None:
         self.state.name = name
 
     @property
-    def is_supported(self):
+    def is_supported(self) -> bool:
         return self.version in _SUPPORTED_VERSIONS
 
     @property
-    def online(self):
+    def online(self) -> bool:
         return self._online
 
 

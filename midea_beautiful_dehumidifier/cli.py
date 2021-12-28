@@ -6,7 +6,7 @@ try:
     from coloredlogs import install as coloredlogs_install
 except Exception:
 
-    def coloredlogs_install(level):
+    def coloredlogs_install(level) -> None:
         pass
 
 
@@ -26,7 +26,7 @@ from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 _LOGGER = logging.getLogger(__name__)
 
 
-def output(appliance: LanDevice, show_credentials: bool = False):
+def output(appliance: LanDevice, show_credentials: bool = False) -> None:
     print(f"addr={appliance.ip if appliance.ip else 'Unknown'}:{appliance.port}")
     print(f"        id      = {appliance.id}")
     print(f"        s/n     = {appliance.sn}")
@@ -44,6 +44,7 @@ def output(appliance: LanDevice, show_credentials: bool = False):
     print(f"        filter  = {getattr(appliance.state, 'filter_indicator')}")
     print(f"        pump    = {getattr(appliance.state, 'pump')}")
     print(f"        defrost = {getattr(appliance.state, 'defrosting')}")
+    print(f"        sleep   = {getattr(appliance.state, 'sleep')}")
     print(f"        error   = {getattr(appliance.state, 'error_code')}")
     print(f"        version = {appliance.version}")
 
@@ -52,7 +53,7 @@ def output(appliance: LanDevice, show_credentials: bool = False):
         print(f"        key     = {appliance.key}")
 
 
-def run_discover_command(args: Namespace):
+def run_discover_command(args: Namespace) -> None:
     appliances = find_appliances(
         appkey=args.appkey,
         account=args.account,
@@ -74,7 +75,7 @@ def _check_ip_id(args: Namespace) -> bool:
     return True
 
 
-def run_status_command(args: Namespace):
+def run_status_command(args: Namespace) -> None:
     if not _check_ip_id(args):
         return
     _LOGGER.debug("run_status_command args: %r", args)
@@ -103,7 +104,7 @@ def run_status_command(args: Namespace):
         )
 
 
-def run_set_command(args: Namespace):
+def run_set_command(args: Namespace) -> None:
     if not _check_ip_id(args):
         return
     cloud = None
@@ -139,7 +140,7 @@ def run_set_command(args: Namespace):
         )
 
 
-def run_watch_command(args: Namespace):
+def run_watch_command(args: Namespace) -> None:
     if not _check_ip_id(args):
         return
     cloud = None

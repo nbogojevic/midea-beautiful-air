@@ -28,7 +28,7 @@ ENCRYPTED_MESSAGE_TYPES: Final = (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_
 _LOGGER = logging.getLogger(__name__)
 
 
-def _strxor(plain_text, key):
+def _strxor(plain_text: bytes, key: bytes) -> bytes:
     """returns encrypted plain text by repeatedly xoring it with key"""
     pt = plain_text
     len_key = len(key)
@@ -323,7 +323,7 @@ class Security:
         appkey: str = DEFAULT_APPKEY,
         signkey: str = DEFAULT_SIGNKEY,
         iv: bytes = b"\x00" * BLOCKSIZE,
-    ):
+    ) -> None:
         self._appkey = appkey
         self._signkey = signkey.encode()
         self._iv = bytes(iv)
@@ -458,6 +458,7 @@ class Security:
         padding = header[5] >> 4
         msgtype = header[5] & 0xF
         data = data[6:]
+
         if msgtype in ENCRYPTED_MESSAGE_TYPES:
             # Decrypt encrypted messages using TCP key
             sign = data[-32:]
@@ -508,11 +509,11 @@ class Security:
         return m.hexdigest()
 
     @property
-    def access_token(self):
+    def access_token(self) -> str | None:
         return self._access_token
 
     @access_token.setter
-    def access_token(self, token):
+    def access_token(self, token: str) -> None:
         self._access_token = token
         if token:
             md5appkey = md5(self._appkey.encode("utf-8")).hexdigest()[:16]
@@ -522,10 +523,10 @@ class Security:
             self._data_key = None
 
     @property
-    def data_key(self):
+    def data_key(self) -> str | None:
         return self._data_key
 
-    def aes_decrypt_string(self, data: str, key=None) -> str:
+    def aes_decrypt_string(self, data: str, key: str | None = None) -> str:
         """
         Decrypt string data using key or data_key if key omitted
         """
@@ -541,7 +542,7 @@ class Security:
         result = unpadder.update(decrypted) + unpadder.finalize()
         return result.decode("utf-8")
 
-    def aes_encrypt_string(self, data: str, key=None) -> str:
+    def aes_encrypt_string(self, data: str, key: str | None = None) -> str:
         """
         Encrypt string data using key or data_key if key omitted
         """

@@ -17,6 +17,7 @@ from midea_beautiful_dehumidifier.exceptions import (
 from midea_beautiful_dehumidifier.midea import (
     CLOUD_API_SERVER_URL,
     DEFAULT_APP_ID,
+    DEFAULT_APPKEY,
 )
 
 import requests
@@ -49,7 +50,7 @@ def _encode_as_csv(data: bytes | bytearray) -> str:
     return string
 
 
-def _decode_from_csv(data: str):
+def _decode_from_csv(data: str) -> bytes:
     int_data = [int(a) for a in data.split(",")]
     for i in range(len(int_data)):
         if int_data[i] < 0:
@@ -60,15 +61,15 @@ def _decode_from_csv(data: str):
 class MideaCloud:
     def __init__(
         self,
-        appkey: str,
+        appkey: str | None,
         account: str,
         password: str,
-        appid: int = DEFAULT_APP_ID,
+        appid: int | str | None = DEFAULT_APP_ID,
         server_url: str = CLOUD_API_SERVER_URL,
-    ):
+    ) -> None:
         # Get this from any of the Midea based apps
-        self._appkey = appkey
-        self._appid = appid
+        self._appkey = appkey or DEFAULT_APPKEY
+        self._appid = int(appid or DEFAULT_APP_ID)
         # Your email address for your Midea account
         self._account = account
         self._password = password
@@ -82,9 +83,6 @@ class MideaCloud:
         # the current user
         self._session = {}
 
-        # A list of appliances associated with the account
-        self._appliance_list = []
-
         # Allow for multiple threads to initiate requests
         self._api_lock = RLock()
 
@@ -93,9 +91,13 @@ class MideaCloud:
         self._retries = 0
 
         self._security = Security(appkey=self._appkey)
+
+        # A list of appliances associated with the account
         self._appliance_list: list[dict] = []
 
-    def api_request(self, endpoint: str, args: dict[str, Any] = {}, authenticate=True):
+    def api_request(
+        self, endpoint: str, args: dict[str, Any] = {}, authenticate=True
+    ) -> Any:
         """
         Sends an API request to the Midea cloud service and returns the
         results or raises ValueError if there is an error
@@ -178,7 +180,7 @@ class MideaCloud:
         self._retries = 0
         return response["result"]
 
-    def _get_login_id(self):
+    def _get_login_id(self) -> None:
         """
         Get the login ID from the email address
         """
@@ -189,7 +191,7 @@ class MideaCloud:
         )
         self._login_id: str = response["loginId"]
 
-    def authenticate(self):
+    def authenticate(self) -> None:
         """
         Performs a user login with the credentials supplied to the
         constructor
@@ -217,7 +219,7 @@ class MideaCloud:
             raise AuthenticationError("Unable to retrieve session id from Midea API")
         self._security.access_token = self._session.get("accessToken")
 
-    def appliance_transparent_send(self, id, data) -> list[bytes]:
+    def appliance_transparent_send(self, id: str, data: bytes) -> list[bytes]:
 
         _LOGGER.debug("Sending to id=%s data=%s", id, data)
         encoded = _encode_as_csv(data)
@@ -242,7 +244,7 @@ class MideaCloud:
 
         return [reply]
 
-    def list_appliances(self, force: bool = False):
+    def list_appliances(self, force: bool = False) -> list:
         """
         Lists all appliances associated with the account
         """
@@ -288,7 +290,7 @@ class MideaCloud:
                 return str(token["token"]), str(token["key"])
         return "", ""
 
-    def handle_api_error(self, error, message: str) -> None:
+    def handle_api_error(self, error: int, message: str) -> None:
         """
         Handle Midea API errors
 

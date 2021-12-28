@@ -44,7 +44,7 @@ def discover_appliances(
             are found via Midea cloud API, but are not discovered will
             have IP address set to None.
     """
-    return find_appliances(cloud, appkey, account, password, appid, networks)
+    return find_appliances(cloud, appkey, account, password, str(appid), networks)
 
 
 def appliance_state(

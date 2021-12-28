@@ -13,7 +13,7 @@ _order_lock = RLock()
 class MideaCommand:
     """Base command interface"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.data = bytearray()
 
     def finalize(self) -> bytes:
@@ -33,7 +33,7 @@ class MideaCommand:
 class DehumidifierStatusCommand(MideaCommand):
     """Command that retrieves dehumidifier status"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Command structure
         self.data = bytearray(
             [
@@ -102,7 +102,7 @@ class DehumidifierStatusCommand(MideaCommand):
 class DehumidifierSetCommand(MideaCommand):
     """Command that sets dehumidifier controls"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.data = bytearray(
             [
                 0xAA,
@@ -153,7 +153,7 @@ class DehumidifierSetCommand(MideaCommand):
         )
 
     @property
-    def running(self):
+    def running(self) -> bool:
         return self.data[11] & 0x01 != 0
 
     @running.setter
@@ -171,7 +171,7 @@ class DehumidifierSetCommand(MideaCommand):
         self.data[19] |= 0b01000000 if on_off else 0
 
     @property
-    def target_humidity(self):
+    def target_humidity(self) -> int:
         return self.data[17] & 0x7F
 
     @target_humidity.setter
@@ -189,7 +189,7 @@ class DehumidifierSetCommand(MideaCommand):
         self.data[12] |= mode
 
     @property
-    def fan_speed(self):
+    def fan_speed(self) -> int:
         return self.data[13] & 0x7F
 
     @fan_speed.setter
@@ -198,7 +198,7 @@ class DehumidifierSetCommand(MideaCommand):
         self.data[13] |= speed & 0x7F
 
     @property
-    def pump_switch(self):
+    def pump_switch(self) -> bool:
         return self.data[19] & 0b00001000 != 0
 
     @pump_switch.setter
@@ -207,7 +207,7 @@ class DehumidifierSetCommand(MideaCommand):
         self.data[19] |= 0b00001000 if on_off else 0
 
     @property
-    def sleep_switch(self):
+    def sleep_switch(self) -> bool:
         return self.data[19] & 0b00100000 != 0
 
     @sleep_switch.setter
@@ -218,7 +218,7 @@ class DehumidifierSetCommand(MideaCommand):
 
 class DehumidifierResponse:
     """Response from dehumidifier queries"""
-    def __init__(self, data: bytes):
+    def __init__(self, data: bytes) -> None:
 
         # self.faultFlag = (data[1] & 0x80) >> 7
 
@@ -279,7 +279,7 @@ class DehumidifierResponse:
 
     # Byte 0x04 + 0x06
     @property
-    def on_timer(self):
+    def on_timer(self) -> dict:
         return {
             "status": (self._on_timer_value & 0x80) != 0,
             "set": self._on_timer_value != 0x7F,
@@ -302,7 +302,7 @@ class DehumidifierResponse:
 
     # Byte 0x05 + 0x06
     @property
-    def off_timer(self):
+    def off_timer(self) -> dict:
         return {
             "status": (self._off_timer_value & 0x80) != 0,
             "set": self._off_timer_value != 0x7F,
@@ -314,5 +314,5 @@ class DehumidifierResponse:
             "off_timer_minutes": self._off_timer_minutes,
         }
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.__dict__)

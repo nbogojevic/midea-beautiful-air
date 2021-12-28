@@ -64,7 +64,7 @@ def _get_broadcast_addresses(addresses: list[str] = []) -> list[str]:
 
 
 class MideaDiscovery:
-    def __init__(self, cloud: MideaCloud | None):
+    def __init__(self, cloud: MideaCloud | None) -> None:
         self._cloud = cloud
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -189,10 +189,10 @@ def _find_appliances_on_lan(
 
 def find_appliances(
     cloud: MideaCloud | None = None,
-    appkey=None,
-    account=None,
-    password=None,
-    appid=None,
+    appkey: str | None = None,
+    account: str = None,
+    password: str = None,
+    appid: str = None,
     networks: list[str] = [],
 ) -> list[LanDevice]:
     _LOGGER.debug("Library version=%s", __version__)
