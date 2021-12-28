@@ -561,7 +561,7 @@ class LanDevice:
                 data = self._security.aes_decrypt(response_buf[i : i + size][40:-16])
                 # header length is 10 bytes
                 if len(data) > 10:
-                    packets.append(data)
+                    packets.append(data[10:])
                 i += size
         elif response_buf[0] == 0xAA and response_len > 2:
             i = 0
@@ -570,7 +570,7 @@ class LanDevice:
                 data = response_buf[i : i + size + 1]
                 # header length is 10 bytes
                 if len(data) > 10:
-                    packets.append(data)
+                    packets.append(data[10:])
                 i += size + 1
         else:
             raise ProtocolError(f"Unknown response format {self} {_Hex(response_buf)}")
