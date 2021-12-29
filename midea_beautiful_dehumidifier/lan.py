@@ -161,7 +161,6 @@ class LanDevice:
         self.flags = 0
         self.extra = 0
         self.subtype = 0
-        self._use_cloud = use_cloud
 
         if data:
             data = bytes(data)
