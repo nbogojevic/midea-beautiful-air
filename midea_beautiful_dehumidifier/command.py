@@ -19,13 +19,13 @@ class MideaCommand:
     def finalize(self) -> bytes:
         global _command_sequence
         with _order_lock:
-            _command_sequence = (_command_sequence + 1) & 0xFF
+            _command_sequence = (_command_sequence + 1) & 0b11111111
         # Add the CRC8
         self.data[30] = _command_sequence
         # Add the CRC8
         self.data[31] = crc8(self.data[10:31])
         # Add checksum
-        self.data[32] = (~sum(self.data[1:32]) + 1) & 0xFF
+        self.data[32] = (~sum(self.data[1:32]) + 1) & 0b11111111
         # Set the length of the command data
         return bytes(self.data)
 
@@ -154,12 +154,12 @@ class DehumidifierSetCommand(MideaCommand):
 
     @property
     def running(self) -> bool:
-        return self.data[11] & 0x01 != 0
+        return self.data[11] & 0b00000001 != 0
 
     @running.setter
     def running(self, state: bool) -> None:
-        self.data[11] &= ~0x01  # Clear the power bit
-        self.data[11] |= 0x01 if state else 0
+        self.data[11] &= ~0b00000001  # Clear the power bit
+        self.data[11] |= 0b00000001 if state else 0
 
     @property
     def ion_mode(self) -> bool:
@@ -172,30 +172,30 @@ class DehumidifierSetCommand(MideaCommand):
 
     @property
     def target_humidity(self) -> int:
-        return self.data[17] & 0x7F
+        return self.data[17] & 0b01111111
 
     @target_humidity.setter
     def target_humidity(self, humidity: int) -> None:
-        self.data[17] &= ~0x7F  # Clear the humidity part
+        self.data[17] &= ~0b01111111  # Clear the humidity part
         self.data[17] |= humidity
 
     @property
     def mode(self) -> int:
-        return self.data[12] & 0x0F
+        return self.data[12] & 0b00001111
 
     @mode.setter
     def mode(self, mode: int) -> None:
-        self.data[12] &= ~0x0F  # Clear the mode bits
+        self.data[12] &= ~0b00001111  # Clear the mode bits
         self.data[12] |= mode
 
     @property
     def fan_speed(self) -> int:
-        return self.data[13] & 0x7F
+        return self.data[13] & 0b01111111
 
     @fan_speed.setter
     def fan_speed(self, speed: int) -> None:
-        self.data[13] &= ~0x7F  # Clear the fan speed part
-        self.data[13] |= speed & 0x7F
+        self.data[13] &= ~0b01111111  # Clear the fan speed part
+        self.data[13] |= speed & 0b01111111
 
     @property
     def pump_switch(self) -> bool:
@@ -207,6 +207,15 @@ class DehumidifierSetCommand(MideaCommand):
         self.data[19] |= 0b00001000 if on_off else 0
 
     @property
+    def pump_switch_flag(self) -> bool:
+        return self.data[19] & 0b00010000 != 0
+
+    @pump_switch_flag.setter
+    def pump_switch_flag(self, on_off: bool) -> None:
+        self.data[19] &= ~0b00010000  # Clear the pump switch bit
+        self.data[19] |= 0b00010000 if on_off else 0
+
+    @property
     def sleep_switch(self) -> bool:
         return self.data[19] & 0b00100000 != 0
 
@@ -216,61 +225,75 @@ class DehumidifierSetCommand(MideaCommand):
         self.data[19] |= 0b00100000 if on_off else 0
 
     @property
-    def beep(self) -> bool:
+    def beep_prompt(self) -> bool:
         """Activates beep on action"""
-        return self.data[11] & 0x42 != 0
+        return self.data[11] & 0b01000000 != 0
 
-    @beep.setter
-    def beep(self, state: bool) -> None:
-        self.data[11] &= ~0x42  # Clear the beep bits
-        self.data[11] |= 0x42 if state else 0
+    @beep_prompt.setter
+    def beep_prompt(self, state: bool) -> None:
+        self.data[11] &= ~0b01000000  # Clear the beep prompt bit
+        self.data[11] |= 0b01000000 if state else 0
+
+    @property
+    def vertical_swing(self) -> bool:
+        """Activates vertical_swing"""
+        return self.data[10] & 0b00001000 != 0
+
+    @vertical_swing.setter
+    def vertical_swing(self, state: bool) -> None:
+        self.data[10] &= ~0b00001000  # Clear the vertical swing bit
+        self.data[10] |= 0b00001000 if state else 0
+
+    @property
+    def horizontal_swing(self) -> bool:
+        """Activates horizontal_swing"""
+        return self.data[10] & 0b00010000 != 0
+
+    @horizontal_swing.setter
+    def horizontal_swing(self, state: bool) -> None:
+        self.data[10] &= ~0b00010000  # Clear the horizontal swing bit
+        self.data[10] |= 0b00010000 if state else 0
 
 
 class DehumidifierResponse:
     """Response from dehumidifier queries"""
+
     def __init__(self, data: bytes) -> None:
 
-        # self.faultFlag = (data[1] & 0x80) >> 7
-
-        self.is_on = data[4] & 1 != 0
-
-        # self.quickChkSts = (data[1] & 32) >> 5
-        self.fault = data[1] & 0x10000000
-        self.run_status = data[1] & 0x00000001
-        self.i_mode = data[1] & 0x00000100
-        self.timing_mode = data[1] & 0x00010000
-        self.quick_check = data[1] & 0x00100000
-        # self.mode_FC_return = (data[2] & 240) >> 4
-        self.mode = data[2] & 0x0F
-        self.mode_fc = data[2] & 0xF0
-        self.fan_speed = data[3] & 0x7F
+        self.fault = (data[1] & 0b10000000) != 0
+        self.run_status = (data[1] & 0b00000001) != 0
+        self.i_mode = (data[1] & 0b00000100) != 0
+        self.timing_mode = (data[1] & 0b00010000) != 0
+        self.quick_check = (data[1] & 0b00100000) != 0
+        self.mode = data[2] & 0b00001111
+        self.mode_fc = (data[2] & 0b11110000) >> 4
+        self.fan_speed = data[3] & 0b01111111
 
         self._on_timer_value = data[4]
-        self._on_timer_minutes = data[6] & 0xF0
+        self._on_timer_minutes = data[6] & 0b11110000
         self._off_timer_value = data[5]
-        self._off_timer_minutes = data[6] & 0x0F
+        self._off_timer_minutes = data[6] & 0b00001111
 
         self.target_humidity = data[7]
         if self.target_humidity > 100:
             self.target_humidity = 99
 
-        humidity_decimal: float = (data[8] & 15) * 0.0625
-        self.target_humidity += humidity_decimal
-        # self.mode_FD_return = data[10] & 7
-        self.filter_indicator = (data[9] & 0x10000000) != 0
+        target_humidity_decimal: float = (data[8] & 15) * 0.0625
+        # CONFLICT WITH tank full self.mode_FD_return = data[10] & 0b00000111
+        self.target_humidity += target_humidity_decimal
+        self.filter_indicator = (data[9] & 0b10000000) != 0
         self.ion_mode = (data[9] & 0b01000000) != 0
         self.sleep_switch = (data[9] & 0b00100000) != 0
-        # self.pumpSwitch_flag = (data[9] & 16) >> 4
+        self.pump_switch_flag = (data[9] & 0b00010000) != 0
         self.pump_switch = (data[9] & 0b00001000) != 0
-        # self.displayClass = data[9] & 7
-        self.defrosting = (data[10] & 0x10000000) != 0
-        self.tank_full = data[10] & 0x7F >= 100
-        # self.dustTimeShow = data[11] * 2
-        # self.rareShow = (data[12] & 56) >> 3
-        # self.dustShow = data[12] & 7
-        # self.pmLowValue = data[13]
-        # self.pmHighValue = data[14]
-        # self.rareValue = data[15]
+        self.display_class = data[9] & 0b00000111
+        self.defrosting = (data[10] & 0b10000000) != 0
+        self.tank_full = data[10] & 0b01111111 >= 100
+        self.dust_time = data[11] * 2
+        self.rare_show = (data[12] & 0b00111000) >> 3
+        self.dust = data[12] & 0b00000111
+        self.pm25 = data[13] + (data[14] * 256)
+        self.rare_value = data[15]
         self.current_humidity = data[16]
         self.indoor_temperature = int((data[17] - 50) / 2)
         if self.indoor_temperature < -19:
@@ -281,28 +304,28 @@ class DehumidifierResponse:
         self.current_humidity += humidity_decimal
         temperature_decimal = (data[18] & 0b00001111) * 0.1
         self.indoor_temperature += temperature_decimal
-        # self.lightClass = data[19] & 240
-        # self.upAndDownSwing = data[19]
-        # self.leftandrightSwing = (data[19] & 32) >> 4
-        # self.lightValue = data[20]
+        self.light_class = (data[19] & 0b11000000) >> 6  # TO BE CHECKED
+        self.up_down_swing = (data[19] & 0b00100000) != 0
+        self.left_right_swing = (data[19] & 0b00010000) != 0
+        self.light_value = data[20]
         self.err_code = data[21]
 
-    # Byte 0x04 + 0x06
+    # Byte 4 + 6
     @property
     def on_timer(self) -> dict:
         return {
-            "status": (self._on_timer_value & 0x80) != 0,
-            "set": self._on_timer_value != 0x7F,
+            "status": (self._on_timer_value & 0b10000000) != 0,
+            "set": self._on_timer_value != 0b01111111,
             "hour": (
-                (self._on_timer_value & 0x7C) >> 2
-                if self._on_timer_value != 0x7F
+                (self._on_timer_value & 0b11111100) >> 2
+                if self._on_timer_value != 0b01111111
                 else 0
             ),
             "minutes": (
-                (self._on_timer_value & 0x3)
+                (self._on_timer_value & 0b00000011)
                 | (
-                    ((self._on_timer_minutes & 0xF0) >> 4)
-                    if self._on_timer_value != 0x7F
+                    ((self._on_timer_minutes & 0b11110000) >> 4)
+                    if self._on_timer_value != 0b01111111
                     else 0
                 )
             ),
@@ -310,15 +333,16 @@ class DehumidifierResponse:
             "on_timer_minutes": self._on_timer_minutes,
         }
 
-    # Byte 0x05 + 0x06
+    # Byte 05 + 6
     @property
     def off_timer(self) -> dict:
         return {
-            "status": (self._off_timer_value & 0x80) != 0,
-            "set": self._off_timer_value != 0x7F,
-            "hour": (self._off_timer_value & 0x7C) >> 2,
+            "status": (self._off_timer_value & 0b10000000) != 0,
+            "set": self._off_timer_value != 0b01111111,
+            "hour": (self._off_timer_value & 0b11111100) >> 2,
             "minutes": (
-                (self._off_timer_value & 0x3) | (self._off_timer_minutes & 0xF)
+                (self._off_timer_value & 0b00000011)
+                | (self._off_timer_minutes & 0b00001111)
             ),
             "off_timer_value": self._off_timer_value,
             "off_timer_minutes": self._off_timer_minutes,
