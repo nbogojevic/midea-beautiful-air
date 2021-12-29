@@ -130,6 +130,7 @@ def run_set_command(args: Namespace) -> None:
             mode=args.mode,
             ion_mode=args.ion,
             running=args.on,
+            prompt=args.prompt,
             cloud=cloud,
         )
         output(appliance, args.credentials)
@@ -253,6 +254,8 @@ def cli() -> None:
     parser_set.add_argument("--mode", help="dehumidifier mode switch", default=None)
     parser_set.add_argument("--ion", help="ion mode switch", default=None)
     parser_set.add_argument("--on", help="turn on/off", default=None)
+    parser_set.add_argument("--prompt", help="tone prompt on/off", default=None)
+
     parser_watch = subparsers.add_parser(
         "watch",
         help="watches status of appliance",

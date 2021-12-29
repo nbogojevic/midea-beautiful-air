@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from distutils.util import strtobool
+from typing import Any
 
 from midea_beautiful_dehumidifier.command import (
     DehumidifierResponse,
@@ -25,7 +26,12 @@ def set_watch_level(level: int) -> None:
     _watch_level = level
 
 
+def _as_bool(value: Any) -> bool:
+    return strtobool(value) if isinstance(value, str) else bool(value)
+
+
 class Appliance:
+    """Base model for any Midea appliance"""
     def __init__(self, id, appliance_type: str = "") -> None:
         self._id = str(id)
         self._type = appliance_type
@@ -34,6 +40,10 @@ class Appliance:
 
     @staticmethod
     def instance(id, appliance_type: str = "") -> Appliance:
+        """
+        Factory method to create an instance of appliance corresponding to
+        requested type.
+        """
         if Appliance.supported(appliance_type):
             return DehumidifierAppliance(id=id, appliance_type=appliance_type)
         _LOGGER.warning("Creating unsupported appliance %s %s", id, appliance_type)
@@ -57,10 +67,10 @@ class Appliance:
 
     @property
     def name(self) -> str:
-        return getattr(self, "_name", str(self._id))
+        return str(getattr(self, "_name", self._id))
 
     @name.setter
-    def name(self, name) -> None:
+    def name(self, name: str) -> None:
         self._name = name
 
     @property
@@ -108,7 +118,8 @@ class DehumidifierAppliance(Appliance):
         self._defrosting: bool = False
         self._filter_indicator: bool = False
         self._pump: bool = False
-        self._sleep_switch: bool = False
+        self._sleep: bool = False
+        self._beep: bool = False
 
     @staticmethod
     def supported(type: str | int) -> bool:
@@ -176,6 +187,7 @@ class DehumidifierAppliance(Appliance):
         cmd.ion_mode = self.ion_mode
         cmd.pump_switch = self.pump
         cmd.sleep_switch = self.sleep
+        cmd.beep = self.beep
         return cmd
 
     @property
@@ -191,20 +203,20 @@ class DehumidifierAppliance(Appliance):
         return self._current_temperature
 
     @property
+    def error_code(self) -> int:
+        return self._error
+
+    @property
     def running(self) -> bool:
         return self._running
 
     @running.setter
-    def running(self, value: str | bool) -> None:
-        self._running = strtobool(value) if isinstance(value, str) else bool(value)
+    def running(self, value: bool | int | str) -> None:
+        self._running = _as_bool(value)
 
     @property
     def fan_speed(self) -> int:
         return self._fan_speed
-
-    @property
-    def error_code(self) -> int:
-        return self._error
 
     @fan_speed.setter
     def fan_speed(self, fan_speed: int) -> None:
@@ -229,8 +241,8 @@ class DehumidifierAppliance(Appliance):
         return self._ion_mode
 
     @ion_mode.setter
-    def ion_mode(self, value) -> None:
-        self._ion_mode = strtobool(value) if isinstance(value, str) else bool(value)
+    def ion_mode(self, value: bool | int | str) -> None:
+        self._ion_mode = _as_bool(value)
 
     @property
     def target_humidity(self) -> int:
@@ -283,16 +295,24 @@ class DehumidifierAppliance(Appliance):
         return self._pump
 
     @pump.setter
-    def pump(self, value: bool | str) -> None:
-        self._pump = strtobool(value) if isinstance(value, str) else bool(value)
+    def pump(self, value: bool | int | str) -> None:
+        self._pump = _as_bool(value)
 
     @property
     def sleep(self) -> bool:
         return self._sleep
 
     @sleep.setter
-    def sleep(self, value: int | str) -> None:
-        self._sleep = strtobool(value) if isinstance(value, str) else bool(value)
+    def sleep(self, value: bool | int | str) -> None:
+        self._sleep = _as_bool(value)
+
+    @property
+    def beep(self) -> bool:
+        return self._beep
+
+    @beep.setter
+    def beep(self, value: bool | int | str) -> None:
+        self._beep = _as_bool(value)
 
     def __str__(self) -> str:
         return (
@@ -300,7 +320,7 @@ class DehumidifierAppliance(Appliance):
             " running=%s,"
             " target_humidity=%d, fan_speed=%d, tank_full=%s"
             " current_humidity=%s, current_temperature=%s"
-            " error_code=%s}"
+            " error_code=%s, beep=%s}"
             % (
                 self.id,
                 self.type,
@@ -311,6 +331,7 @@ class DehumidifierAppliance(Appliance):
                 self.tank_full,
                 self.current_humidity,
                 self.current_temperature,
-                self.error_code
+                self.error_code,
+                self.beep
             )
         )

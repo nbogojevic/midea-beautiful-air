@@ -215,6 +215,16 @@ class DehumidifierSetCommand(MideaCommand):
         self.data[19] &= ~0b00100000  # Clear the sleep switch bit
         self.data[19] |= 0b00100000 if on_off else 0
 
+    @property
+    def beep(self) -> bool:
+        """Activates beep on action"""
+        return self.data[11] & 0x42 != 0
+
+    @beep.setter
+    def beep(self, state: bool) -> None:
+        self.data[11] &= ~0x42  # Clear the beep bits
+        self.data[11] |= 0x42 if state else 0
+
 
 class DehumidifierResponse:
     """Response from dehumidifier queries"""
