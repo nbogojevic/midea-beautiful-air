@@ -35,8 +35,14 @@ _LOGGER = logging.getLogger(__name__)
 
 _STATE_SOCKET_TIMEOUT: Final = 3
 
-_SUPPORTED_VERSIONS: Final = [2, 3]
-_TOKEN_VERSIONS: Final = [3]
+
+def _is_token_version(version: int):
+    return version >= 3
+
+
+def _is_no_token_version(version: int):
+    return version == 2
+
 
 DISCOVERY_MSG: Final = bytes(
     [
@@ -532,13 +538,13 @@ class LanDevice:
                 packets.append(response[10:])
         return packets
 
-    def _appliance_send_v2_v1(self, data: bytes) -> list[bytes]:
+    def _appliance_send_v2(self, data: bytes) -> list[bytes]:
         # wait few seconds before re-sending data, default is 0
         sleep(self._retries)
         response_buf = self._request(data)
         if not response_buf:
             if self._retries < self._max_retries:
-                packets = self._appliance_send_v2_v1(data)
+                packets = self._appliance_send_v2(data)
                 self._retries = 0
                 return packets
             else:
@@ -577,9 +583,11 @@ class LanDevice:
         return packets
 
     def _appliance_send(self, data: bytes | bytearray) -> list[bytes]:
-        if self.version in _TOKEN_VERSIONS:
+        if _is_token_version(self.version):
             return self._appliance_send_8370(data)
-        return self._appliance_send_v2_v1(data)
+        elif _is_no_token_version(self.version):
+            return self._appliance_send_v2(data)
+        raise ProtocolError(f"Unsupported protocol {self.version}")
 
     def apply(self, cloud: MideaCloud = None) -> None:
         with self._lock:
@@ -641,8 +649,8 @@ class LanDevice:
             return False
 
     def identify(self, cloud: MideaCloud = None, use_cloud: bool = False) -> None:
-        if self.version in _SUPPORTED_VERSIONS or use_cloud:
-            if self.version in _TOKEN_VERSIONS and not use_cloud:
+        if self.is_supported or use_cloud:
+            if _is_token_version(self.version) and not use_cloud:
                 if not self.token or not self.key:
                     if not cloud:
                         raise MideaError(
@@ -660,10 +668,7 @@ class LanDevice:
                 # TODO
                 pass
         else:
-            raise UnsupportedError(
-                f"Appliance {self} is not supported:"
-                f" needs to support protocol version {_SUPPORTED_VERSIONS}"
-            )
+            raise UnsupportedError(f"Appliance {self} protocol is not supported.")
 
         if not Appliance.supported(self.type):
             raise UnsupportedError(f"Unsupported appliance: {self!r}")
@@ -732,7 +737,7 @@ class LanDevice:
 
     @property
     def is_supported(self) -> bool:
-        return self.version in _SUPPORTED_VERSIONS
+        return self.version >= 2
 
     @property
     def online(self) -> bool:
