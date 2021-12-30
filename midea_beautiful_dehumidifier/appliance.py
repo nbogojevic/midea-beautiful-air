@@ -32,6 +32,7 @@ def _as_bool(value: Any) -> bool:
 
 class Appliance:
     """Base model for any Midea appliance"""
+
     def __init__(self, id, appliance_type: str = "") -> None:
         self._id = str(id)
         self._type = appliance_type
@@ -90,6 +91,11 @@ class Appliance:
         return self._online
 
     def process_response(self, data: bytes) -> None:
+        _LOGGER.debug("Ignored process_response %r", self)
+        pass
+
+    def process_response_device_capabilities(self, data: bytes) -> None:
+        _LOGGER.debug("Ignored process_response_device_capabilities %r", self)
         pass
 
     def refresh_command(self) -> MideaCommand:
@@ -120,6 +126,7 @@ class DehumidifierAppliance(Appliance):
         self._pump: bool = False
         self._sleep: bool = False
         self._beep_prompt: bool = False
+        self.supports = {}
 
     @staticmethod
     def supported(type: str | int) -> bool:
@@ -189,6 +196,40 @@ class DehumidifierAppliance(Appliance):
         cmd.sleep_switch = self.sleep
         cmd.beep_prompt = self.beep_prompt
         return cmd
+
+    def process_response_device_capabilities(self, data: bytes):
+        if data:
+            if data[0] != 0xB5:
+                _LOGGER.debug("Not a B5 response")
+                return
+            properties_count = data[1]
+            i = 2
+            self.supports = {}
+            for _ in range(properties_count):
+                if data[i + 1] == 0x02:
+                    if data[i] == 0x20:
+                        self.supports["dry_clothes"] = data[i + 3]
+                    elif data[i] == 0x1F:
+                        self.supports["auto"] = data[i + 3]
+                    elif data[i] == 0x10:
+                        self.supports["fan_speed"] = data[i + 3]
+                    elif data[i] == 0x1E:
+                        self.supports["ion"] = data[i + 3]
+                    elif data[i] == 0x17:
+                        self.supports["filter"] = data[i + 3]
+                    elif data[i] == 0x1D:
+                        self.supports["pump"] = data[i + 3]
+                    elif data[i] == 0x2D:
+                        self.supports["water_level"] = data[i + 3]
+                    elif data[i] == 0x14:
+                        self.supports["mode"] = data[i + 3]
+                    elif data[i] == 0x24:
+                        self.supports["light"] = data[i + 3]
+                    else:
+                        _LOGGER.debug("property=%x 0x02", data[i])
+                else:
+                    _LOGGER.debug("property=%x %x", data[i], data[i + 1])
+                i += 4
 
     @property
     def tank_full(self) -> bool:
@@ -320,7 +361,7 @@ class DehumidifierAppliance(Appliance):
             " running=%s,"
             " target_humidity=%d, fan_speed=%d, tank_full=%s"
             " current_humidity=%s, current_temperature=%s"
-            " error_code=%s, prompt=%s}"
+            " error_code=%s, prompt=%s, supports=%s}"
             % (
                 self.id,
                 self.type,
@@ -332,6 +373,7 @@ class DehumidifierAppliance(Appliance):
                 self.current_humidity,
                 self.current_temperature,
                 self.error_code,
-                self.beep_prompt
+                self.beep_prompt,
+                self.supports,
             )
         )

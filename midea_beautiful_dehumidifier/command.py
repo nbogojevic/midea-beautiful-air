@@ -1,5 +1,6 @@
 """ Commands for Midea appliance """
 from __future__ import annotations
+
 from multiprocessing import RLock
 
 from midea_beautiful_dehumidifier.crypto import crc8
@@ -24,9 +25,35 @@ class MideaCommand:
         self.data[30] = _command_sequence
         # Add the CRC8
         self.data[31] = crc8(self.data[10:31])
-        # Add checksum
-        self.data[32] = (~sum(self.data[1:32]) + 1) & 0b11111111
+        # Add Message check code
+        self.data[-1] = (~sum(self.data[1:-1]) + 1) & 0b11111111
         # Set the length of the command data
+        return bytes(self.data)
+
+
+class DeviceCapabilitiesCommand(MideaCommand):
+    def __init__(self) -> None:
+        self.data = bytearray(
+            [
+                0xAA,
+                0x0E,
+                0xA1,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x03,
+                0x03,
+                0xB5,
+                0x01,
+                0x11,
+                0x8E,
+                0xF6,
+            ]
+        )
+
+    def finalize(self) -> bytes:
         return bytes(self.data)
 
 
@@ -105,18 +132,24 @@ class DehumidifierSetCommand(MideaCommand):
     def __init__(self) -> None:
         self.data = bytearray(
             [
+                # Sync header
                 0xAA,
                 # Length
                 0x20,
-                # Dehumidifier
+                # Device type: Dehumidifier
                 0xA1,
+                # Frame synchronization check
+                0x00,
+                # Reserved
                 0x00,
                 0x00,
+                # Message id
                 0x00,
+                # Framework protocol
                 0x00,
-                0x00,
+                # Home appliance protocol
                 0x03,
-                # Message Type: querying is 0x03; setting is 0x02
+                # Message Type: querying is 0x03; control is 0x02
                 0x02,
                 # Payload
                 # Data request/response type:
@@ -295,15 +328,15 @@ class DehumidifierResponse:
         self.pm25 = data[13] + (data[14] * 256)
         self.rare_value = data[15]
         self.current_humidity = data[16]
-        self.indoor_temperature = int((data[17] - 50) / 2)
+        self.indoor_temperature = (data[17] - 50) / 2
         if self.indoor_temperature < -19:
             self.indoor_temperature = -20
         if self.indoor_temperature > 50:
             self.indoor_temperature = 50
-        humidity_decimal = ((data[18] & 0b11110000) >> 4) * 0.1
-        self.current_humidity += humidity_decimal
-        temperature_decimal = (data[18] & 0b00001111) * 0.1
-        self.indoor_temperature += temperature_decimal
+        # humidity_decimal = ((data[18] & 0b11110000) >> 4) * 0.1
+        # self.current_humidity += humidity_decimal
+        # temperature_decimal = (data[18] & 0b00001111) * 0.1
+        # self.indoor_temperature += temperature_decimal
         self.light_class = (data[19] & 0b11000000) >> 6  # TO BE CHECKED
         self.up_down_swing = (data[19] & 0b00100000) != 0
         self.left_right_swing = (data[19] & 0b00010000) != 0

@@ -2,10 +2,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 import json
 import logging
 from threading import RLock
 from typing import Any, Final, Tuple
+
+import requests
+from requests.exceptions import RequestException
+
+from midea_beautiful_dehumidifier.crypto import Security
 from midea_beautiful_dehumidifier.exceptions import (
     AuthenticationError,
     CloudAuthenticationError,
@@ -19,11 +25,6 @@ from midea_beautiful_dehumidifier.midea import (
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
 )
-
-import requests
-from requests.exceptions import RequestException
-
-from midea_beautiful_dehumidifier.crypto import Security
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ class MideaCloud:
         self._appliance_list: list[dict] = []
 
     def api_request(
-        self, endpoint: str, args: dict[str, Any] = {}, authenticate=True
+        self, endpoint: str, args: dict[str, Any] = {}, authenticate=True, key="result"
     ) -> Any:
         """
         Sends an API request to the Midea cloud service and returns the
@@ -162,7 +163,7 @@ class MideaCloud:
             _LOGGER.log(5, "HTTP response: %s", response)
 
         # Check for errors, raise if there are any
-        if response["errorCode"] != "0":
+        if response["errorCode"] != "0" and response["errorCode"] != 0:
             self.handle_api_error(int(response["errorCode"]), response["msg"])
             # If no exception, then retry
             self._retries += 1
@@ -178,7 +179,7 @@ class MideaCloud:
                 raise CloudRequestError(f"Too many retries while calling {endpoint}")
 
         self._retries = 0
-        return response["result"]
+        return response[key] if key else response
 
     def _get_login_id(self) -> None:
         """
@@ -219,8 +220,37 @@ class MideaCloud:
             raise AuthenticationError("Unable to retrieve session id from Midea API")
         self._security.access_token = self._session.get("accessToken")
 
-    def appliance_transparent_send(self, id: str, data: bytes) -> list[bytes]:
+    def get_lua_script(
+        self, manufacturer="0000", type="0xA1", model="0", sn=None, version="0"
+    ):
+        """Retrieves Lua script used by mobile app"""
+        response: dict = self.api_request(
+            "appliance/protocol/lua/luaGet",
+            {
+                "iotAppId": DEFAULT_APP_ID,
+                "applianceMFCode": manufacturer,
+                "applianceType": type,
+                "modelNumber": model,
+                "applianceSn": sn,
+                "version": version,
+            },
+            key=None,
+        )
+        if data := response.get("data", {}) :
+            md5 = data.get("md5")
+            url = str(data.get("url"))
+            _LOGGER.debug("Lua script url=%s", url)
+            payload = requests.get(url)
+            if str(hashlib.md5(payload.content).hexdigest()) != str(md5):
+                _LOGGER.error("Invalid fingerprint for %s", url)
+                return
+            key = hashlib.md5(self._security._appkey.encode()).hexdigest()[:16]
+            lua = self._security.aes_decrypt_string(payload.content.decode(), key)
+            _LOGGER.warning("Lua script: %s", lua)
+        else:
+            _LOGGER.error("Error retrieving lua script")
 
+    def appliance_transparent_send(self, id: str, data: bytes) -> list[bytes]:
         _LOGGER.debug("Sending to id=%s data=%s", id, data)
         encoded = _encode_as_csv(data)
         _LOGGER.log(5, "Encoded id=%s data=%s", id, encoded)

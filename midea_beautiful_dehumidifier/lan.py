@@ -13,7 +13,7 @@ from typing import Final
 
 from midea_beautiful_dehumidifier.appliance import Appliance
 from midea_beautiful_dehumidifier.cloud import MideaCloud
-from midea_beautiful_dehumidifier.command import MideaCommand
+from midea_beautiful_dehumidifier.command import DeviceCapabilitiesCommand, MideaCommand
 from midea_beautiful_dehumidifier.crypto import Security
 from midea_beautiful_dehumidifier.exceptions import (
     AuthenticationError,
@@ -333,6 +333,7 @@ class LanDevice:
 
     def refresh(self, cloud: MideaCloud = None) -> None:
         with self._lock:
+
             cmd = self.state.refresh_command()
             responses = self._status(cmd, cloud)
             if responses:
@@ -672,6 +673,12 @@ class LanDevice:
         if not Appliance.supported(self.type):
             raise UnsupportedError(f"Unsupported appliance: {self!r}")
 
+        cmd = DeviceCapabilitiesCommand()
+        responses = self._status(cmd, cloud)
+        if len(responses) == 0:
+            _LOGGER.debug("No response on device capabilities request")
+        else:
+            self.state.process_response_device_capabilities(responses[-1])
         self.refresh(cloud if use_cloud else None)
         _LOGGER.debug("Appliance data: %r", self)
 
