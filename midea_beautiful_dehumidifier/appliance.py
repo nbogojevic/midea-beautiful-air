@@ -126,6 +126,7 @@ class DehumidifierAppliance(Appliance):
         self._pump: bool = False
         self._sleep: bool = False
         self._beep_prompt: bool = False
+        self._tank_level: int = 0
         self.supports = {}
 
     @staticmethod
@@ -173,6 +174,7 @@ class DehumidifierAppliance(Appliance):
                 self._current_humidity = 0
             self.fan_speed = response.fan_speed
             self._tank_full = response.tank_full
+            self._tank_level = response.tank_level
             self._current_temperature = response.indoor_temperature
             self._error = response.err_code
             self._defrosting = response.defrosting
@@ -234,6 +236,10 @@ class DehumidifierAppliance(Appliance):
     @property
     def tank_full(self) -> bool:
         return self._tank_full
+
+    @property
+    def tank_level(self) -> int:
+        return self._tank_level
 
     @property
     def current_humidity(self) -> int:

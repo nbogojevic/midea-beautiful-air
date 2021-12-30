@@ -321,7 +321,8 @@ class DehumidifierResponse:
         self.pump_switch = (data[9] & 0b00001000) != 0
         self.display_class = data[9] & 0b00000111
         self.defrosting = (data[10] & 0b10000000) != 0
-        self.tank_full = data[10] & 0b01111111 >= 100
+        self.tank_level = data[10] & 0b01111111
+        self.tank_full = self.tank_level >= 100
         self.dust_time = data[11] * 2
         self.rare_show = (data[12] & 0b00111000) >> 3
         self.dust = data[12] & 0b00000111
