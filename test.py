@@ -95,7 +95,7 @@ class TestLanDevice(unittest.TestCase):
     def test_lan_packet(self) -> None:
         expected_header = binascii.unhexlify("5a5a01116800200000000000")
         expected_payload = binascii.unhexlify(
-            "0a1b0c151"
+            "0c151"
             "404000000000000000000000000000000000000"
             "00851b2c738f48762b99c9c1f24cebfd72d756d"
             "f0835cd44560eda34b9892d6087567427404f60"
@@ -104,9 +104,8 @@ class TestLanDevice(unittest.TestCase):
         device = LanDevice(id="12345", appliance_type="0xa1")
         cmd = device.state.refresh_command()
         res = device._lan_packet(4, cmd)
-        payload_start = len(expected_header) + 3
+        payload_start = len(expected_header) + 5
         payload = res[payload_start : payload_start + len(expected_payload)]
-
         self.assertEqual(expected_header, res[: len(expected_header)])
         self.assertEqual(expected_payload, payload)
 
