@@ -22,6 +22,8 @@ Some examples of supported dehumidifiers:
 * Inventor EVA ΙΟΝ Pro Wi-Fi (EP3-WiFi 16L/20L) (tested with 20L version)
 * Inventor Eva II Pro Wi-Fi (EVP-WF16L/20L)
 * Pro Breeze 30L Smart Dehumidifier with Wifi / App Control
+* Midea SmartDry dehumidifiers (22, 35, 50 pint models )
+* Midea Cube dehumidifiers (20, 35, 50 pint models)
 
 It may as well work with other Midea Wi-Fi dehumidifiers.
 
@@ -34,7 +36,7 @@ The following dehumidifier data is accessible via library:
 * target relative humidity (can be set)
 * active mode (can be set)
 * fan speed (can be set)
-* ion mode status (boolean, can be set)
+* (an)ion mode status (boolean, can be set)
 * tank is full (boolean, read-only)
 * appliance name (read-only). Set through Midea mobile application.
 * appliance serial number (read-only) 
@@ -42,8 +44,13 @@ The following dehumidifier data is accessible via library:
 * token and key for local network access (read-only, only v3 appliances)
 * filter replacement indicator (boolean, read-only, if supported on appliance)
 * pump on/off switch (boolean, can be set, if supported on appliance)
+* sleep mode on/off switch (boolean,  can be set, if supported on appliance)
 * defrosting mode indicator (boolean, read-only, if supported on appliance)
 * internal error code (read-only)
+* appliance characteristics, i.e. support for special modes, fan presets etc (read-only)
+* beep prompt (write-only)
+* tank water level (read-only, if supported by appliance)
+* current ambient temperature (read-only)
 
 
 ## Discovery
@@ -52,9 +59,9 @@ This library is able to discover appliances on local network. This is done by br
 
 Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
-The discovery should work on Linux and Windows based systems, however it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs depending on network setup. For example, VM or container needs to have rights to broadcast to physical network to make discovery work. On workaround is to run discovery from non-virtualized environment host. 
+The discovery should work on Linux and Windows based systems, however it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs depending on network setup. For example, VM or container need to have rights to broadcast to physical network to make discovery work. One workaround, if it is not possible, is to run discovery from non-virtualized environment host. 
 
-If this discovery mechanism doesn't work on particular set-up, it is still possible to either target appliances directly using their IP address when it is known or to retrieve or setting their status using cloud service. 
+If this discovery mechanism doesn't work on particular set-up, it is still possible to either target appliances directly using their IP address when it is known or to retrieve or set their status using cloud service. 
 
 ### Network considerations
 
@@ -66,7 +73,7 @@ Library supports following protocols:
 
 * cloud based status reading and writing (no local access needed)
 * v3 local protocol with compatible devices (requires TOKEN/KEY combination)
-* v2 local protocol with compatible devices (TO BE TESTED) 
+* v2 local protocol with compatible devices
 
 ## Logging
 
@@ -251,7 +258,14 @@ print(f"{appliance!r}")
 
 Library is automatically built, packaged and published to [PyPI](https://pypi.org/project/midea-beautiful-dehumidifier/) when a Git Hub release is published.
 
+## Known issues
+
+* Some of values are not available on all appliances. Some appliances may acknowledge action which has no effect (e.g. ion mode)
+* Temperature sensor is often under-reporting real ambient temperature. This may be due to sensor proximity to cooling pipes of the humidifier, algorithm or electronics error. The under-reporting depends on the active mode, and stronger modes may result in larger offset from real temperature.
+
+
 ## See also
 
 * https://github.com/nbogojevic/homeassistant-midea-dehumidifier-lan
+
 

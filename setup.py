@@ -22,7 +22,7 @@ setup(
     author_email="nenad.bogojevic@gmail.com",
     license="MIT",
     description=(
-        "A library to control Midea dehumidifiers" " via the Local area network"
+        "A library to control Midea dehumidifiers via the local network"
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",
