@@ -1,8 +1,8 @@
 This is a library that allows communication with Midea air conditioner and dehumidifier via the local area network.
 
-# midea-beautiful-lib
-[![Build Status](https://github.com/nbogojevic/midea-beautiful-lib/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-lib/actions/workflows/python-publish.yml)
-[![PyPI](https://img.shields.io/pypi/v/midea_beautiful_lib.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_lib/)
+# midea-beautiful-air
+[![Build Status](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-publish.yml)
+[![PyPI](https://img.shields.io/pypi/v/midea_beautiful_air.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_air/)
 
 This library allows discovering Midea air conditioners and dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
 
@@ -106,7 +106,7 @@ Library logs additional information at log level 5. Credentials information like
 ### Installing package
 
 ```shell
-pip install --upgrade midea-beautiful-lib
+pip install --upgrade midea-beautiful-air
 ```
 
 ### Command line tool help

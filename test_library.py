@@ -30,7 +30,7 @@ from midea_beautiful.midea import (
 APP_KEY: Final = DEFAULT_APPKEY
 
 
-class TestSecurityMethods(unittest.TestCase):
+class TestSecurity(unittest.TestCase):
     def test_aes_encrypt_string(self) -> None:
         access_token = (
             "87836529d24810fb715db61f2d3eba2ab920ebb829d567559397ded751813801"

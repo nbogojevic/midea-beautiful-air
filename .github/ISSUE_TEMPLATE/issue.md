@@ -38,6 +38,10 @@ Example log:
 
 ```
 
+## Model of appliance where problem occurs
+<!-- Add model of appliance. e.g. Comfee MDDF-16DEN7-WF
+-->
+
 ## Describe the bug
 A clear and concise description of what the bug is.
 

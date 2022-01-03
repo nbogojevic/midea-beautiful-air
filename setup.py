@@ -15,9 +15,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="midea-beautiful-lib",
+    name="midea-beautiful-air",
     version=get_version("midea_beautiful/version.py"),
-    url="https://github.com/nbogojevic/midea-beautiful-lib",
+    url="https://github.com/nbogojevic/midea-beautiful-air",
     author="Nenad Bogojević",
     author_email="nenad.bogojevic@gmail.com",
     license="MIT",
