@@ -15,14 +15,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="midea-beautiful-dehumidifier",
-    version=get_version("midea_beautiful_dehumidifier/version.py"),
-    url="https://github.com/nbogojevic/midea-beautiful-dehumidifier",
+    name="midea-beautiful-lib",
+    version=get_version("midea_beautiful/version.py"),
+    url="https://github.com/nbogojevic/midea-beautiful-lib",
     author="Nenad Bogojević",
     author_email="nenad.bogojevic@gmail.com",
     license="MIT",
     description=(
-        "A library to control Midea dehumidifiers via the local network"
+        "A library to control Midea appliances via the local network"
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -38,7 +38,7 @@ setup(
     ],
     entry_points="""
         [console_scripts]
-        midea-beautiful-dehumidifier-cli=midea_beautiful_dehumidifier.cli:cli
+        midea-beautiful-dehumidifier-cli=midea_beautiful.cli:cli
     """,
     install_requires=[
         "cryptography>=3.4",

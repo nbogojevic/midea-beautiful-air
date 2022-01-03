@@ -1,10 +1,17 @@
 import binascii
+from datetime import datetime
 from typing import Final
 import unittest
 
+from midea_beautiful_dehumidifier.command import midea_command_reset_sequence
 from midea_beautiful_dehumidifier.crypto import Security
 from midea_beautiful_dehumidifier.lan import LanDevice
-from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
+from midea_beautiful_dehumidifier.midea import (
+    APPLIANCE_TYPE_AIRCON,
+    APPLIANCE_TYPE_DEHUMIDIFIER,
+    DEFAULT_APP_ID,
+    DEFAULT_APPKEY,
+)
 
 APP_KEY: Final = DEFAULT_APPKEY
 
@@ -91,23 +98,165 @@ class TestSecurityMethods(unittest.TestCase):
         self.assertEqual("23f4b15525824bc3", security.data_key)
 
 
-class TestLanDevice(unittest.TestCase):
-    def test_lan_packet(self) -> None:
-        expected_header = binascii.unhexlify("5a5a01116800200000000000")
-        expected_payload = binascii.unhexlify(
-            "0c151"
-            "404000000000000000000000000000000000000"
-            "00851b2c738f48762b99c9c1f24cebfd72d756d"
-            "f0835cd44560eda34b9892d6087567427404f60"
-            "4c66de5e9aca688720aa"
-        )
-        device = LanDevice(id="12345", appliance_type="0xa1")
+class TestCommand(unittest.TestCase):
+    def test_dehumidifier_status(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
         cmd = device.state.refresh_command()
-        res = device._lan_packet(4, cmd)
-        payload_start = len(expected_header) + 5
-        payload = res[payload_start : payload_start + len(expected_payload)]
+        self.assertEqual(
+            "aa20a100000000000003418100ff03ff000000000000000000000000000001294f",
+            cmd.finalize().hex(),
+        )
+
+    def test_dehumidifier_set(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+        cmd = device.state.apply_command()
+        self.assertEqual(
+            "aa20a100000000000302480000280000003200000000000000000000000001395e",
+            cmd.finalize().hex(),
+        )
+
+    def test_dehumidifier_set_fan_speed(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+        setattr(device.state, "fan_speed", 60)
+        cmd = device.state.apply_command()
+        self.assertEqual(
+            "aa20a1000000000003024800003c0000003200000000000000000000000001dea5",
+            cmd.finalize().hex(),
+        )
+
+    def test_dehumidifier_set_mode(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+        setattr(device.state, "mode", 3)
+        cmd = device.state.apply_command()
+        self.assertEqual(
+            "aa20a1000000000003024800032800000032000000000000000000000000014b49",
+            cmd.finalize().hex(),
+        )
+
+    def test_dehumidifier_set_target_humidity(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+        setattr(device.state, "target_humidity", 45)
+        cmd = device.state.apply_command()
+        self.assertEqual(
+            "aa20a100000000000302480000280000002d000000000000000000000000017626",
+            cmd.finalize().hex(),
+        )
+
+    def test_ac_status(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
+        cmd = device.state.refresh_command().finalize().hex()
+        self.assertEqual(
+            "aa20ac00000000000003418100ff03ff00020000000000000000000000000171fa",
+            cmd,
+        )
+
+        midea_command_reset_sequence(2)
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
+        cmd = device.state.refresh_command().finalize().hex()
+        self.assertEqual(
+            "aa20ac00000000000003418100ff03ff000200000000000000000000000003cd9c",
+            cmd,
+        )
+
+    def test_aircon_set_fan(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
+        setattr(device.state, "beep_prompt", True)
+        setattr(device.state, "fan_speed", 48)
+        cmd = device.state.apply_command().finalize()
+        self.assertEqual(
+            "aa23ac000000000000024040003000000000000000000000000000000000010000008af4",
+            cmd.hex(),
+        )
+
+    def test_aircon_set_mode(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
+        setattr(device.state, "beep_prompt", True)
+        setattr(device.state, "fan_speed", 48)
+        setattr(device.state, "mode", 2)
+        cmd = device.state.apply_command().finalize()
+        self.assertEqual(
+            "aa23ac000000000000024040403000000000000000000000000000000000010000003c02",
+            cmd.hex(),
+        )
+
+    def test_aircon_set_turbo(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
+        setattr(device.state, "beep_prompt", True)
+        setattr(device.state, "turbo", True)
+        setattr(device.state, "fan_speed", 40)
+
+        cmd = device.state.apply_command().finalize()
+        self.assertEqual(
+            "aa23ac00000000000002404000280000000000000200000000000000000001000000f391",
+            cmd.hex(),
+        )
+
+    def test_aircon_set_temperature(self) -> None:
+        midea_command_reset_sequence()
+        device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
+        setattr(device.state, "beep_prompt", True)
+        setattr(device.state, "turbo", True)
+        setattr(device.state, "fan_speed", 45)
+        setattr(device.state, "target_temperature", 20.5)
+
+        cmd = device.state.apply_command().finalize()
+        self.assertEqual(
+            "aa23ac000000000000024040142d00000000000002000000000000000000010000005516",
+            cmd.hex(),
+        )
+
+
+class TestLanDevice(unittest.TestCase):
+    def test_lan_packet_header_ac(self) -> None:
+        expected_header = binascii.unhexlify("5a5a01116800200000000000")
+
+        device = LanDevice(id=str(0x12345), appliance_type=APPLIANCE_TYPE_AIRCON)
+        cmd = device.state.refresh_command()
+        now = datetime.now()
+        res = device._lan_packet(cmd)
         self.assertEqual(expected_header, res[: len(expected_header)])
-        self.assertEqual(expected_payload, payload)
+        if now.minute < 59:
+            self.assertEqual(now.hour, res[15])
+            if now.hour < 23:
+                self.assertEqual(now.day, res[16])
+                self.assertEqual(now.month, res[17])
+                self.assertEqual(now.year % 100, res[18])
+                self.assertEqual(int(now.year / 100), res[19])
+
+        self.assertEqual(0x45, res[20])
+        self.assertEqual(0x23, res[21])
+        self.assertEqual(0x01, res[22])
+        self.assertEqual(0x00, res[23])
+
+    def test_lan_packet_header_dehumidifier(self) -> None:
+        expected_header = binascii.unhexlify("5a5a01116800200000000000")
+
+        device = LanDevice(id=str(0x12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+        cmd = device.state.refresh_command()
+        now = datetime.now()
+        res = device._lan_packet(cmd)
+        self.assertEqual(expected_header, res[: len(expected_header)])
+        if now.minute < 59:
+            self.assertEqual(now.hour, res[15])
+            if now.hour < 23:
+                self.assertEqual(now.day, res[16])
+                self.assertEqual(now.month, res[17])
+                self.assertEqual(now.year % 100, res[18])
+                self.assertEqual(int(now.year / 100), res[19])
+
+        self.assertEqual(0x45, res[20])
+        self.assertEqual(0x23, res[21])
+        self.assertEqual(0x01, res[22])
+        self.assertEqual(0x00, res[23])
 
 
 if __name__ == "__main__":

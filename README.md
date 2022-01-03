@@ -1,8 +1,8 @@
 This is a library that allows communication with Midea dehumidifier appliances via the local area network.
 
-# midea-beautiful-dehumidifier
-[![Build Status](https://github.com/nbogojevic/midea-beautiful-dehumidifier/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-dehumidifier/actions/workflows/python-publish.yml)
-[![PyPI](https://img.shields.io/pypi/v/midea_beautiful_dehumidifier.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_dehumidifier/)
+# midea-beautiful-lib
+[![Build Status](https://github.com/nbogojevic/midea-beautiful-lib/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-lib/actions/workflows/python-publish.yml)
+[![PyPI](https://img.shields.io/pypi/v/midea_beautiful_lib.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_lib/)
 
 This library allows discovering Midea dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
 
@@ -14,7 +14,7 @@ Thanks also to [yitsushi's project](https://github.com/yitsushi/midea-air-condit
 
 ## Supported appliances
 
-The library works only Midea dehumidifiers supporting V3 protocol. Both appliances with and without ion function are supported.
+The library works with Midea dehumidifiers supporting V2 and V3 protocol. 
 
 Some examples of supported dehumidifiers:
 
@@ -57,7 +57,7 @@ The following dehumidifier data is accessible via library:
 
 This library is able to discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
 
-Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful_dehumidifier/midea.py](midea_beautiful_dehumidifier/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
+Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful/midea.py](midea_beautiful/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
 The discovery should work on Linux and Windows based systems, however it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs depending on network setup. For example, VM or container need to have rights to broadcast to physical network to make discovery work. One workaround, if it is not possible, is to run discovery from non-virtualized environment host. 
 
@@ -85,16 +85,16 @@ Library logs additional information at log level 5. Credentials information like
 ### Installing package
 
 ```shell
-pip install --upgrade midea-beautiful-dehumidifier
+pip install --upgrade midea-beautiful-lib
 ```
 
 ### Command line tool help
 
 ```shell
-midea_beautiful_dehumidifier-cli --help
-midea_beautiful_dehumidifier-cli discover --help
-midea_beautiful_dehumidifier-cli set --help
-midea_beautiful_dehumidifier-cli status --help
+midea-beautiful-cli --help
+midea-beautiful-cli discover --help
+midea-beautiful-cli set --help
+midea-beautiful-cli status --help
 ```
 
 ### Discovery
@@ -102,24 +102,24 @@ midea_beautiful_dehumidifier-cli status --help
 Discover dehumidifier appliances on the local network:
 
 ```shell
-midea_beautiful_dehumidifier-cli discover --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
 Show tokens used to connect to appliances via local network
 ```shell
-midea_beautiful_dehumidifier-cli discover --account ACCOUNT_EMAIL --password PASSWORD --credentials
+midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD --credentials
 ```
 
 Search for devices by providing explicit network address
 
 ```shell
-midea_beautiful_dehumidifier-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.3 --credentials
+midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.3 --credentials
 ```
 
 Search for devices by providing explicit network range
 
 ```shell
-midea_beautiful_dehumidifier-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.2/24 --credentials
+midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.2/24 --credentials
 ```
 
 ### Appliance status
@@ -127,19 +127,19 @@ midea_beautiful_dehumidifier-cli discover --account ACCOUNT_EMAIL --password PAS
 Get status of an appliance using known TOKEN and KEY (e.g. retrieved using `discover` command)
 
 ```shell
-midea_beautiful_dehumidifier-cli status --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY
+midea-beautiful-cli status --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY
 ```
 
 Get status of an appliance using Midea app credentials
 
 ```shell
-midea_beautiful_dehumidifier-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
 Get status of an appliance via Midea cloud API (note the usage of `--id` and `--cloud` options)
 
 ```shell
-midea_beautiful_dehumidifier-cli status --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --cloud
+midea-beautiful-cli status --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --cloud
 ```
 
 ### Set appliance attribute
@@ -147,35 +147,35 @@ midea_beautiful_dehumidifier-cli status --id APPLIANCE_ID --account ACCOUNT_EMAI
 Set target relative humidity (0-100)
 
 ```shell
-midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --humidity 55
+midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --humidity 55
 ```
 Sets operating mode (number 1 to 4)
 ```shell
-midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode 1
+midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode 1
 ```
 Set fan strength (0-100)
 ```shell
-midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 40
+midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 40
 ```
 Turn on/off ion mode (0 or 1)
 ```shell
-midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --ion 1
+midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --ion 1
 ```
 Turn on/off ion mode (0 or 1)
 ```shell
-midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --on 1
+midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --on 1
 ```
 Turn on/off pump (0 or 1)
 ```shell
-midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --pump 1
+midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --pump 1
 ```
 Combinations multiple settings
 ```shell
-midea_beautiful_dehumidifier-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 60 --humidity 50
+midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 60 --humidity 50
 ```
 Set target humidity via Midea cloud API (note the usage of `--id` and `--cloud` options)
 ```shell
-midea_beautiful_dehumidifier-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --humidity 55 --cloud
+midea-beautiful-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --humidity 55 --cloud
 ```
 
 ### Watch appliance status
@@ -185,13 +185,13 @@ Watch appliance status allows to debug packets received when polling it. It will
 Continuously watch status of an appliance using known TOKEN and KEY (e.g. retrieved using `discover` command) with interval of 10 seconds between polling
 
 ```shell
-midea_beautiful_dehumidifier-cli watch --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --interval 10
+midea-beautiful-cli watch --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --interval 10
 ```
 
 Continuously watch status of an appliance using Midea app credentials with interval of 30 seconds between polling
 
 ```shell
-midea_beautiful_dehumidifier-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD --interval 30
+midea-beautiful-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD --interval 30
 ```
 
 ### Specifying log level
@@ -201,15 +201,15 @@ Log level is specified using `--log` option:
 Set `DEBUG` level
 
 ```shell
-midea_beautiful_dehumidifier-cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 Very verbose level (may contain confidential information)
 ```shell
-midea_beautiful_dehumidifier-cli --log NOTSET discover --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-cli --log NOTSET discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 Set `WARNING` level (default log level if option was not specified)
 ```shell
-midea_beautiful_dehumidifier-cli --log WARNING discover --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-cli --log WARNING discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
 ## Code examples
@@ -217,7 +217,7 @@ midea_beautiful_dehumidifier-cli --log WARNING discover --account ACCOUNT_EMAIL 
 Discover appliances on local network:
 
 ```python
-from midea_beautiful_dehumidifier import find_appliances
+from midea_beautiful import find_appliances
 
 appliances = find_appliances(
     account="USER_EMAIL@example.com",  # Account e-mail
@@ -230,7 +230,7 @@ for appliance in appliances:
 Get appliance state:
 
 ```python
-from midea_beautiful_dehumidifier import appliance_state
+from midea_beautiful import appliance_state
 
 appliance = appliance_state(
     ip=192.0.1.2,  # APPLIANCE_IP_ADDRESS 
@@ -244,7 +244,7 @@ print(f"{appliance!r}")
 Get appliance state from cloud:
 
 ```python
-from midea_beautiful_dehumidifier import appliance_state
+from midea_beautiful import appliance_state
 
 appliance = appliance_state( 
     account="USER_EMAIL@example.com",  # Account e-mail
@@ -269,3 +269,6 @@ Library is automatically built, packaged and published to [PyPI](https://pypi.or
 * https://github.com/nbogojevic/homeassistant-midea-dehumidifier-lan
 
 
+## Trademark
+
+Midea, Inventor, Comfee', Pro Breeze, and other names are trademarks of their respective owners.

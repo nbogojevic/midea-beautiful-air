@@ -1,7 +1,6 @@
 """Connects to Midea appliances on local network."""
 from __future__ import annotations
 
-from binascii import unhexlify
 import binascii
 from datetime import datetime
 from hashlib import sha256
@@ -29,7 +28,6 @@ from midea_beautiful_dehumidifier.midea import (
     MSGTYPE_HANDSHAKE_REQUEST,
 )
 from midea_beautiful_dehumidifier.util import _Hex
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -257,8 +255,10 @@ class LanDevice:
         self.ssid = other.ssid
 
     def _lan_packet(
-        self, id: int, command: MideaCommand, local_packet: bool = True
+        self, command: MideaCommand, local_packet: bool = True
     ) -> bytes:
+        id_bytes = int(self.id).to_bytes(8, "little")
+        d: datetime = datetime.now()
         # Init the packet with the header data.
         packet = bytearray(
             [
@@ -280,23 +280,23 @@ class LanDevice:
                 0x00,
                 0x00,
                 # 8 bytes - Date&Time
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                # 6 bytes - Device ID
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
+                int(d.microsecond / 10000),
+                d.second,
+                d.minute,
+                d.hour,
+                d.day,
+                d.month,
+                d.year % 100,
+                int(d.year / 100),
+                # 8 bytes - Device ID
+                id_bytes[0],
+                id_bytes[1],
+                id_bytes[2],
+                id_bytes[3],
+                id_bytes[4],
+                id_bytes[5],
+                id_bytes[6],
+                id_bytes[7],
                 # 12 bytes
                 0x00,
                 0x00,
@@ -312,12 +312,12 @@ class LanDevice:
                 0x00,
             ]
         )
-        t = datetime.now().strftime("%Y%m%d%H%M%S%f")[:16]
-        packet_time = bytearray()
-        for i in range(0, len(t), 2):
-            packet_time.insert(0, int(t[i : i + 2]))
-        packet[12:20] = packet_time
-        packet[20:28] = id.to_bytes(8, "little")
+        # t = d.strftime("%Y%m%d%H%M%S%f")[:16]
+        # packet_time = bytearray()
+        # for i in range(0, len(t), 2):
+        #     packet_time.insert(0, int(t[i : i + 2]))
+        # packet[12:20] = packet_time
+        # packet[20:28] = id.to_bytes(8, "little")
 
         # Append the encrypted command data to the packet
         if local_packet:
@@ -423,7 +423,7 @@ class LanDevice:
         if not self.token or not self.key:
             raise AuthenticationError("missing token/key pair")
         try:
-            byte_token = unhexlify(self.token)
+            byte_token = binascii.unhexlify(self.token)
         except binascii.Error as ex:
             raise AuthenticationError(f"Invalid token {ex}")
 
@@ -446,7 +446,7 @@ class LanDevice:
         response = response[8:72]
 
         try:
-            self._security.tcp_key(response, unhexlify(self.key))
+            self._security.tcp_key(response, binascii.unhexlify(self.key))
 
             self._got_tcp_key = True
             _LOGGER.log(5, "Got TCP key for %s", self)
@@ -459,7 +459,7 @@ class LanDevice:
             return False
 
     def _status(self, cmd: MideaCommand, cloud: MideaCloud | None) -> list[bytes]:
-        data = self._lan_packet(int(self.id), cmd, cloud is None)
+        data = self._lan_packet(cmd, cloud is None)
         _LOGGER.log(5, "Packet for: %s data: %s", self, _Hex(data))
         if cloud is not None:
             _LOGGER.debug("Sending request to cloud %s", self)
@@ -593,7 +593,7 @@ class LanDevice:
         with self._lock:
             cmd = self.state.apply_command()
 
-            data = self._lan_packet(int(self.id), cmd, cloud is None)
+            data = self._lan_packet(cmd, cloud is None)
 
             _LOGGER.log(5, "Packet for %s data: %s", self, _Hex(data))
             if cloud:

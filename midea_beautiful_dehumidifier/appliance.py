@@ -7,12 +7,15 @@ from distutils.util import strtobool
 from typing import Any
 
 from midea_beautiful_dehumidifier.command import (
+    AirConditionerSetCommand,
+    AirConditionerStatusCommand,
     DehumidifierResponse,
     DehumidifierSetCommand,
     DehumidifierStatusCommand,
     MideaCommand,
 )
 from midea_beautiful_dehumidifier.exceptions import MideaError
+from midea_beautiful_dehumidifier.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
 from midea_beautiful_dehumidifier.util import _Hex
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,8 +48,10 @@ class Appliance:
         Factory method to create an instance of appliance corresponding to
         requested type.
         """
-        if Appliance.supported(appliance_type):
+        if DehumidifierAppliance.supported(appliance_type):
             return DehumidifierAppliance(id=id, appliance_type=appliance_type)
+        if AirConditionerAppliance.supported(appliance_type):
+            return AirConditionerAppliance(id=id, appliance_type=appliance_type)
         _LOGGER.warning("Creating unsupported appliance %s %s", id, appliance_type)
         return Appliance(id, appliance_type)
 
@@ -132,7 +137,7 @@ class DehumidifierAppliance(Appliance):
     @staticmethod
     def supported(type: str | int) -> bool:
         lwr = str(type).lower()
-        return lwr == "a1" or lwr == "0xa1" or type == 161
+        return lwr == "a1" or lwr == "0xa1" or type == 161 or type == -95
 
     def process_response(self, data: bytes) -> None:
         global _watch_level
@@ -379,6 +384,246 @@ class DehumidifierAppliance(Appliance):
                 self.current_humidity,
                 self.current_temperature,
                 self.error_code,
+                self.beep_prompt,
+                self.supports,
+            )
+        )
+
+
+class AirConditionerAppliance(Appliance):
+    def __init__(self, id, appliance_type: str = "") -> None:
+        super().__init__(id, appliance_type)
+
+        self._running = False
+        self._mode = 0
+        self._fan_speed = 40
+        self._target_temperature: float = 0
+        self._current_temperature: float = 0
+        self._sleep: bool = False
+        self._eco_mode: bool = False
+        self._turbo: bool = False
+        self._turbo_fan: bool = False
+        self._beep_prompt: bool = False
+        self._purifier: bool = False
+        self._dryer: bool = False
+        self._fahrenheit: bool = False
+
+        self.supports = {}
+
+    @staticmethod
+    def supported(type: str | int) -> bool:
+        lwr = str(type).lower()
+        return lwr == "ac" or lwr == "0xac" or type == 172 or type == -84
+
+    def process_response_device_capabilities(self, data: bytes):
+        if data:
+            if data[0] != 0xB5:
+                _LOGGER.debug("Not a B5 response")
+                return
+            properties_count = data[1]
+            i = 2
+            self.supports = {}
+            for _ in range(properties_count):
+                if data[i + 1] == 0x02:
+                    if data[i] == 0x14:
+                        self.supports["mode"] = data[i + 3]
+                    elif data[i] == 0x2AA:
+                        self.supports["strong_fan"] = data[i + 3]
+                    elif data[i] == 0x1F:
+                        self.supports["humidity"] = data[i + 3]
+                    elif data[i] == 0x10:
+                        self.supports["fan_speed"] = data[i + 3]
+                    elif data[i] == 0x25:
+                        for j in range(8):
+                            self.supports[f"temperature{j}"] = data[i + 3 + j]
+                        i += 6
+                    elif data[i] == 0x12:
+                        self.supports["eco"] = data[i + 3]
+                    elif data[i] == 0x17:
+                        self.supports["filter_reminder"] = data[i + 3]
+                    elif data[i] == 0x21:
+                        self.supports["filter_check"] = data[i + 3]
+                    elif data[i] == 0x22:
+                        self.supports["fahrenheit"] = data[i + 3]
+                    elif data[i] == 0x13:
+                        self.supports["heat_8"] = data[i + 3]
+                    elif data[i] == 0x18:
+                        self.supports["electricity"] = data[i + 3]
+                    elif data[i] == 0x13:
+                        self.supports["ptc"] = data[i + 3]
+                    elif data[i] == 0x32:
+                        self.supports["fan_straight"] = data[i + 3]
+                    elif data[i] == 0x33:
+                        self.supports["fan_avoid"] = data[i + 3]
+                    elif data[i] == 0x15:
+                        self.supports["fan_swing"] = data[i + 3]
+                    elif data[i] == 0x18:
+                        self.supports["no_fan_sense"] = data[i + 3]
+                    elif data[i] == 0x24:
+                        self.supports["screen_display"] = data[i + 3]
+                    elif data[i] == 0x1E:
+                        self.supports["anion"] = data[i + 3]
+                    elif data[i] == 0x39:
+                        self.supports["self_clean"] = data[i + 3]
+                    elif data[i] == 0x43:
+                        self.supports["fa_no_fan_sense"] = data[i + 3]
+                    elif data[i] == 0x30:
+                        self.supports["energy_save_on_absence"] = data[i + 3]
+                    elif data[i] == 0x42:
+                        self.supports["prevent_direct_fan"] = data[i + 3]
+                    else:
+                        _LOGGER.debug("property=%x 0x02", data[i])
+                else:
+                    _LOGGER.debug("property=%x %x", data[i], data[i + 1])
+
+    def refresh_command(self) -> AirConditionerStatusCommand:
+        return AirConditionerStatusCommand()
+
+    def apply_command(self) -> AirConditionerSetCommand:
+        cmd = AirConditionerSetCommand()
+        cmd.running = self.running
+        cmd.mode = self.mode
+        cmd.fan_speed = self.fan_speed
+        cmd.turbo = self.turbo
+        cmd.turbo_fan = self.turbo_fan
+        cmd.eco_mode = self.eco_mode
+        cmd.purifier = self.purifier
+        cmd.dryer = self.dryer
+        cmd.fahrenheit = self.fahrenheit
+        cmd.comfort_sleep = self.sleep
+        cmd.beep_prompt = self.beep_prompt
+        cmd.temperature = self.target_temperature
+        return cmd
+
+    @property
+    def running(self) -> bool:
+        return self._running
+
+    @running.setter
+    def running(self, value: bool | int | str) -> None:
+        self._running = _as_bool(value)
+
+    @property
+    def target_temperature(self) -> float:
+        return self._target_temperature
+
+    @target_temperature.setter
+    def target_temperature(self, temperature: float | str) -> None:
+        temperature = float(temperature)
+        if temperature < AC_MIN_TEMPERATURE or temperature > AC_MAX_TEMPERATURE:
+            raise MideaError(
+                f"Tried to set target temperature {temperature} out of allowed range"
+            )
+        else:
+            self._target_temperature = temperature
+
+    @property
+    def fan_speed(self) -> int:
+        return self._fan_speed
+
+    @fan_speed.setter
+    def fan_speed(self, fan_speed: int) -> None:
+        self._fan_speed = fan_speed
+
+    @property
+    def mode(self) -> int:
+        return self._mode
+
+    @mode.setter
+    def mode(self, mode: int) -> None:
+        mode = int(mode)
+        if 0 <= mode and mode <= 15:
+            self._mode = mode
+        else:
+            raise MideaError(f"Tried to set mode to invalid value: {mode}")
+
+    @property
+    def eco_mode(self) -> bool:
+        return self._eco_mode
+
+    @eco_mode.setter
+    def eco_mode(self, value: bool | int | str) -> None:
+        self._eco_mode = _as_bool(value)
+
+    @property
+    def turbo_fan(self) -> bool:
+        return self._turbo_fan
+
+    @turbo_fan.setter
+    def turbo_fan(self, value: bool | int | str) -> None:
+        self._turbo_fan = _as_bool(value)
+
+    @property
+    def turbo(self) -> bool:
+        return self._turbo
+
+    @turbo.setter
+    def turbo(self, value: bool | int | str) -> None:
+        self._turbo = _as_bool(value)
+
+    @property
+    def dryer(self) -> bool:
+        return self._dryer
+
+    @dryer.setter
+    def dryer(self, value: bool | int | str) -> None:
+        self._dryer = _as_bool(value)
+
+    @property
+    def purifier(self) -> bool:
+        return self._purifier
+
+    @purifier.setter
+    def purifier(self, value: bool | int | str) -> None:
+        self._purifier = _as_bool(value)
+
+    @property
+    def beep_prompt(self) -> bool:
+        return self._beep_prompt
+
+    @beep_prompt.setter
+    def beep_prompt(self, value: bool | int | str) -> None:
+        self._beep_prompt = _as_bool(value)
+
+    @property
+    def sleep(self) -> bool:
+        return self._sleep
+
+    @sleep.setter
+    def sleep(self, value: bool | int | str) -> None:
+        self._sleep = _as_bool(value)
+
+    @property
+    def fahrenheit(self) -> bool:
+        return self._fahrenheit
+
+    @fahrenheit.setter
+    def fahrenheit(self, value: bool | int | str) -> None:
+        self._fahrenheit = _as_bool(value)
+
+    def __str__(self) -> str:
+        return (
+            "[Dehumidifier]{id=%s, type=%s, "
+            " mode=%d,"
+            " running=%s,"
+            " turbo=%d,"
+            " fan_speed=%d, "
+            " turbo_fan=%d,"
+            " purifier=%d,"
+            " dryer=%d,"
+            " sleep=%d,"
+            " prompt=%s, supports=%s}"
+            % (
+                self.id,
+                self.type,
+                self.mode,
+                self.running,
+                self.turbo,
+                self.fan_speed,
+                self.turbo_fan,
+                self.purifier,
+                self.dryer,
+                self.sleep,
                 self.beep_prompt,
                 self.supports,
             )
