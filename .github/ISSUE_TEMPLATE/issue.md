@@ -30,8 +30,8 @@ If you are unsure about the version check the __version__.py file.
 
 ```
 Example log:
-2021-12-31 23:59:00 example.com midea_beautiful_dehumidifier.scanner[25840] DEBUG Library version=0.1.0
-2021-12-31 23:59:00 example.com midea_beautiful_dehumidifier.cloud[25840] Level 5 HTTP request user/login/id/get: {'appId': '1117', 'format': 2, 'clientType': 1, 'language': 'en_US', 'src': 17, 'stamp': '20211231235900', 'loginAccount': 'email@example.com', 'sign': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}
+2021-12-31 23:59:00 example.com midea_beautiful.scanner[25840] DEBUG Library version=0.1.0
+2021-12-31 23:59:00 example.com midea_beautiful.cloud[25840] Level 5 HTTP request user/login/id/get: {'appId': '1117', 'format': 2, 'clientType': 1, 'language': 'en_US', 'src': 17, 'stamp': '20211231235900', 'loginAccount': 'email@example.com', 'sign': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'}
 2021-12-31 23:59:00 example.com urllib3.connectionpool[123456] DEBUG Starting new HTTPS connection (1): mapp.appsmb.com:443
 
 
