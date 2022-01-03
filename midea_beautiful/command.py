@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from multiprocessing import RLock
 
-from midea_beautiful_dehumidifier.crypto import crc8
-from midea_beautiful_dehumidifier.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
+from midea_beautiful.crypto import crc8
+from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
 
 # Each command has unique sequence id (single byte with roll-over)
 _command_sequence: int = 0

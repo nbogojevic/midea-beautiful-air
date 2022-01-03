@@ -3,10 +3,10 @@ from datetime import datetime
 from typing import Final
 import unittest
 
-from midea_beautiful_dehumidifier.command import midea_command_reset_sequence
-from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.lan import LanDevice
-from midea_beautiful_dehumidifier.midea import (
+from midea_beautiful.command import midea_command_reset_sequence
+from midea_beautiful.crypto import Security
+from midea_beautiful.lan import LanDevice
+from midea_beautiful.midea import (
     APPLIANCE_TYPE_AIRCON,
     APPLIANCE_TYPE_DEHUMIDIFIER,
     DEFAULT_APP_ID,

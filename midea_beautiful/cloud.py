@@ -11,8 +11,8 @@ from typing import Any, Final, Tuple
 import requests
 from requests.exceptions import RequestException
 
-from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.exceptions import (
+from midea_beautiful.crypto import Security
+from midea_beautiful.exceptions import (
     AuthenticationError,
     CloudAuthenticationError,
     CloudError,
@@ -20,7 +20,7 @@ from midea_beautiful_dehumidifier.exceptions import (
     ProtocolError,
     RetryLaterError,
 )
-from midea_beautiful_dehumidifier.midea import (
+from midea_beautiful.midea import (
     CLOUD_API_SERVER_URL,
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,

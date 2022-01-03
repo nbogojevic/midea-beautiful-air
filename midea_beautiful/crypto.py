@@ -11,12 +11,12 @@ from urllib.parse import unquote_plus, urlencode, urlparse
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from midea_beautiful_dehumidifier.exceptions import (
+from midea_beautiful.exceptions import (
     AuthenticationError,
     MideaError,
     ProtocolError,
 )
-from midea_beautiful_dehumidifier.midea import (
+from midea_beautiful.midea import (
     DEFAULT_APPKEY,
     DEFAULT_SIGNKEY,
     MSGTYPE_ENCRYPTED_REQUEST,

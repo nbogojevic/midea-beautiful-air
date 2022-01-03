@@ -6,7 +6,7 @@ import logging
 from distutils.util import strtobool
 from typing import Any
 
-from midea_beautiful_dehumidifier.command import (
+from midea_beautiful.command import (
     AirConditionerSetCommand,
     AirConditionerStatusCommand,
     DehumidifierResponse,
@@ -14,9 +14,9 @@ from midea_beautiful_dehumidifier.command import (
     DehumidifierStatusCommand,
     MideaCommand,
 )
-from midea_beautiful_dehumidifier.exceptions import MideaError
-from midea_beautiful_dehumidifier.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
-from midea_beautiful_dehumidifier.util import _Hex
+from midea_beautiful.exceptions import MideaError
+from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
+from midea_beautiful.util import _Hex
 
 _LOGGER = logging.getLogger(__name__)
 

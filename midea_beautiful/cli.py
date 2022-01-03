@@ -14,14 +14,14 @@ from argparse import ArgumentParser, Namespace
 import logging
 from time import sleep
 
-from midea_beautiful_dehumidifier import (
+from midea_beautiful import (
     appliance_state,
     connect_to_cloud,
     find_appliances,
 )
-from midea_beautiful_dehumidifier.appliance import set_watch_level
-from midea_beautiful_dehumidifier.lan import LanDevice
-from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
+from midea_beautiful.appliance import set_watch_level
+from midea_beautiful.lan import LanDevice
+from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 
 _LOGGER = logging.getLogger(__name__)
 

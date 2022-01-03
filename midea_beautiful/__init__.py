@@ -1,11 +1,11 @@
 """ Library for local network access to Midea dehumidifier appliances """
 from __future__ import annotations
 
-from midea_beautiful_dehumidifier.version import __version__
-from midea_beautiful_dehumidifier.cloud import MideaCloud
-from midea_beautiful_dehumidifier.lan import LanDevice, get_appliance_state
-from midea_beautiful_dehumidifier.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful_dehumidifier.scanner import find_appliances
+from midea_beautiful.version import __version__
+from midea_beautiful.cloud import MideaCloud
+from midea_beautiful.lan import LanDevice, get_appliance_state
+from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
+from midea_beautiful.scanner import find_appliances
 
 __version__ = __version__
 

@@ -10,24 +10,24 @@ from threading import RLock
 from time import sleep
 from typing import Final
 
-from midea_beautiful_dehumidifier.appliance import Appliance
-from midea_beautiful_dehumidifier.cloud import MideaCloud
-from midea_beautiful_dehumidifier.command import DeviceCapabilitiesCommand, MideaCommand
-from midea_beautiful_dehumidifier.crypto import Security
-from midea_beautiful_dehumidifier.exceptions import (
+from midea_beautiful.appliance import Appliance
+from midea_beautiful.cloud import MideaCloud
+from midea_beautiful.command import DeviceCapabilitiesCommand, MideaCommand
+from midea_beautiful.crypto import Security
+from midea_beautiful.exceptions import (
     AuthenticationError,
     MideaError,
     MideaNetworkError,
     ProtocolError,
     UnsupportedError,
 )
-from midea_beautiful_dehumidifier.midea import (
+from midea_beautiful.midea import (
     APPLIANCE_TYPE_DEHUMIDIFIER,
     DISCOVERY_PORT,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
 )
-from midea_beautiful_dehumidifier.util import _Hex
+from midea_beautiful.util import _Hex
 
 _LOGGER = logging.getLogger(__name__)
 
