@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from multiprocessing import RLock
-
 from midea_beautiful.crypto import crc8
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
 
@@ -24,17 +23,29 @@ class MideaCommand:
         self.data = bytearray()
 
     def finalize(self) -> bytes:
-        global _command_sequence
-        with _order_lock:
-            _command_sequence = (_command_sequence + 1) & 0b11111111
-        # Add the sequence
-        self.data[30] = _command_sequence
         # Add the CRC8
         self.data[-2] = crc8(self.data[10:-2])
         # Add Message check code
         self.data[-1] = (~sum(self.data[1:-1]) + 1) & 0b11111111
         # Set the length of the command data
         return bytes(self.data)
+
+
+class MideaSequenceCommand(MideaCommand):
+    """Base command with sequence id/unique id"""
+    sequence_idx = 30
+
+    def __init__(self, sequence_idx: int = 30) -> None:
+        self.data = bytearray()
+        self.sequence_idx = sequence_idx
+
+    def finalize(self) -> bytes:
+        global _command_sequence
+        with _order_lock:
+            _command_sequence = (_command_sequence + 1) & 0b11111111
+        # Add the sequence
+        self.data[self.sequence_idx] = _command_sequence
+        return super().finalize()
 
 
 class DeviceCapabilitiesCommand(MideaCommand):
@@ -56,17 +67,14 @@ class DeviceCapabilitiesCommand(MideaCommand):
                 0xB5,
                 0x01,
                 0x11,
-                0x8E,
-                0xF6,
+                0x00,
+                0x00,
             ]
         )
 
-    def finalize(self) -> bytes:
-        return bytes(self.data)
 
-
-class DeviceConfigurationStateCommand(MideaCommand):
-    """B0 Command"""
+class DeviceCapabilitiesCommandMore(MideaCommand):
+    """B5 Command"""
 
     def __init__(self, type: int = 0xA1) -> None:
         self.data = bytearray(
@@ -81,30 +89,23 @@ class DeviceConfigurationStateCommand(MideaCommand):
                 0x00,
                 0x03,
                 0x03,
-                0xB0,
-                2,
-                24,
-                0,
-                1,
-                # Can be 1 or 0
-                0,
-                26,
-                0,
-                1,
-                # Sound?
-                0,
-                # CRC
-                0,
+                0xB5,
+                0x01,
+                0x01,
+                0x00,
+                0x00,
             ]
         )
 
     def finalize(self) -> bytes:
         # Add the CRC8
-        self.data[-1] = crc8(self.data[10:-1])
+        self.data[-2] = crc8(self.data[10:-2])
+        # Add Message check code
+        self.data[-1] = (~sum(self.data[1:-1]) + 1) & 0b11111111
         return bytes(self.data)
 
 
-class DehumidifierStatusCommand(MideaCommand):
+class DehumidifierStatusCommand(MideaSequenceCommand):
     """Command that retrieves dehumidifier status"""
 
     def __init__(self) -> None:
@@ -173,7 +174,7 @@ class DehumidifierStatusCommand(MideaCommand):
         )
 
 
-class DehumidifierSetCommand(MideaCommand):
+class DehumidifierSetCommand(MideaSequenceCommand):
     """Command that sets dehumidifier controls"""
 
     def __init__(self) -> None:
@@ -436,7 +437,7 @@ class DehumidifierResponse:
         return str(self.__dict__)
 
 
-class AirConditionerStatusCommand(MideaCommand):
+class AirConditionerStatusCommand(MideaSequenceCommand):
     """Command that retrieves air conditioner status"""
 
     def __init__(self) -> None:
@@ -518,7 +519,7 @@ class AirConditionerStatusCommand(MideaCommand):
         )
 
 
-class AirConditionerSetCommand(MideaCommand):
+class AirConditionerSetCommand(MideaSequenceCommand):
     """Command that sets air conditioner controls"""
 
     def __init__(self) -> None:
@@ -649,7 +650,7 @@ class AirConditionerSetCommand(MideaCommand):
     @horizontal_swing.setter
     def horizontal_swing(self, mode: int):
         self.data[17] &= ~0x0011  # Clear the mode bit
-        self.data[17] |= 0x30 | (0x0011 if mode else 0)
+        self.data[17] |= (0x1110011 if mode else 0)
 
     @property
     def vertical_swing(self):
@@ -658,7 +659,7 @@ class AirConditionerSetCommand(MideaCommand):
     @vertical_swing.setter
     def vertical_swing(self, mode: int):
         self.data[17] &= ~0x1100  # Clear the mode bit
-        self.data[17] |= 0x30 | (0x1100 if mode else 0)
+        self.data[17] |= (0x111100 if mode else 0)
 
     @property
     def turbo_fan(self) -> bool:
@@ -779,14 +780,8 @@ class AirConditionerResponse:
         self.aux_heat = (data[9] & 0b00001000) != 0
 
         self.turbo = (data[10] & 0b00000010) != 0
-        self.temperature_unit = (data[10] & 0b00000100) != 0
+        self.fahrenheit = (data[10] & 0b00000100) != 0
         self.prevent_freezing = (data[10] & 0b00100000) != 0
-
-        temp = data[13] & 0b00011111
-        if temp > 0 and temp <= 25:
-            self.temperature_other = temp + 12
-        else:
-            self.temperature_other = 0
 
         self.pmv = (data[14] & 0b00001111) * 0.5 - 3.5
         if self.outdoor_temperature != 0 and self.outdoor_temperature != 0xFF:
@@ -799,5 +794,8 @@ class AirConditionerResponse:
             digit = 0.1 * (data[15] & 0b00001111)
             if self.indoor_temperature < 0:
                 self.indoor_temperature -= digit
+
+        if len(data) > 20:
+            self.humidity = data[19]
 
         self.err_code = data[16]
