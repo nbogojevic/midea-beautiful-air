@@ -12,7 +12,11 @@ from typing import Final
 
 from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
-from midea_beautiful.command import DeviceCapabilitiesCommand, MideaCommand
+from midea_beautiful.command import (
+    DeviceCapabilitiesCommand,
+    DeviceCapabilitiesCommandMore,
+    MideaCommand,
+)
 from midea_beautiful.crypto import Security
 from midea_beautiful.exceptions import (
     AuthenticationError,
@@ -676,7 +680,14 @@ class LanDevice:
         if len(responses) == 0:
             _LOGGER.debug("No response on device capabilities request")
         else:
-            self.state.process_response_device_capabilities(responses[-1])
+            self.state.process_response_device_capabilities(responses[-1], 0)
+        cmd = DeviceCapabilitiesCommandMore()
+        responses = self._status(cmd, cloud)
+        if len(responses) == 0:
+            _LOGGER.debug("No response on device capabilities request (more)")
+        else:
+            self.state.process_response_device_capabilities(responses[-1], 1)
+
         self.refresh(cloud if use_cloud else None)
         _LOGGER.debug("Appliance data: %r", self)
 

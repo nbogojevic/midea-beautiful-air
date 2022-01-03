@@ -13,7 +13,11 @@ except Exception:
         pass
 
 
-from midea_beautiful.command import midea_command_reset_sequence
+from midea_beautiful.command import (
+    DeviceCapabilitiesCommand,
+    DeviceCapabilitiesCommandMore,
+    midea_command_reset_sequence,
+)
 from midea_beautiful.crypto import Security
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import (
@@ -109,6 +113,14 @@ class TestSecurityMethods(unittest.TestCase):
 
 
 class TestCommand(unittest.TestCase):
+    def test_device_capabilities_command(self) -> None:
+        dc = DeviceCapabilitiesCommand()
+        self.assertEqual("aa0ea100000000000303b501118ef6", dc.finalize().hex())
+
+    def test_device_capabilities_command_more(self) -> None:
+        dc = DeviceCapabilitiesCommandMore()
+        self.assertEqual("aa0ea100000000000303b501011381", dc.finalize().hex())
+
     def test_dehumidifier_status(self) -> None:
         midea_command_reset_sequence()
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
