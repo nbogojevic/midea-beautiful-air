@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import logging
-
-from distutils.util import strtobool
 from typing import Any
 
 from midea_beautiful.command import (
@@ -17,7 +15,7 @@ from midea_beautiful.command import (
 )
 from midea_beautiful.exceptions import MideaError
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
-from midea_beautiful.util import _Hex
+from midea_beautiful.util import _Hex, strtobool
 
 _LOGGER = logging.getLogger(__name__)
 
