@@ -1,10 +1,10 @@
-This is a library that allows communication with Midea dehumidifier appliances via the local area network.
+This is a library that allows communication with Midea air conditioner and dehumidifier via the local area network.
 
 # midea-beautiful-lib
 [![Build Status](https://github.com/nbogojevic/midea-beautiful-lib/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-lib/actions/workflows/python-publish.yml)
 [![PyPI](https://img.shields.io/pypi/v/midea_beautiful_lib.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_lib/)
 
-This library allows discovering Midea dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
+This library allows discovering Midea air conditioners and dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
 
 This library inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners and [barban-dev/midea_inventor_dehumidifier](https://github.com/barban-dev/midea_inventor_dehumidifier) cloud based functionality for dehumidifiers. This library may include verbatim or adapted portions of the code from those two projects.
 
@@ -14,7 +14,7 @@ Thanks also to [yitsushi's project](https://github.com/yitsushi/midea-air-condit
 
 ## Supported appliances
 
-The library works with Midea dehumidifiers supporting V2 and V3 protocol. 
+The library works with Midea air conditioners and dehumidifiers supporting V2 and V3 protocol. 
 
 Some examples of supported dehumidifiers:
 
@@ -25,7 +25,7 @@ Some examples of supported dehumidifiers:
 * Midea SmartDry dehumidifiers (22, 35, 50 pint models )
 * Midea Cube dehumidifiers (20, 35, 50 pint models)
 
-It may as well work with other Midea Wi-Fi dehumidifiers.
+It may as well work with other Midea Wi-Fi air conditioners and dehumidifiers.
 
 ## Dehumidifier data
 
@@ -52,6 +52,27 @@ The following dehumidifier data is accessible via library:
 * tank water level (read-only, if supported by appliance)
 * current ambient temperature (read-only)
 
+## Air Conditioner Data
+
+The following air conditioner data is accessible via library: 
+
+* on/off switch (boolean, can be set)
+* target temperature(celsius, can be set)
+* indoor temperature (celsius, read-only)
+* outdoor temperature (celsius, read-only)
+* active mode (can be set)
+* air purifier mode (boolean, can be set)
+* air drying mode (boolean, can be set)
+* horizontal swing operation (boolean, can be set)
+* vertical swing operation (boolean, can be set)
+* fahrenheit degree display (boolean, can be set)
+* internal error code (read-only)
+* appliance characteristics, i.e. support for special modes, fan presets etc (read-only)
+* beep prompt (write-only)
+* appliance name (read-only). Set through Midea mobile application.
+* appliance serial number (read-only) 
+* appliance IPv4 address (read-only)
+* token and key for local network access (read-only, only v3 appliances)
 
 ## Discovery
 
@@ -99,7 +120,7 @@ midea-beautiful-cli status --help
 
 ### Discovery
 
-Discover dehumidifier appliances on the local network:
+Discover appliances on the local network:
 
 ```shell
 midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD
