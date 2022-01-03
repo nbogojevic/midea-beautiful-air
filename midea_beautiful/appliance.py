@@ -601,16 +601,21 @@ class AirConditionerAppliance(Appliance):
     def fahrenheit(self, value: bool | int | str) -> None:
         self._fahrenheit = _as_bool(value)
 
+    @property
+    def model(self) -> str:
+        return "Air conditioner"
+
     def __str__(self) -> str:
         return (
-            "[Dehumidifier]{id=%s, type=%s, "
+            "[Air conditioner]{id=%s, type=%s, "
             " mode=%d,"
             " running=%s,"
-            " turbo=%d,"
+            " turbo=%s,"
             " fan_speed=%d, "
-            " turbo_fan=%d,"
-            " purifier=%d,"
-            " dryer=%d,"
+            " turbo_fan=%s,"
+            " purifier=%s,"
+            " dryer=%s,"
+            " target_temperature=%s,"
             " sleep=%d,"
             " prompt=%s, supports=%s}"
             % (
@@ -623,6 +628,7 @@ class AirConditionerAppliance(Appliance):
                 self.turbo_fan,
                 self.purifier,
                 self.dryer,
+                self.target_temperature,
                 self.sleep,
                 self.beep_prompt,
                 self.supports,

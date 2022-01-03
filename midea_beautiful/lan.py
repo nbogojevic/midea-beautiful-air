@@ -139,7 +139,6 @@ class LanDevice:
         key: str = "",
         appliance_type: str = "",
         data: bytes = None,
-        use_cloud: bool = False,
     ) -> None:
         self._security = Security()
         self._retries = 0
@@ -184,6 +183,7 @@ class LanDevice:
                 self.mac = reply[63 + ssid_len : 69 + ssid_len].hex(":")
             else:
                 self.mac = self.sn[16:32]
+
             if len(reply) >= (56 + ssid_len) and reply[55 + ssid_len] != 0:
                 # Get type
                 self.type = hex(reply[55 + ssid_len])
@@ -254,9 +254,7 @@ class LanDevice:
         self.mac = other.mac
         self.ssid = other.ssid
 
-    def _lan_packet(
-        self, command: MideaCommand, local_packet: bool = True
-    ) -> bytes:
+    def _lan_packet(self, command: MideaCommand, local_packet: bool = True) -> bytes:
         id_bytes = int(self.id).to_bytes(8, "little")
         d: datetime = datetime.now()
         # Init the packet with the header data.
@@ -758,6 +756,7 @@ def get_appliance_state(
     cloud: MideaCloud = None,
     use_cloud: bool = False,
     id: str | None = None,
+    appliance_type: str = APPLIANCE_TYPE_DEHUMIDIFIER,
 ) -> LanDevice:
     # Create a TCP/IP socket
     if ip:
@@ -788,9 +787,7 @@ def get_appliance_state(
             sock.close()
     elif id is not None:
         if use_cloud and cloud:
-            appliance = LanDevice(
-                id=id, appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER, use_cloud=use_cloud
-            )
+            appliance = LanDevice(id=id, appliance_type=appliance_type)
         else:
             raise MideaError("Missing cloud credentials")
     else:
