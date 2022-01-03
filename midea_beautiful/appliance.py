@@ -7,6 +7,7 @@ from distutils.util import strtobool
 from typing import Any
 
 from midea_beautiful.command import (
+    AirConditionerResponse,
     AirConditionerSetCommand,
     AirConditionerStatusCommand,
     DehumidifierResponse,
@@ -99,7 +100,9 @@ class Appliance:
         _LOGGER.debug("Ignored process_response %r", self)
         pass
 
-    def process_response_device_capabilities(self, data: bytes) -> None:
+    def process_response_device_capabilities(
+        self, data: bytes, sequence: int = 0
+    ) -> None:
         _LOGGER.debug("Ignored process_response_device_capabilities %r", self)
         pass
 
@@ -161,7 +164,7 @@ class DehumidifierAppliance(Appliance):
 
             self.running = bool(response.run_status)
 
-            self._ion_mode = response.ion_mode
+            self.ion_mode = response.ion_mode
             self.mode = response.mode
             self.target_humidity = response.target_humidity
             self._current_humidity = int(response.current_humidity)
@@ -177,15 +180,15 @@ class DehumidifierAppliance(Appliance):
                     response.current_humidity,
                 )
                 self._current_humidity = 0
-            self.fan_speed = response.fan_speed
+            self._current_temperature = response.indoor_temperature
+            self._defrosting = response.defrosting
+            self._error = response.err_code
+            self._filter_indicator = response.filter_indicator
+            self.pump = response.pump_switch
+            self.sleep = response.sleep_switch
             self._tank_full = response.tank_full
             self._tank_level = response.tank_level
-            self._current_temperature = response.indoor_temperature
-            self._error = response.err_code
-            self._defrosting = response.defrosting
-            self._filter_indicator = response.filter_indicator
-            self._pump = response.pump_switch
-            self._sleep = response.sleep_switch
+            self.fan_speed = response.fan_speed
         else:
             self._online = False
 
@@ -194,24 +197,25 @@ class DehumidifierAppliance(Appliance):
 
     def apply_command(self) -> DehumidifierSetCommand:
         cmd = DehumidifierSetCommand()
-        cmd.running = self.running
-        cmd.target_humidity = self.target_humidity
-        cmd.mode = self.mode
+        cmd.beep_prompt = self.beep_prompt
         cmd.fan_speed = self.fan_speed
         cmd.ion_mode = self.ion_mode
+        cmd.mode = self.mode
         cmd.pump_switch = self.pump
+        cmd.running = self.running
         cmd.sleep_switch = self.sleep
-        cmd.beep_prompt = self.beep_prompt
+        cmd.target_humidity = self.target_humidity
         return cmd
 
-    def process_response_device_capabilities(self, data: bytes):
+    def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
         if data:
             if data[0] != 0xB5:
                 _LOGGER.debug("Not a B5 response")
                 return
             properties_count = data[1]
             i = 2
-            self.supports = {}
+            if sequence == 0:
+                self.supports = {}
             for _ in range(properties_count):
                 if data[i + 1] == 0x02:
                     if data[i] == 0x20:
@@ -233,9 +237,9 @@ class DehumidifierAppliance(Appliance):
                     elif data[i] == 0x24:
                         self.supports["light"] = data[i + 3]
                     else:
-                        _LOGGER.debug("property=%x 0x02", data[i])
+                        _LOGGER.warning("property=%x 0x02", data[i])
                 else:
-                    _LOGGER.debug("property=%x %x", data[i], data[i + 1])
+                    _LOGGER.warning("property=%x %x", data[i], data[i + 1])
                 i += 4
 
     @property
@@ -398,8 +402,7 @@ class AirConditionerAppliance(Appliance):
         self._mode = 0
         self._fan_speed = 40
         self._target_temperature: float = 0
-        self._current_temperature: float = 0
-        self._sleep: bool = False
+        self._comfort_sleep: bool = False
         self._eco_mode: bool = False
         self._turbo: bool = False
         self._turbo_fan: bool = False
@@ -407,6 +410,13 @@ class AirConditionerAppliance(Appliance):
         self._purifier: bool = False
         self._dryer: bool = False
         self._fahrenheit: bool = False
+        self._indoor_temperature: float = 0
+        self._outdoor_temperature: float = 0
+        self._vertical_swing: bool = False
+        self._horizontal_swing: bool = False
+        self._show_screen: bool = True
+        self._particulate_matter_value: float = 0
+        self._show_screen = False
 
         self.supports = {}
 
@@ -414,6 +424,44 @@ class AirConditionerAppliance(Appliance):
     def supported(type: str | int) -> bool:
         lwr = str(type).lower()
         return lwr == "ac" or lwr == "0xac" or type == 172 or type == -84
+
+    def process_response(self, data: bytes) -> None:
+        global _watch_level
+        _LOGGER.log(
+            _watch_level,
+            "Processing response for air conditioner id=%s data=%s",
+            self._id,
+            _Hex(data),
+        )
+        if len(data) > 0:
+            self._online = True
+            self._active = True
+            for i in range(len(data)):
+                if _LOGGER.isEnabledFor(_watch_level):
+                    _LOGGER.log(
+                        _watch_level,
+                        f"{i:2} {data[i]:3} {data[i]:02X} {data[i]:08b}",
+                    )
+            response = AirConditionerResponse(data)
+            _LOGGER.debug("Decoded response %s", response)
+
+            self._error = response.err_code
+            self.comfort_sleep = response.comfort_sleep
+            self.fahrenheit = response.fahrenheit
+            self.fan_speed = response.fan_speed
+            self.horizontal_swing = response.horizontal_swing
+            self._indoor_temperature = response.indoor_temperature
+            self.mode = response.mode
+            self._outdoor_temperature = response.outdoor_temperature
+            self._particulate_matter_value = response.pmv
+            self.purifier = response.purifier
+            self.running = bool(response.run_status)
+            self.target_temperature = response.target_temperature
+            self.turbo_fan = response.turbo
+            self.turbo_fan = response.turbo_fan
+            self.vertical_swing = response.vertical_swing
+        else:
+            self._online = False
 
     def process_response_device_capabilities(self, data: bytes):
         if data:
@@ -481,18 +529,21 @@ class AirConditionerAppliance(Appliance):
 
     def apply_command(self) -> AirConditionerSetCommand:
         cmd = AirConditionerSetCommand()
-        cmd.running = self.running
-        cmd.mode = self.mode
+        cmd.beep_prompt = self.beep_prompt
+        cmd.comfort_sleep = self.comfort_sleep
+        cmd.dryer = self.dryer
+        cmd.eco_mode = self.eco_mode
+        cmd.fahrenheit = self.fahrenheit
         cmd.fan_speed = self.fan_speed
+        cmd.horizontal_swing = self.horizontal_swing
+        cmd.mode = self.mode
+        cmd.purifier = self.purifier
+        cmd.running = self.running
+        cmd.screen = self.show_screen
+        cmd.temperature = self.target_temperature
         cmd.turbo = self.turbo
         cmd.turbo_fan = self.turbo_fan
-        cmd.eco_mode = self.eco_mode
-        cmd.purifier = self.purifier
-        cmd.dryer = self.dryer
-        cmd.fahrenheit = self.fahrenheit
-        cmd.comfort_sleep = self.sleep
-        cmd.beep_prompt = self.beep_prompt
-        cmd.temperature = self.target_temperature
+        cmd.vertical_swing = self.vertical_swing
         return cmd
 
     @property
@@ -516,6 +567,14 @@ class AirConditionerAppliance(Appliance):
             )
         else:
             self._target_temperature = temperature
+
+    @property
+    def outdoor_temperature(self) -> float:
+        return self._outdoor_temperature
+
+    @property
+    def indoor_temperature(self) -> float:
+        return self._indoor_temperature
 
     @property
     def fan_speed(self) -> int:
@@ -544,6 +603,14 @@ class AirConditionerAppliance(Appliance):
     @eco_mode.setter
     def eco_mode(self, value: bool | int | str) -> None:
         self._eco_mode = _as_bool(value)
+
+    @property
+    def comfort_sleep(self) -> bool:
+        return self._comfort_sleep
+
+    @comfort_sleep.setter
+    def comfort_sleep(self, value: bool | int | str) -> None:
+        self._comfort_sleep = _as_bool(value)
 
     @property
     def turbo_fan(self) -> bool:
@@ -586,12 +653,32 @@ class AirConditionerAppliance(Appliance):
         self._beep_prompt = _as_bool(value)
 
     @property
-    def sleep(self) -> bool:
-        return self._sleep
+    def vertical_swing(self) -> bool:
+        return self._vertical_swing
 
-    @sleep.setter
-    def sleep(self, value: bool | int | str) -> None:
-        self._sleep = _as_bool(value)
+    @vertical_swing.setter
+    def vertical_swing(self, value: bool | int | str):
+        self._vertical_swing = _as_bool(value)
+
+    @property
+    def horizontal_swing(self) -> bool:
+        return self._horizontal_swing
+
+    @horizontal_swing.setter
+    def horizontal_swing(self, value: bool | int | str):
+        self._horizontal_swing = _as_bool(value)
+
+    @property
+    def particulate_matter_value(self) -> float:
+        return self._particulate_matter_value
+
+    @property
+    def show_screen(self) -> bool:
+        return self._show_screen
+
+    @show_screen.setter
+    def show_screen(self, value: bool | int | str) -> None:
+        self._show_screen = _as_bool(value)
 
     @property
     def fahrenheit(self) -> bool:
@@ -616,7 +703,11 @@ class AirConditionerAppliance(Appliance):
             " purifier=%s,"
             " dryer=%s,"
             " target_temperature=%s,"
-            " sleep=%d,"
+            " indoor_temperature=%s,"
+            " outdoor_temperature=%s,"
+            " vertical_swing=%s"
+            " horizontal_swing=%s"
+            " comfort_sleep=%d,"
             " prompt=%s, supports=%s}"
             % (
                 self.id,
@@ -629,7 +720,11 @@ class AirConditionerAppliance(Appliance):
                 self.purifier,
                 self.dryer,
                 self.target_temperature,
-                self.sleep,
+                self.indoor_temperature,
+                self.outdoor_temperature,
+                self.vertical_swing,
+                self.horizontal_swing,
+                self.comfort_sleep,
                 self.beep_prompt,
                 self.supports,
             )
