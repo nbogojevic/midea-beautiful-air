@@ -413,7 +413,6 @@ class AirConditionerAppliance(Appliance):
         self._vertical_swing: bool = False
         self._horizontal_swing: bool = False
         self._show_screen: bool = True
-        self._show_screen = False
 
         self.supports = {}
 
