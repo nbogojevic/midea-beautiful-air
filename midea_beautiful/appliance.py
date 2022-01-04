@@ -413,7 +413,6 @@ class AirConditionerAppliance(Appliance):
         self._vertical_swing: bool = False
         self._horizontal_swing: bool = False
         self._show_screen: bool = True
-        self._particulate_matter_value: float = 0
         self._show_screen = False
 
         self.supports = {}
@@ -451,7 +450,6 @@ class AirConditionerAppliance(Appliance):
             self._indoor_temperature = response.indoor_temperature
             self.mode = response.mode
             self._outdoor_temperature = response.outdoor_temperature
-            self._particulate_matter_value = response.pmv
             self.purifier = response.purifier
             self.running = bool(response.run_status)
             self.target_temperature = response.target_temperature
@@ -665,10 +663,6 @@ class AirConditionerAppliance(Appliance):
     @horizontal_swing.setter
     def horizontal_swing(self, value: bool | int | str):
         self._horizontal_swing = _as_bool(value)
-
-    @property
-    def particulate_matter_value(self) -> float:
-        return self._particulate_matter_value
 
     @property
     def show_screen(self) -> bool:
