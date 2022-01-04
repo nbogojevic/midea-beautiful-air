@@ -482,7 +482,7 @@ class LanDevice:
     def _appliance_send_8370(self, data: bytes) -> list[bytes]:
         """Sends data using v3 (8370) protocol"""
         if not self._socket or not self._got_tcp_key:
-            _LOGGER.debug("Socket %s closed, creating new socket", self)
+            _LOGGER.log(5, "Socket %s closed, creating new socket", self)
             self._disconnect()
 
             for i in range(self._max_retries):

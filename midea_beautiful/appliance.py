@@ -441,7 +441,7 @@ class AirConditionerAppliance(Appliance):
                         f"{i:2} {data[i]:3} {data[i]:02X} {data[i]:08b}",
                     )
             response = AirConditionerResponse(data)
-            _LOGGER.debug("Decoded response %s", response)
+            _LOGGER.debug("Decoded AC response %s", response)
 
             self._error = response.err_code
             self.comfort_sleep = response.comfort_sleep
