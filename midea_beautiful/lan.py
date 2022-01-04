@@ -414,7 +414,6 @@ class LanDevice:
             else:
                 _LOGGER.log(5, "From %s, got response: %s", self, _Hex(response))
                 if len(response) == 0:
-                    _LOGGER.debug("Socket closed %s", self)
                     self._disconnect()
                     self._retries += 1
                     return b""
