@@ -455,7 +455,7 @@ class AirConditionerAppliance(Appliance):
             self.purifier = response.purifier
             self.running = bool(response.run_status)
             self.target_temperature = response.target_temperature
-            self.turbo_fan = response.turbo
+            self.turbo = response.turbo
             self.turbo_fan = response.turbo_fan
             self.vertical_swing = response.vertical_swing
         else:
