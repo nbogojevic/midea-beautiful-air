@@ -10,6 +10,7 @@ from ifaddr import IP, Adapter, get_adapters
 
 from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
+from midea_beautiful.exceptions import MideaError
 from midea_beautiful.lan import DISCOVERY_MSG, LanDevice
 from midea_beautiful.midea import DISCOVERY_PORT
 from midea_beautiful.version import __version__
@@ -51,7 +52,7 @@ def _get_broadcast_addresses(addresses: list[str] = []) -> list[str]:
             nets.append(localNet)
     networks = list()
     if not nets:
-        _LOGGER.error("No valid networks to send broadcast to")
+        raise MideaError("No valid networks to send broadcast to")
     else:
         for net in nets:
             _LOGGER.debug(
@@ -89,7 +90,7 @@ class MideaDiscovery:
                     if appliance.is_supported:
                         scanned_appliances.add(appliance)
                     else:
-                        _LOGGER.error("Unable to load data for appliance %s", appliance)
+                        _LOGGER.debug("Not supported appliance %s", appliance)
 
         except socket.timeout:
             # If we got timeout, it was enough time to wait for broadcast response

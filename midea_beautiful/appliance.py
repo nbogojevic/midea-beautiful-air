@@ -56,7 +56,9 @@ class Appliance:
 
     @staticmethod
     def supported(appliance_type: str | int) -> bool:
-        return DehumidifierAppliance.supported(appliance_type)
+        return DehumidifierAppliance.supported(
+            appliance_type
+        ) or AirConditionerAppliance.supported(appliance_type)
 
     @staticmethod
     def same_types(type1: str | int, type2: str | int) -> bool:
@@ -235,9 +237,9 @@ class DehumidifierAppliance(Appliance):
                     elif data[i] == 0x24:
                         self.supports["light"] = data[i + 3]
                     else:
-                        _LOGGER.warning("property=%x 0x02", data[i])
+                        _LOGGER.warning("unknown property=%x 0x02", data[i])
                 else:
-                    _LOGGER.warning("property=%x %x", data[i], data[i + 1])
+                    _LOGGER.warning("unknown property=%x %x", data[i], data[i + 1])
                 i += 4
 
     @property

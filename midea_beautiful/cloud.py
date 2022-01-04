@@ -17,6 +17,7 @@ from midea_beautiful.exceptions import (
     CloudAuthenticationError,
     CloudError,
     CloudRequestError,
+    MideaError,
     ProtocolError,
     RetryLaterError,
 )
@@ -242,13 +243,12 @@ class MideaCloud:
             _LOGGER.debug("Lua script url=%s", url)
             payload = requests.get(url)
             if str(hashlib.md5(payload.content).hexdigest()) != str(md5):
-                _LOGGER.error("Invalid fingerprint for %s", url)
-                return
+                raise MideaError(f"Invalid fingerprint for {url}")
             key = hashlib.md5(self._security._appkey.encode()).hexdigest()[:16]
             lua = self._security.aes_decrypt_string(payload.content.decode(), key)
-            _LOGGER.warning("Lua script: %s", lua)
+            _LOGGER.info("Lua script: %s", lua)
         else:
-            _LOGGER.error("Error retrieving lua script")
+            raise MideaError("Error retrieving lua script")
 
     def appliance_transparent_send(self, id: str, data: bytes) -> list[bytes]:
         _LOGGER.debug("Sending to id=%s data=%s", id, data)

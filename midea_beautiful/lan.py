@@ -366,9 +366,10 @@ class LanDevice:
                     self._socket.connect((self.ip, self.port))
 
                 except Exception as error:
-                    _LOGGER.error(
+                    _LOGGER.debug(
                         "Connection error: %s for %s", self, error, exc_info=True
                     )
+                    self._last_error = error
                     self._disconnect()
 
     def _disconnect(self) -> None:
@@ -421,7 +422,7 @@ class LanDevice:
                     self._retries = 0
                     return response
 
-    def _authenticate(self) -> bool:
+    def _authenticate(self):
         if not self.token or not self.key:
             raise AuthenticationError("Missing token/key pair")
         try:
@@ -442,8 +443,7 @@ class LanDevice:
             else:
                 break
         else:
-            _LOGGER.error("Failed to perform handshake")
-            return False
+            raise AuthenticationError("Failed to perform handshake for {self}")
 
         response = response[8:72]
 
@@ -455,10 +455,8 @@ class LanDevice:
             # After authentication, don’t send data immediately,
             # so sleep 500ms.
             sleep(0.5)
-            return True
-        except Exception:
-            _LOGGER.warning("Failed to get TCP key for %s", self)
-            return False
+        except Exception as ex:
+            raise AuthenticationError(f"Failed to get TCP key for {self}") from ex
 
     def _status(self, cmd: MideaCommand, cloud: MideaCloud | None) -> list[bytes]:
         data = self._lan_packet(cmd, cloud is None)
@@ -489,10 +487,12 @@ class LanDevice:
             self._disconnect()
 
             for i in range(self._max_retries):
-                if not self._authenticate():
+                try:
+                    self._authenticate()
+                except MideaError as ex:
                     if i == self._max_retries - 1:
                         _LOGGER.debug("Failed to authenticate %s", self)
-                        raise AuthenticationError(f"Failed to authenticate {self}")
+                        raise ex
                     _LOGGER.debug(
                         "Retrying authenticate, %d out of %d: %s",
                         i + 2,
@@ -520,14 +520,12 @@ class LanDevice:
                 self._retries = 0
                 return packets
             else:
-                _LOGGER.error(
-                    "Unable to send data after %d retries, last error %s for %s",
-                    self._max_retries,
-                    self._last_error,
-                    self,
-                )
+                error = self._last_error
                 self._last_error = ""
-                return []
+                raise MideaNetworkError(
+                    f"Unable to send data after {self._max_retries} retries,"
+                    f" last error {error} for {self}"
+                )
 
         responses, self._buffer = self._security.decode_8370(
             self._buffer + response_buf
@@ -550,14 +548,12 @@ class LanDevice:
                 self._retries = 0
                 return packets
             else:
-                _LOGGER.error(
-                    "Unable to send data after %d retries, last error %s for %s",
-                    self._max_retries,
-                    self._last_error,
-                    self,
-                )
+                error = self._last_error
                 self._last_error = ""
-                return []
+                raise MideaNetworkError(
+                    f"Unable to send data after {self._max_retries} retries,"
+                    f" last error {error} for {self}"
+                )
 
         packets = []
         response_len = len(response_buf)
@@ -635,7 +631,11 @@ class LanDevice:
             _get_udp_id(int(self.id).to_bytes(6, "big")),
         ]:
             self.token, self.key = cloud.get_token(udp_id)
-            if self._authenticate():
+            try:
+                self._authenticate()
+            except MideaError:
+                pass
+            else:
                 _LOGGER.debug("Token valid for %s", udp_id)
                 return True
             # token/key were not valid, forget them
@@ -662,12 +662,10 @@ class LanDevice:
                         raise AuthenticationError(
                             f"Unable to get valid token for {self}"
                         )
-                elif not self._authenticate():
-                    raise AuthenticationError(
-                        f"Unable to authenticate with appliance {self}"
-                    )
+                else:
+                    self._authenticate()
             else:
-                # TODO
+                # No token here
                 pass
         else:
             raise UnsupportedError(f"Appliance {self} protocol is not supported.")
