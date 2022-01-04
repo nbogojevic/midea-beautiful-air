@@ -423,7 +423,7 @@ class LanDevice:
 
     def _authenticate(self) -> bool:
         if not self.token or not self.key:
-            raise AuthenticationError("missing token/key pair")
+            raise AuthenticationError("Missing token/key pair")
         try:
             byte_token = binascii.unhexlify(self.token)
         except binascii.Error as ex:
@@ -790,10 +790,14 @@ def get_appliance_state(
             appliance = LanDevice(data=response, token=token, key=key)
             _LOGGER.log(5, "Appliance %s", appliance)
 
-        except socket.error:
-            raise MideaNetworkError("Could not connect to appliance %s:%d")
-        except socket.timeout:
-            raise MideaNetworkError("Timeout while connecting to appliance %s:%d")
+        except socket.error as ex:
+            raise MideaNetworkError(
+                f"Could not connect to appliance {ip}:{port}"
+            ) from ex
+        except socket.timeout as ex:
+            raise MideaNetworkError(
+                f"Timeout while connecting to appliance {ip}:{port}"
+            ) from ex
         finally:
             sock.close()
     elif id is not None:

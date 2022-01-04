@@ -532,7 +532,7 @@ class Security:
         """
         key = key or self._data_key
         if key is None:
-            raise MideaError("Missing access token")
+            raise MideaError("Missing data key")
         encrypted_data = binascii.unhexlify(data)
 
         cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())
@@ -548,7 +548,7 @@ class Security:
         """
         key = key or self._data_key
         if key is None:
-            raise MideaError("Missing access token")
+            raise MideaError("Missing data key")
 
         raw = data.encode("utf-8")
 
