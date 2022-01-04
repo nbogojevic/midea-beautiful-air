@@ -799,3 +799,6 @@ class AirConditionerResponse:
             self.humidity = data[19]
 
         self.err_code = data[16]
+
+    def __str__(self) -> str:
+        return str(self.__dict__)

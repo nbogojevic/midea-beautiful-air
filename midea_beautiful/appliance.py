@@ -160,7 +160,7 @@ class DehumidifierAppliance(Appliance):
                         f"{i:2} {data[i]:3} {data[i]:02X} {data[i]:08b}",
                     )
             response = DehumidifierResponse(data)
-            _LOGGER.debug("Decoded response %s", response)
+            _LOGGER.debug("DehumidifierResponse %s", response)
 
             self.running = bool(response.run_status)
 
@@ -441,7 +441,7 @@ class AirConditionerAppliance(Appliance):
                         f"{i:2} {data[i]:3} {data[i]:02X} {data[i]:08b}",
                     )
             response = AirConditionerResponse(data)
-            _LOGGER.debug("Decoded AC response %s", response)
+            _LOGGER.debug("AirConditionerResponse %s", response)
 
             self._error = response.err_code
             self.comfort_sleep = response.comfort_sleep

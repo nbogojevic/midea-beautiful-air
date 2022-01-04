@@ -26,6 +26,7 @@ from midea_beautiful.midea import (
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
 )
+from midea_beautiful.util import _Hex
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -251,7 +252,7 @@ class MideaCloud:
             raise MideaError("Error retrieving lua script")
 
     def appliance_transparent_send(self, id: str, data: bytes) -> list[bytes]:
-        _LOGGER.debug("Sending to id=%s data=%s", id, data)
+        _LOGGER.debug("Sending to id=%s data=%s", id, _Hex(data))
         encoded = _encode_as_csv(data)
         _LOGGER.log(5, "Encoded id=%s data=%s", id, encoded)
 

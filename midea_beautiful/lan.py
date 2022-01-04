@@ -385,6 +385,7 @@ class LanDevice:
             self._connect()
             if not self._socket:
                 _LOGGER.debug("Socket not open for %s", self)
+                self._last_error = f"Socket not open for {self}"
                 self._retries += 1
                 return b""
 
@@ -404,16 +405,19 @@ class LanDevice:
                 response = self._socket.recv(1024)
             except socket.timeout as error:
                 _LOGGER.debug("Timeout receiving from %s: %s", self, error)
+                self._last_error = str(error)
                 self._retries += 1
                 return b""
             except OSError as error:
                 _LOGGER.debug("Error receiving from %s: %s", self, error)
+                self._last_error = str(error)
                 self._disconnect()
                 self._retries += 1
                 return b""
             else:
                 _LOGGER.log(5, "From %s, got response: %s", self, _Hex(response))
                 if len(response) == 0:
+                    self._last_error = f"No results from {self}"
                     self._disconnect()
                     self._retries += 1
                     return b""
@@ -686,7 +690,7 @@ class LanDevice:
             self.state.process_response_device_capabilities(responses[-1], 1)
 
         self.refresh(cloud if use_cloud else None)
-        _LOGGER.debug("Appliance data: %r", self)
+        _LOGGER.debug("Identified appliance: %r", self)
 
     def set_state(self, **kwargs) -> None:
         cloud = None
