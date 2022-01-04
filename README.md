@@ -290,6 +290,6 @@ Library is automatically built, packaged and published to [PyPI](https://pypi.or
 * https://github.com/nbogojevic/homeassistant-midea-dehumidifier-lan
 
 
-## Trademark
+## Notice
 
 Midea, Inventor, Comfee', Pro Breeze, and other names are trademarks of their respective owners.
