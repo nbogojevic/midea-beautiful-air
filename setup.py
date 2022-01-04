@@ -38,7 +38,7 @@ setup(
     ],
     entry_points="""
         [console_scripts]
-        midea-beautiful-dehumidifier-cli=midea_beautiful.cli:cli
+        midea-beautiful-air-cli=midea_beautiful.cli:cli
     """,
     install_requires=[
         "cryptography>=3.4",

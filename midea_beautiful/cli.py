@@ -14,12 +14,8 @@ from argparse import ArgumentParser, Namespace
 import logging
 from time import sleep
 
-from midea_beautiful import (
-    appliance_state,
-    connect_to_cloud,
-    find_appliances,
-)
-from midea_beautiful.appliance import set_watch_level
+from midea_beautiful import appliance_state, connect_to_cloud, find_appliances
+from midea_beautiful.appliance import DehumidifierAppliance, set_watch_level
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 
@@ -35,17 +31,19 @@ def output(appliance: LanDevice, show_credentials: bool = False) -> None:
     print(f"  online  = {appliance.online}")
     print(f"  name    = {getattr(appliance.state, 'name')}")
     print(f"  running = {getattr(appliance.state, 'running')}")
-    print(f"  humid%  = {getattr(appliance.state, 'current_humidity')}")
-    print(f"  target% = {getattr(appliance.state, 'target_humidity')}")
-    print(f"  temp    = {getattr(appliance.state, 'current_temperature')}")
-    print(f"  fan     = {getattr(appliance.state, 'fan_speed')}")
-    print(f"  tank    = {getattr(appliance.state, 'tank_full')}")
-    print(f"  mode    = {getattr(appliance.state, 'mode')}")
-    print(f"  ion     = {getattr(appliance.state, 'ion_mode')}")
-    print(f"  filter  = {getattr(appliance.state, 'filter_indicator')}")
-    print(f"  pump    = {getattr(appliance.state, 'pump')}")
-    print(f"  defrost = {getattr(appliance.state, 'defrosting')}")
-    print(f"  sleep   = {getattr(appliance.state, 'sleep')}")
+    if DehumidifierAppliance.supported(appliance.type):
+        print(f"  humid%  = {getattr(appliance.state, 'current_humidity')}")
+        print(f"  target% = {getattr(appliance.state, 'target_humidity')}")
+        print(f"  temp    = {getattr(appliance.state, 'current_temperature')}")
+        print(f"  fan     = {getattr(appliance.state, 'fan_speed')}")
+        print(f"  tank    = {getattr(appliance.state, 'tank_full')}")
+        print(f"  mode    = {getattr(appliance.state, 'mode')}")
+        print(f"  ion     = {getattr(appliance.state, 'ion_mode')}")
+        print(f"  filter  = {getattr(appliance.state, 'filter_indicator')}")
+        print(f"  pump    = {getattr(appliance.state, 'pump')}")
+        print(f"  defrost = {getattr(appliance.state, 'defrosting')}")
+        print(f"  sleep   = {getattr(appliance.state, 'sleep')}")
+
     print(f"  error   = {getattr(appliance.state, 'error_code')}")
     print(f"  supports= {getattr(appliance.state, 'supports')}")
 
@@ -213,8 +211,11 @@ def _add_standard_options(parser: ArgumentParser) -> None:
 def cli() -> None:
     """Command line interface for the library"""
     parser = ArgumentParser(
-        prog="midea-beautiful-dehumidifier-cli",
-        description="Discovers and manages Midea dehumidifiers on local network(s).",
+        prog="midea-beautiful-air-cli",
+        description=(
+            "Discovers and manages Midea air conditioners"
+            " and dehumidifiers on local network(s)."
+        ),
     )
 
     parser.add_argument(
@@ -254,7 +255,7 @@ def cli() -> None:
     parser_set.add_argument("--cloud", action="store_true")
     parser_set.add_argument("--humidity", help="target humidity", default=None)
     parser_set.add_argument("--fan", help="fan strength", default=None)
-    parser_set.add_argument("--mode", help="dehumidifier mode switch", default=None)
+    parser_set.add_argument("--mode", help="mode switch", default=None)
     parser_set.add_argument("--ion", help="ion mode switch", default=None)
     parser_set.add_argument("--on", help="turn on/off", default=None)
     parser_set.add_argument("--prompt", help="tone prompt on/off", default=None)

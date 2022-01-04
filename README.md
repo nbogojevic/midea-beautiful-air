@@ -112,10 +112,10 @@ pip install --upgrade midea-beautiful-air
 ### Command line tool help
 
 ```shell
-midea-beautiful-cli --help
-midea-beautiful-cli discover --help
-midea-beautiful-cli set --help
-midea-beautiful-cli status --help
+midea-beautiful-air-cli --help
+midea-beautiful-air-cli discover --help
+midea-beautiful-air-cli set --help
+midea-beautiful-air-cli status --help
 ```
 
 ### Discovery
@@ -123,24 +123,24 @@ midea-beautiful-cli status --help
 Discover appliances on the local network:
 
 ```shell
-midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
 Show tokens used to connect to appliances via local network
 ```shell
-midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD --credentials
+midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --credentials
 ```
 
 Search for devices by providing explicit network address
 
 ```shell
-midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.3 --credentials
+midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.3 --credentials
 ```
 
 Search for devices by providing explicit network range
 
 ```shell
-midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.2/24 --credentials
+midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.2/24 --credentials
 ```
 
 ### Appliance status
@@ -148,19 +148,19 @@ midea-beautiful-cli discover --account ACCOUNT_EMAIL --password PASSWORD --netwo
 Get status of an appliance using known TOKEN and KEY (e.g. retrieved using `discover` command)
 
 ```shell
-midea-beautiful-cli status --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY
+midea-beautiful-air-cli status --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY
 ```
 
 Get status of an appliance using Midea app credentials
 
 ```shell
-midea-beautiful-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-air-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
 Get status of an appliance via Midea cloud API (note the usage of `--id` and `--cloud` options)
 
 ```shell
-midea-beautiful-cli status --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --cloud
+midea-beautiful-air-cli status --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --cloud
 ```
 
 ### Set appliance attribute
@@ -168,35 +168,35 @@ midea-beautiful-cli status --id APPLIANCE_ID --account ACCOUNT_EMAIL --password 
 Set target relative humidity (0-100)
 
 ```shell
-midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --humidity 55
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --humidity 55
 ```
 Sets operating mode (number 1 to 4)
 ```shell
-midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode 1
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode 1
 ```
 Set fan strength (0-100)
 ```shell
-midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 40
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 40
 ```
 Turn on/off ion mode (0 or 1)
 ```shell
-midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --ion 1
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --ion 1
 ```
 Turn on/off ion mode (0 or 1)
 ```shell
-midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --on 1
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --on 1
 ```
 Turn on/off pump (0 or 1)
 ```shell
-midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --pump 1
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --pump 1
 ```
 Combinations multiple settings
 ```shell
-midea-beautiful-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 60 --humidity 50
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 60 --humidity 50
 ```
 Set target humidity via Midea cloud API (note the usage of `--id` and `--cloud` options)
 ```shell
-midea-beautiful-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --humidity 55 --cloud
+midea-beautiful-air-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --humidity 55 --cloud
 ```
 
 ### Watch appliance status
@@ -206,13 +206,13 @@ Watch appliance status allows to debug packets received when polling it. It will
 Continuously watch status of an appliance using known TOKEN and KEY (e.g. retrieved using `discover` command) with interval of 10 seconds between polling
 
 ```shell
-midea-beautiful-cli watch --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --interval 10
+midea-beautiful-air-cli watch --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --interval 10
 ```
 
 Continuously watch status of an appliance using Midea app credentials with interval of 30 seconds between polling
 
 ```shell
-midea-beautiful-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD --interval 30
+midea-beautiful-air-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD --interval 30
 ```
 
 ### Specifying log level
@@ -222,15 +222,15 @@ Log level is specified using `--log` option:
 Set `DEBUG` level
 
 ```shell
-midea-beautiful-cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-air-cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 Very verbose level (may contain confidential information)
 ```shell
-midea-beautiful-cli --log NOTSET discover --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-air-cli --log NOTSET discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 Set `WARNING` level (default log level if option was not specified)
 ```shell
-midea-beautiful-cli --log WARNING discover --account ACCOUNT_EMAIL --password PASSWORD
+midea-beautiful-air-cli --log WARNING discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
 ## Code examples
@@ -277,7 +277,7 @@ print(f"{appliance!r}")
 
 ## Build the library
 
-Library is automatically built, packaged and published to [PyPI](https://pypi.org/project/midea-beautiful-dehumidifier/) when a Git Hub release is published.
+Library is automatically built, packaged and published to [PyPI](https://pypi.org/project/midea-beautiful-air/) when a Git Hub release is published.
 
 ## Known issues
 
