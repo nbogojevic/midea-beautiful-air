@@ -19,8 +19,7 @@ def midea_command_reset_sequence(value: int = 0) -> None:
 class MideaCommand:
     """Base command interface"""
 
-    def __init__(self) -> None:
-        self.data = bytearray()
+    data = bytearray()
 
     def finalize(self) -> bytes:
         # Add the CRC8
@@ -33,10 +32,7 @@ class MideaCommand:
 
 class MideaSequenceCommand(MideaCommand):
     """Base command with sequence id/unique id"""
-    sequence_idx = 30
-
     def __init__(self, sequence_idx: int = 30) -> None:
-        self.data = bytearray()
         self.sequence_idx = sequence_idx
 
     def finalize(self) -> bytes:
@@ -107,131 +103,128 @@ class DeviceCapabilitiesCommandMore(MideaCommand):
 
 class DehumidifierStatusCommand(MideaSequenceCommand):
     """Command that retrieves dehumidifier status"""
-
-    def __init__(self) -> None:
-        # Command structure
-        self.data = bytearray(
-            [
-                # 0 header
-                0xAA,
-                # 1 command length: N+10
-                0x20,
-                # 2 appliance type 0xAC - airconditioning, 0xA1 - dehumidifier
-                0xA1,
-                # 3 Frame SYN CheckSum
-                0x00,
-                # 4-5 Reserved
-                0x00,
-                0x00,
-                # 6 Message ID
-                0x00,
-                # 7 Frame Protocol Version
-                0x00,
-                # 8 Device Protocol Version
-                0x00,
-                # 9 Message Type: querying is 0x03; setting is 0x02
-                0x03,
-                # Byte0 - Data request/response type:
-                # 0x41 - check status;
-                # 0x40 - Set up
-                0x41,
-                # Byte1
-                0x81,
-                # Byte2 - operational_mode
-                0x00,
-                # Byte3
-                0xFF,
-                # Byte4
-                0x03,
-                # Byte5
-                0xFF,
-                # Byte6
-                0x00,
-                # Byte7 - Room Temperature Request:
-                # 0x02 - indoor_temperature,
-                # 0x03 - outdoor_temperature
-                # when set, this is swing_mode
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                # Message ID
-                0x00,
-                # CRC8
-                0x00,
-                # Checksum
-                0x00,
-            ]
-        )
+    # Command structure
+    data = bytearray(
+        [
+            # 0 header
+            0xAA,
+            # 1 command length: N+10
+            0x20,
+            # 2 appliance type 0xAC - airconditioning, 0xA1 - dehumidifier
+            0xA1,
+            # 3 Frame SYN CheckSum
+            0x00,
+            # 4-5 Reserved
+            0x00,
+            0x00,
+            # 6 Message ID
+            0x00,
+            # 7 Frame Protocol Version
+            0x00,
+            # 8 Device Protocol Version
+            0x00,
+            # 9 Message Type: querying is 0x03; setting is 0x02
+            0x03,
+            # Byte0 - Data request/response type:
+            # 0x41 - check status;
+            # 0x40 - Set up
+            0x41,
+            # Byte1
+            0x81,
+            # Byte2 - operational_mode
+            0x00,
+            # Byte3
+            0xFF,
+            # Byte4
+            0x03,
+            # Byte5
+            0xFF,
+            # Byte6
+            0x00,
+            # Byte7 - Room Temperature Request:
+            # 0x02 - indoor_temperature,
+            # 0x03 - outdoor_temperature
+            # when set, this is swing_mode
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            # Message ID
+            0x00,
+            # CRC8
+            0x00,
+            # Checksum
+            0x00,
+        ]
+    )
 
 
 class DehumidifierSetCommand(MideaSequenceCommand):
     """Command that sets dehumidifier controls"""
 
-    def __init__(self) -> None:
-        self.data = bytearray(
-            [
-                # Sync header
-                0xAA,
-                # Length
-                0x20,
-                # Device type: Dehumidifier
-                0xA1,
-                # Frame synchronization check
-                0x00,
-                # Reserved
-                0x00,
-                0x00,
-                # Message id
-                0x00,
-                # Framework protocol
-                0x00,
-                # Home appliance protocol
-                0x03,
-                # Message Type: querying is 0x03; control is 0x02
-                0x02,
-                # Payload
-                # Data request/response type:
-                # 0x41 - check status
-                # 0x48 - write
-                0x48,
-                # Flags: On bit0 (byte 11)
-                0x00,
-                # Mode (byte 12)
-                0x01,
-                # Fan (byte 13)
-                0x32,
-                0x00,
-                0x00,
-                0x00,
-                # Humidity (byte 17)
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-            ]
-        )
+    data = bytearray(
+        [
+            # Sync header
+            0xAA,
+            # Length
+            0x20,
+            # Device type: Dehumidifier
+            0xA1,
+            # Frame synchronization check
+            0x00,
+            # Reserved
+            0x00,
+            0x00,
+            # Message id
+            0x00,
+            # Framework protocol
+            0x00,
+            # Home appliance protocol
+            0x03,
+            # Message Type: querying is 0x03; control is 0x02
+            0x02,
+            # Payload
+            # Data request/response type:
+            # 0x41 - check status
+            # 0x48 - write
+            0x48,
+            # Flags: On bit0 (byte 11)
+            0x00,
+            # Mode (byte 12)
+            0x01,
+            # Fan (byte 13)
+            0x32,
+            0x00,
+            0x00,
+            0x00,
+            # Humidity (byte 17)
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        ]
+    )
 
     @property
     def running(self) -> bool:
@@ -440,147 +433,145 @@ class DehumidifierResponse:
 class AirConditionerStatusCommand(MideaSequenceCommand):
     """Command that retrieves air conditioner status"""
 
-    def __init__(self) -> None:
-        # Command structure
-        self.data = bytearray(
-            [
-                # 0 header
-                0xAA,
-                # 1 command length: N+10
-                0x20,
-                # 2 appliance type 0xAC - airconditioning, 0xA1 - dehumidifier
-                0xAC,
-                # 3 Frame SYN CheckSum
-                0x00,
-                # 4-5 Reserved
-                0x00,
-                0x00,
-                # 6 Message ID
-                0x00,
-                # 7 Frame Protocol Version
-                0x00,
-                # 8 Device Protocol Version
-                0x00,
-                # 9 Message Type: querying is 0x03; setting is 0x02
-                0x03,
-                # Byte0 - Data request/response type:
-                # 0x41 - check status;
-                # 0x40 - Set up
-                0x41,
-                # Byte1
-                0x81,
-                # Byte2 - operational_mode
-                0x00,
-                # Byte3
-                0xFF,
-                # Byte4
-                0x03,
-                # Byte5
-                0xFF,
-                # Byte6
-                0x00,
-                # Byte7 - Room Temperature Request:
-                # 0x02 - indoor_temperature,
-                # 0x03 - outdoor_temperature
-                # when set, this is swing_mode
-                0x02,
-                # Byte 8
-                0x00,
-                # Byte 9
-                0x00,
-                # Byte 10
-                0x00,
-                # Byte 11
-                0x00,
-                # Byte 12
-                0x00,
-                # Byte 13
-                0x00,
-                # Byte 14
-                0x00,
-                # Byte 15
-                0x00,
-                # Byte 16
-                0x00,
-                # Byte 17
-                0x00,
-                # Byte 18
-                0x00,
-                # Byte 19
-                0x00,
-                # Byte 20
-                # Message ID
-                0x00,
-                # CRC8
-                0x00,
-                # Checksum
-                0x00,
-            ]
-        )
+    # Command structure
+    data = bytearray(
+        [
+            # 0 header
+            0xAA,
+            # 1 command length: N+10
+            0x20,
+            # 2 appliance type 0xAC - airconditioning, 0xA1 - dehumidifier
+            0xAC,
+            # 3 Frame SYN CheckSum
+            0x00,
+            # 4-5 Reserved
+            0x00,
+            0x00,
+            # 6 Message ID
+            0x00,
+            # 7 Frame Protocol Version
+            0x00,
+            # 8 Device Protocol Version
+            0x00,
+            # 9 Message Type: querying is 0x03; setting is 0x02
+            0x03,
+            # Byte0 - Data request/response type:
+            # 0x41 - check status;
+            # 0x40 - Set up
+            0x41,
+            # Byte1
+            0x81,
+            # Byte2 - operational_mode
+            0x00,
+            # Byte3
+            0xFF,
+            # Byte4
+            0x03,
+            # Byte5
+            0xFF,
+            # Byte6
+            0x00,
+            # Byte7 - Room Temperature Request:
+            # 0x02 - indoor_temperature,
+            # 0x03 - outdoor_temperature
+            # when set, this is swing_mode
+            0x02,
+            # Byte 8
+            0x00,
+            # Byte 9
+            0x00,
+            # Byte 10
+            0x00,
+            # Byte 11
+            0x00,
+            # Byte 12
+            0x00,
+            # Byte 13
+            0x00,
+            # Byte 14
+            0x00,
+            # Byte 15
+            0x00,
+            # Byte 16
+            0x00,
+            # Byte 17
+            0x00,
+            # Byte 18
+            0x00,
+            # Byte 19
+            0x00,
+            # Byte 20
+            # Message ID
+            0x00,
+            # CRC8
+            0x00,
+            # Checksum
+            0x00,
+        ]
+    )
 
 
 class AirConditionerSetCommand(MideaSequenceCommand):
     """Command that sets air conditioner controls"""
 
-    def __init__(self) -> None:
-        self.data = bytearray(
-            [
-                # Sync header
-                0xAA,
-                # Length
-                0x23,
-                # Device type: Air conditioner
-                0xAC,
-                # Frame synchronization check
-                0x00,
-                # Reserved
-                0x00,
-                0x00,
-                # Message id
-                0x00,
-                # Framework protocol
-                0x00,
-                # Home appliance protocol
-                0x00,
-                # Message Type: querying is 0x03; control is 0x02
-                0x02,
-                # Payload
-                # Data request/response type:
-                # 0x41 - check status
-                # 0x40 - write
-                0x40,
-                # Flags: On bit0 (byte 11)
-                0x00,
-                # Mode (byte 12)
-                0x00,
-                # Fan (byte 13)
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                # ? (byte 17)
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                # 3 more?
-                0x00,
-                0x00,
-                0x00,
-            ]
-        )
+    data = bytearray(
+        [
+            # Sync header
+            0xAA,
+            # Length
+            0x23,
+            # Device type: Air conditioner
+            0xAC,
+            # Frame synchronization check
+            0x00,
+            # Reserved
+            0x00,
+            0x00,
+            # Message id
+            0x00,
+            # Framework protocol
+            0x00,
+            # Home appliance protocol
+            0x00,
+            # Message Type: querying is 0x03; control is 0x02
+            0x02,
+            # Payload
+            # Data request/response type:
+            # 0x41 - check status
+            # 0x40 - write
+            0x40,
+            # Flags: On bit0 (byte 11)
+            0x00,
+            # Mode (byte 12)
+            0x00,
+            # Fan (byte 13)
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            # ? (byte 17)
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            # 3 more?
+            0x00,
+            0x00,
+            0x00,
+        ]
+    )
 
     @property
     def running(self) -> bool:

@@ -84,7 +84,7 @@ class MideaCloud:
 
         # A session dictionary that holds the login information of
         # the current user
-        self._session = {}
+        self._session: dict = {}
 
         # Allow for multiple threads to initiate requests
         self._api_lock = RLock()
@@ -207,7 +207,7 @@ class MideaCloud:
             return
 
         # Log in and store the session
-        self._session = self.api_request(
+        self._session: dict = self.api_request(
             "user/login",
             {
                 "loginAccount": self._account,
@@ -217,10 +217,9 @@ class MideaCloud:
             },
             authenticate=False,
         )
-
-        if not self._session or not self._session.get("sessionId"):
+        if not self._session.get("sessionId"):
             raise AuthenticationError("Unable to retrieve session id from Midea API")
-        self._security.access_token = self._session.get("accessToken")
+        self._security.access_token = str(self._session.get("accessToken"))
 
     def get_lua_script(
         self, manufacturer="0000", type="0xA1", model="0", sn=None, version="0"
@@ -238,7 +237,7 @@ class MideaCloud:
             },
             key=None,
         )
-        if data := response.get("data", {}) :
+        if data := response.get("data", {}):
             md5 = data.get("md5")
             url = str(data.get("url"))
             _LOGGER.debug("Lua script url=%s", url)
@@ -336,14 +335,14 @@ class MideaCloud:
                 error,
                 message,
             )
-            self._session = None
+            self._session = {}
             self._get_login_id()
             self.authenticate()
             self.list_appliances(True)
 
         def session_restart() -> None:
             _LOGGER.debug("Restarting session: '%s' - '%s'", error, message)
-            self._session = None
+            self._session = {}
             self.authenticate()
 
         def authentication_error() -> None:

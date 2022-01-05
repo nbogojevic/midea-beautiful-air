@@ -303,12 +303,7 @@ def crc8(data: bytes) -> int:
     """8-bit CRC calculation"""
     crc_value: int = 0
     for m in data:
-        k = crc_value ^ m
-        if k > 256:
-            k -= 256
-        if k < 0:
-            k += 256
-        crc_value = crc8_854_table[k]
+        crc_value = crc8_854_table[crc_value ^ m]
     return crc_value
 
 
@@ -515,12 +510,8 @@ class Security:
     @access_token.setter
     def access_token(self, token: str) -> None:
         self._access_token = token
-        if token:
-            md5appkey = md5(self._appkey.encode("utf-8")).hexdigest()[:16]
-
-            self._data_key = self.aes_decrypt_string(self._access_token, md5appkey)
-        else:
-            self._data_key = None
+        md5appkey = md5(self._appkey.encode("utf-8")).hexdigest()[:16]
+        self._data_key = self.aes_decrypt_string(self._access_token, md5appkey)
 
     @property
     def data_key(self) -> str | None:
