@@ -36,7 +36,7 @@ class TestSecurity(unittest.TestCase):
         with self.assertRaises(MideaError):
             security.aes_encrypt_string(query)
         security.access_token = access_token
-        assert security.access_token == access_token
+        self.assertEqual(security.access_token, access_token)
         encrypted_string = security.aes_encrypt_string(query)
         self.assertEqual(expected_encrypted_str, encrypted_string)
 
@@ -93,7 +93,7 @@ class TestSecurity(unittest.TestCase):
             "stamp": 20211226190000,
         }
         sign = security.sign("/v1/user/login/id/get", args)
-        assert expected_sign == sign
+        self.assertEqual(expected_sign, sign)
 
     def test_data_key(self) -> None:
         security = Security(APP_KEY)
@@ -122,9 +122,9 @@ class TestSecurity(unittest.TestCase):
         key_bytes = binascii.unhexlify(key)
         tcp_key = security.tcp_key(binascii.unhexlify(msg_good), key_bytes)
 
-        assert (
-            tcp_key.hex()
-            == "e047884511f9504a074dfeed0451bcff4f63d8d8aa779fa03d3049027d0ac78b"
+        self.assertEqual(
+            tcp_key.hex(),
+            "e047884511f9504a074dfeed0451bcff4f63d8d8aa779fa03d3049027d0ac78b",
         )
 
         msg_bad = (
@@ -133,14 +133,6 @@ class TestSecurity(unittest.TestCase):
         )
         with self.assertRaises(AuthenticationError):
             security.tcp_key(binascii.unhexlify(msg_bad), key_bytes)
-
-    def no_test_decode_8730(self) -> None:
-        security = Security(APP_KEY)
-        msg = "f4fe051b7611d07d54a7f0a5e07ca2beb920ebb829d567559397ded751813801"
-        result, leftover = security.decode_8370(binascii.unhexlify(msg))
-        print(result)
-        print(leftover)
-        assert False
 
     def test_encode_8730(self) -> None:
         security = Security(APP_KEY)
@@ -155,24 +147,24 @@ class TestSecurity(unittest.TestCase):
         encoded = security.encode_8370(msg_bytes, MSGTYPE_ENCRYPTED_REQUEST)
         print(encoded.hex())
         result, incomplete = security.decode_8370(encoded[0:-2])
-        assert len(result) == 0
-        assert incomplete.hex() == encoded[0:-2].hex()
+        self.assertEqual(len(result), 0)
+        self.assertEqual(incomplete.hex(), encoded[0:-2].hex())
 
         result, incomplete = security.decode_8370(encoded)
         print(result[0].hex())
 
-        assert result
-        assert len(result) == 1
-        assert result[0].hex() == msg
-        assert len(incomplete) == 0
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].hex(), msg)
+        self.assertEqual(len(incomplete), 0)
 
         extra = bytearray(encoded)
         extra.extend(b"\x00\x00")
         result, incomplete = security.decode_8370(extra)
-        assert result
-        assert len(result) == 1
-        assert result[0].hex() == msg
-        assert len(incomplete) == 2
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].hex(), msg)
+        self.assertEqual(len(incomplete), 2)
 
         security._tcp_key = b""
         with self.assertRaises(ProtocolError):

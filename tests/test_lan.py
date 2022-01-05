@@ -2,9 +2,11 @@ import binascii
 from datetime import datetime
 from typing import Final
 import unittest
+from unittest.mock import patch
 
 from midea_beautiful.crypto import Security
-from midea_beautiful.lan import LanDevice
+from midea_beautiful.exceptions import MideaError
+from midea_beautiful.lan import LanDevice, get_appliance_state
 from midea_beautiful.midea import (
     APPLIANCE_TYPE_AIRCON,
     APPLIANCE_TYPE_DEHUMIDIFIER,
@@ -124,3 +126,24 @@ class TestLanDevice(unittest.TestCase):
         self.assertEqual("net_ac_9ABC", appliance.ssid)
         self.assertEqual("0xac", appliance.type)
         self.assertEqual("Air conditioner", appliance.state.model)
+
+    def test_update(self):
+        device1 = LanDevice(id=str(0x12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+        device2 = LanDevice(id=str(0x54321), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+        device2.ip = "192.0.100.0"
+        self.assertNotEqual(device1.ip, device2.ip)
+        device1.update(device2)
+        self.assertEqual(device1.ip, device2.ip)
+
+    @patch("midea_beautiful.cloud.MideaCloud")
+    def test_get_appliance_state(self, midea_cloud):
+        with self.assertRaises(MideaError):
+            get_appliance_state()
+        with self.assertRaises(MideaError):
+            get_appliance_state(id=str(0x12345))
+
+        midea_cloud.list_appliances.return_value = []
+        device = get_appliance_state(id=str(0x12345), cloud=midea_cloud, use_cloud=True)
+        self.assertIsNotNone(device)
+        print(device)
+        self.assertEqual(device.id, str(0x12345))

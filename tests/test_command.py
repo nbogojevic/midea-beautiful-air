@@ -28,66 +28,66 @@ class TestCommand(unittest.TestCase):
     def test_dehumidifier_status(self) -> None:
         midea_command_reset_sequence()
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
-        cmd = device.state.refresh_command()
+        cmd = device.state.refresh_command().finalize()
         self.assertEqual(
             "aa20a100000000000003418100ff03ff000000000000000000000000000001294f",
-            cmd.finalize().hex(),
+            cmd.hex(),
         )
 
     def test_dehumidifier_set(self) -> None:
         midea_command_reset_sequence()
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
-        cmd = device.state.apply_command()
+        cmd = device.state.apply_command().finalize()
         self.assertEqual(
             "aa20a100000000000302480000280000003200000000000000000000000001395e",
-            cmd.finalize().hex(),
+            cmd.hex(),
         )
 
     def test_dehumidifier_set_fan_speed(self) -> None:
         midea_command_reset_sequence()
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
         setattr(device.state, "fan_speed", 60)
-        cmd = device.state.apply_command()
+        cmd = device.state.apply_command().finalize()
         self.assertEqual(
             "aa20a1000000000003024800003c0000003200000000000000000000000001dea5",
-            cmd.finalize().hex(),
+            cmd.hex(),
         )
 
     def test_dehumidifier_set_mode(self) -> None:
         midea_command_reset_sequence()
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
         setattr(device.state, "mode", 3)
-        cmd = device.state.apply_command()
+        cmd = device.state.apply_command().finalize()
         self.assertEqual(
             "aa20a1000000000003024800032800000032000000000000000000000000014b49",
-            cmd.finalize().hex(),
+            cmd.hex(),
         )
 
     def test_dehumidifier_set_target_humidity(self) -> None:
         midea_command_reset_sequence()
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
         setattr(device.state, "target_humidity", 45)
-        cmd = device.state.apply_command()
+        cmd = device.state.apply_command().finalize()
         self.assertEqual(
             "aa20a100000000000302480000280000002d000000000000000000000000017626",
-            cmd.finalize().hex(),
+            cmd.hex(),
         )
 
     def test_ac_status(self) -> None:
         midea_command_reset_sequence()
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
-        cmd = device.state.refresh_command().finalize().hex()
+        cmd = device.state.refresh_command().finalize()
         self.assertEqual(
             "aa20ac00000000000003418100ff03ff00020000000000000000000000000171fa",
-            cmd,
+            cmd.hex(),
         )
 
         midea_command_reset_sequence(2)
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
-        cmd = device.state.refresh_command().finalize().hex()
+        cmd = device.state.refresh_command().finalize()
         self.assertEqual(
             "aa20ac00000000000003418100ff03ff000200000000000000000000000003cd9c",
-            cmd,
+            cmd.hex(),
         )
 
     def test_aircon_set_fan(self) -> None:
