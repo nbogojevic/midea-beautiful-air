@@ -44,6 +44,7 @@ _MAX_RETRIES: Final = 3
 
 def _encode_as_csv(data: bytes | bytearray) -> str:
     normalized = []
+    _LOGGER.error(data.hex())
     for b in data:
         if b >= 128:
             b = b - 256
@@ -62,6 +63,23 @@ def _decode_from_csv(data: str) -> bytes:
 
 
 class MideaCloud:
+    # Unique user ID that is separate to the email address
+    _login_id: str = ""
+
+    # A session dictionary that holds the login information of
+    # the current user
+    _session: dict = {}
+
+    # Allow for multiple threads to initiate requests
+    _api_lock = RLock()
+
+    # Count the number of retries for API requests
+    _max_retries = _MAX_RETRIES
+    _retries = 0
+
+    # A list of appliances associated with the account
+    _appliance_list: list[dict] = []
+
     def __init__(
         self,
         appkey: str | None,
@@ -79,24 +97,7 @@ class MideaCloud:
         # Server URL
         self._server_url = server_url
 
-        # An obscure log in ID that is separate to the email address
-        self._login_id: str = ""
-
-        # A session dictionary that holds the login information of
-        # the current user
-        self._session: dict = {}
-
-        # Allow for multiple threads to initiate requests
-        self._api_lock = RLock()
-
-        # Count the number of retries for API requests
-        self._max_retries = _MAX_RETRIES
-        self._retries = 0
-
         self._security = Security(appkey=self._appkey)
-
-        # A list of appliances associated with the account
-        self._appliance_list: list[dict] = []
 
     def api_request(
         self, endpoint: str, args: dict[str, Any] = {}, authenticate=True, key="result"
@@ -165,23 +166,25 @@ class MideaCloud:
             _LOGGER.log(5, "HTTP response: %s", response)
 
         # Check for errors, raise if there are any
-        if response["errorCode"] != "0" and response["errorCode"] != 0:
+        if str(response.get("errorCode", "0")) != "0":
             self.handle_api_error(int(response["errorCode"]), response["msg"])
             # If no exception, then retry
             self._retries += 1
             if self._retries < self._max_retries:
-                _LOGGER.debug(
-                    "Retrying API call %s: %d of",
+                _LOGGER.error(
+                    "Retrying API call %s: %d of %d",
                     endpoint,
                     self._retries,
                     self._max_retries,
                 )
-                return self.api_request(endpoint, args)
+                return self.api_request(
+                    endpoint, args, authenticate=authenticate, key=key
+                )
             else:
                 raise CloudRequestError(f"Too many retries while calling {endpoint}")
 
         self._retries = 0
-        return response[key] if key else response
+        return response.get(key) if key else response
 
     def _get_login_id(self) -> None:
         """
@@ -293,7 +296,7 @@ class MideaCloud:
         home_groups = response["list"]
 
         # Find default home group
-        home_group = next(grp for grp in home_groups if grp["isDefault"] == "1")
+        home_group = next((grp for grp in home_groups if grp["isDefault"] == "1"), None)
         if not home_group:
             _LOGGER.debug("Unable to get default home group from Midea API")
             raise CloudRequestError("Unable to get default home group from Midea API")
@@ -335,15 +338,19 @@ class MideaCloud:
                 error,
                 message,
             )
+            retries = self._retries
             self._session = {}
             self._get_login_id()
             self.authenticate()
             self.list_appliances(True)
+            self._retries = retries
 
         def session_restart() -> None:
             _LOGGER.debug("Restarting session: '%s' - '%s'", error, message)
+            retries = self._retries
             self._session = {}
             self.authenticate()
+            self._retries = retries
 
         def authentication_error() -> None:
             _LOGGER.warning("Authentication error: '%s' - '%s'", error, message)
