@@ -308,26 +308,6 @@ class DehumidifierSetCommand(MideaSequenceCommand):
         self.data[11] &= ~0b01000000  # Clear the beep prompt bit
         self.data[11] |= 0b01000000 if state else 0
 
-    @property
-    def vertical_swing(self) -> bool:
-        """Activates vertical_swing"""
-        return self.data[10] & 0b00001000 != 0
-
-    @vertical_swing.setter
-    def vertical_swing(self, state: bool) -> None:
-        self.data[10] &= ~0b00001000  # Clear the vertical swing bit
-        self.data[10] |= 0b00001000 if state else 0
-
-    @property
-    def horizontal_swing(self) -> bool:
-        """Activates horizontal_swing"""
-        return self.data[10] & 0b00010000 != 0
-
-    @horizontal_swing.setter
-    def horizontal_swing(self, state: bool) -> None:
-        self.data[10] &= ~0b00010000  # Clear the horizontal swing bit
-        self.data[10] |= 0b00010000 if state else 0
-
 
 class DehumidifierResponse:
     """Response from dehumidifier queries"""
@@ -775,17 +755,24 @@ class AirConditionerResponse:
         self.prevent_freezing = (data[10] & 0b00100000) != 0
 
         self.pmv = (data[14] & 0b00001111) * 0.5 - 3.5
-        if self.outdoor_temperature != 0 and self.outdoor_temperature != 0xFF:
+        if data[12] != 0 and data[12] != 0xFF:
             self.outdoor_temperature = (data[12] - 50) / 2
             digit = 0.1 * ((data[15] & 0b11110000) >> 4)
             if self.outdoor_temperature < 0:
                 self.outdoor_temperature -= digit
-        if self.indoor_temperature != 0 and self.indoor_temperature != 0xFF:
+            else:
+                self.outdoor_temperature += digit
+        else:
+            self.outdoor_temperature = None
+        if data[11] != 0 and data[11] != 0xFF:
             self.indoor_temperature = (data[11] - 50) / 2
             digit = 0.1 * (data[15] & 0b00001111)
             if self.indoor_temperature < 0:
                 self.indoor_temperature -= digit
-
+            else:
+                self.indoor_temperature += digit
+        else:
+            self.indoor_temperature = None
         if len(data) > 20:
             self.humidity = data[19]
 

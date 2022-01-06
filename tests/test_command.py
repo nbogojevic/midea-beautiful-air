@@ -1,7 +1,11 @@
+from binascii import unhexlify
 from typing import Final
 import unittest
 
 from midea_beautiful.command import (
+    AirConditionerResponse,
+    DehumidifierResponse,
+    DehumidifierSetCommand,
     DeviceCapabilitiesCommand,
     DeviceCapabilitiesCommandMore,
     midea_command_reset_sequence,
@@ -73,6 +77,26 @@ class TestCommand(unittest.TestCase):
             cmd.hex(),
         )
 
+    def test_dehumidifier_set_various(self) -> None:
+        command = DehumidifierSetCommand()
+        self.assertEqual(command.running, False)
+        self.assertEqual(command.ion_mode, False)
+        self.assertEqual(command.pump_switch_flag, False)
+        self.assertEqual(command.pump_switch, False)
+        self.assertEqual(command.sleep_switch, False)
+        self.assertEqual(command.beep_prompt, False)
+        self.assertEqual(command.target_humidity, 45)
+        self.assertEqual(command.fan_speed, 40)
+        self.assertEqual(command.mode, 0)
+        command.pump_switch_flag = True
+
+        cmd = command.finalize()
+        self.assertEqual(command.pump_switch_flag, True)
+        self.assertEqual(
+            "aa20a100000000000302480000280000002d001000000000000000000000024249",
+            cmd.hex(),
+        )
+
     def test_ac_status(self) -> None:
         midea_command_reset_sequence()
         device = LanDevice(id="12345", appliance_type=APPLIANCE_TYPE_AIRCON)
@@ -139,3 +163,29 @@ class TestCommand(unittest.TestCase):
             "aa23ac000000000000024040142d0000000000001200000000000000000001000000a7b4",
             cmd.hex(),
         )
+
+    def test_dehumidifier_response(self):
+        response = DehumidifierResponse(
+            unhexlify("c80101287f7f003c00000000000000003f5000000000024238")
+        )
+        self.assertEqual(response.current_humidity, 63, "current_humidity")
+        self.assertEqual(response.tank_full, False, "tank_full")
+        self.assertEqual(response.target_humidity, 60, "target_humidity")
+        self.assertEqual(response.off_timer["status"], False)
+        self.assertEqual(response.off_timer["hour"], 31)
+        self.assertEqual(response.on_timer["status"], False)
+        self.assertEqual(response.on_timer["hour"], 0)
+
+    def test_ac_response(self):
+        response = AirConditionerResponse(
+            unhexlify("c80101287f7f003c00000000000000003f5000000000024238")
+        )
+        self.assertIsNone(response.outdoor_temperature)
+        self.assertIsNone(response.indoor_temperature)
+        self.assertEqual(response.target_temperature, 17, "target_temperature")
+        response = AirConditionerResponse(
+            unhexlify("c80101287f7f003c00000040200000003f5000000000024238")
+        )
+        print(response)
+        self.assertEqual(response.outdoor_temperature, -9, "outdoor_temperature")
+        self.assertEqual(response.indoor_temperature, 7, "indoor_temperature")
