@@ -136,7 +136,7 @@ class TestLanDevice(unittest.TestCase):
         self.assertEqual(device1.ip, device2.ip)
 
     @patch("midea_beautiful.cloud.MideaCloud")
-    def test_get_appliance_state(self, midea_cloud):
+    def no_test_get_appliance_state(self, midea_cloud):
         with self.assertRaises(MideaError):
             get_appliance_state()
         with self.assertRaises(MideaError):
@@ -147,3 +147,8 @@ class TestLanDevice(unittest.TestCase):
         self.assertIsNotNone(device)
         print(device)
         self.assertEqual(device.id, str(0x12345))
+        with patch("socket.socket"):
+            device = get_appliance_state(ip="192.0.13.14", cloud=midea_cloud)
+            self.assertIsNotNone(device)
+            print(device)
+            self.assertEqual(device.id, str(0x12345))
