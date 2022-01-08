@@ -1,12 +1,14 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
+from midea_beautiful.util import SPAM, TRACE
+
 # Use colored logs if installed
 try:
     from coloredlogs import install as coloredlogs_install
 except Exception:
 
-    def coloredlogs_install(level) -> None:
+    def coloredlogs_install(level, **kw) -> None:
         pass
 
 
@@ -23,7 +25,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def output(appliance: LanDevice, show_credentials: bool = False) -> None:
-    print(f"id {appliance.id}")
+    print(f"id {appliance.unique_id}")
+    print(f"  id      = {appliance.id}")
     print(f"  addr    = {appliance.ip if appliance.ip else 'Unknown'}")
     print(f"  s/n     = {appliance.sn}")
     print(f"  model   = {appliance.model}")
@@ -51,7 +54,7 @@ def output(appliance: LanDevice, show_credentials: bool = False) -> None:
 
     if show_credentials:
         print(f"  token   = {appliance.token}")
-        print(f"  key     = {appliance.key}")
+        print(f"  k1      = {appliance.k1}")
 
 
 def run_discover_command(args: Namespace) -> None:
@@ -275,8 +278,22 @@ def cli() -> None:
     args = parser.parse_args()
 
     log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
+    logging.addLevelName(TRACE, "TRACE")
+    logging.addLevelName(SPAM, "SPAM")
     try:
-        coloredlogs_install(level=log_level)
+        coloredlogs_install(
+            level=log_level,
+            level_styles=dict(
+                spam=dict(color="white", faint=True),
+                trace=dict(color="green", faint=True),
+                debug=dict(color="green"),
+                verbose=dict(color="blue"),
+                info=dict(),
+                warning=dict(color="yellow"),
+                error=dict(color="red"),
+                critical=dict(color="red", bold=True),
+            ),
+        )
     except Exception:
         logging.basicConfig(level=log_level)
 

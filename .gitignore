@@ -131,3 +131,5 @@ dmypy.json
 .secret*
 
 **/tem*.py
+
+prof

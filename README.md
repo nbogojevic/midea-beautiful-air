@@ -76,7 +76,7 @@ The following air conditioner data is accessible via library:
 
 ## Discovery
 
-This library is able to discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
+This library is able to discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key (K1) combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key (K1) pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
 
 Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful/midea.py](midea_beautiful/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
@@ -98,7 +98,7 @@ Library supports following protocols:
 
 ## Logging
 
-Library logs additional information at log level 5. Credentials information like username, password or token keys should never be logged, but you can use command line tool to display token and key data. 
+Library logs additional information at log levels 5 and 1. Credentials information like username, password or token keys should not be logged on levels 5 and higher, but you can use command line tool to display token and key (K1) data. 
 
 
 ## Command Line Usage

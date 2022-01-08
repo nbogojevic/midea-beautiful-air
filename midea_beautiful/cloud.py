@@ -26,7 +26,7 @@ from midea_beautiful.midea import (
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
 )
-from midea_beautiful.util import _Hex
+from midea_beautiful.util import TRACE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,7 +44,6 @@ _MAX_RETRIES: Final = 3
 
 def _encode_as_csv(data: bytes | bytearray) -> str:
     normalized = []
-    _LOGGER.error(data.hex())
     for b in data:
         if b >= 128:
             b = b - 256
@@ -63,23 +62,6 @@ def _decode_from_csv(data: str) -> bytes:
 
 
 class MideaCloud:
-    # Unique user ID that is separate to the email address
-    _login_id: str = ""
-
-    # A session dictionary that holds the login information of
-    # the current user
-    _session: dict = {}
-
-    # Allow for multiple threads to initiate requests
-    _api_lock = RLock()
-
-    # Count the number of retries for API requests
-    _max_retries = _MAX_RETRIES
-    _retries = 0
-
-    # A list of appliances associated with the account
-    _appliance_list: list[dict] = []
-
     def __init__(
         self,
         appkey: str | None,
@@ -98,6 +80,23 @@ class MideaCloud:
         self._server_url = server_url
 
         self._security = Security(appkey=self._appkey)
+
+        # Unique user ID that is separate to the email address
+        self._login_id: str = ""
+
+        # A session dictionary that holds the login information of
+        # the current user
+        self._session: dict = {}
+
+        # Allow for multiple threads to initiate requests
+        self._api_lock = RLock()
+
+        # Count the number of retries for API requests
+        self._max_retries = _MAX_RETRIES
+        self._retries = 0
+
+        # A list of appliances associated with the account
+        self._appliance_list: list[dict[str, str]] = []
 
     def api_request(
         self, endpoint: str, args: dict[str, Any] = {}, authenticate=True, key="result"
@@ -149,12 +148,12 @@ class MideaCloud:
 
                 data["sign"] = self._security.sign(url, data)
                 if endpoint not in PROTECTED_REQUESTS:
-                    _LOGGER.log(5, "HTTP request %s: %s", endpoint, data)
+                    _LOGGER.log(TRACE, "HTTP request %s: %s", endpoint, data)
                 # POST the endpoint with the payload
                 r = requests.post(url=url, data=data, timeout=9)
                 r.raise_for_status()
                 if endpoint not in PROTECTED_RESPONSES:
-                    _LOGGER.log(5, "HTTP response text: %s", r.text)
+                    _LOGGER.log(TRACE, "HTTP response text: %s", r.text)
 
                 response = json.loads(r.text)
             except RequestException as exc:
@@ -163,7 +162,7 @@ class MideaCloud:
                 ) from exc
 
         if endpoint not in PROTECTED_RESPONSES:
-            _LOGGER.log(5, "HTTP response: %s", response)
+            _LOGGER.log(TRACE, "HTTP response: %s", response)
 
         # Check for errors, raise if there are any
         if str(response.get("errorCode", "0")) != "0":
@@ -171,7 +170,7 @@ class MideaCloud:
             # If no exception, then retry
             self._retries += 1
             if self._retries < self._max_retries:
-                _LOGGER.error(
+                _LOGGER.debug(
                     "Retrying API call %s: %d of %d",
                     endpoint,
                     self._retries,
@@ -254,9 +253,9 @@ class MideaCloud:
             raise MideaError("Error retrieving lua script")
 
     def appliance_transparent_send(self, id: str, data: bytes) -> list[bytes]:
-        _LOGGER.debug("Sending to id=%s data=%s", id, _Hex(data))
+        _LOGGER.debug("Sending to id=%s data=%s", id, data)
         encoded = _encode_as_csv(data)
-        _LOGGER.log(5, "Encoded id=%s data=%s", id, encoded)
+        _LOGGER.log(TRACE, "Encoded id=%s data=%s", id, encoded)
 
         order = self._security.aes_encrypt_string(encoded)
         response = self.api_request(
@@ -265,9 +264,9 @@ class MideaCloud:
         )
 
         decrypted = self._security.aes_decrypt_string(response["reply"])
-        _LOGGER.log(5, "decrypted reply %s", decrypted)
+        _LOGGER.log(TRACE, "decrypted reply %s", decrypted)
         reply = _decode_from_csv(decrypted)
-        _LOGGER.debug("Received from id=%s data=%s", id, reply.hex())
+        _LOGGER.debug("Received from id=%s data=%s", id, reply)
         if len(reply) < 50:
             raise ProtocolError(
                 f"Invalid size of cloud reply expected 50+, was {len(reply)}"
@@ -308,8 +307,23 @@ class MideaCloud:
             "appliance/list/get", {"homegroupId": home_group_id}
         )
 
-        self._appliance_list = response["list"]
+        self._appliance_list = []
+        if response["list"]:
+            for item in response["list"]:
+                app: dict[str, str] = {
+                    "id": item.get("id"),
+                    "name": item.get("name"),
+                    "sn": (
+                        self._security.aes_decrypt_string(item.get("sn"))
+                        if item.get("sn")
+                        else "Unknown"
+                    ),
+                    "type": item.get("type"),
+                    "modelNumber": item.get("modelNumber"),
+                }
+                self._appliance_list.append(app)
         _LOGGER.debug("Midea appliance list results=%s", self._appliance_list)
+
         return self._appliance_list
 
     def get_token(self, udp_id: str) -> Tuple[str, str]:

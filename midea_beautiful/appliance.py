@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from typing import Any
 
 from midea_beautiful.command import (
@@ -15,12 +16,12 @@ from midea_beautiful.command import (
 )
 from midea_beautiful.exceptions import MideaError
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
-from midea_beautiful.util import _Hex, strtobool
+from midea_beautiful.util import SPAM, TRACE, strtobool
 
 _LOGGER = logging.getLogger(__name__)
 
 # Used when watch mechanism is active
-_watch_level: int = 5
+_watch_level: int = SPAM
 
 
 def set_watch_level(level: int) -> None:
@@ -48,8 +49,14 @@ class Appliance:
         requested type.
         """
         if DehumidifierAppliance.supported(appliance_type):
+            _LOGGER.log(
+                TRACE, "Creating DehumidifierAppliance %s %s", id, appliance_type
+            )
             return DehumidifierAppliance(id=id, appliance_type=appliance_type)
         if AirConditionerAppliance.supported(appliance_type):
+            _LOGGER.log(
+                TRACE, "Creating AirConditionerAppliance %s %s", id, appliance_type
+            )
             return AirConditionerAppliance(id=id, appliance_type=appliance_type)
         _LOGGER.warning("Creating unsupported appliance %s %s", id, appliance_type)
         return Appliance(id, appliance_type)
@@ -64,6 +71,12 @@ class Appliance:
     def same_types(type1: str | int, type2: str | int) -> bool:
         if type1 == type2:
             return True
+        if isinstance(type1, int):
+            if Appliance.same_types(hex(type1), type2):
+                return True
+        if isinstance(type2, int):
+            if Appliance.same_types(type1, hex(type2)):
+                return True
         t1 = str(type1).lower()
         t2 = str(type2).lower()
         return t1 == t2 or ("0x" + t1) == t2 or ("0x" + t2) == t1
@@ -148,7 +161,7 @@ class DehumidifierAppliance(Appliance):
             _watch_level,
             "Processing response for dehumidifier id=%s data=%s",
             self._id,
-            _Hex(data),
+            data,
         )
         if len(data) > 0:
             self._online = True
@@ -167,19 +180,7 @@ class DehumidifierAppliance(Appliance):
             self.ion_mode = response.ion_mode
             self.mode = response.mode
             self.target_humidity = response.target_humidity
-            self._current_humidity = int(response.current_humidity)
-            if self._current_humidity < 0:
-                _LOGGER.warning(
-                    "Current humidity measurement less than 0%, was %s",
-                    response.current_humidity,
-                )
-                self._current_humidity = 0
-            elif self._current_humidity > 100:
-                _LOGGER.warning(
-                    "Current humidity measurement grater than 100%, was %s",
-                    response.current_humidity,
-                )
-                self._current_humidity = 0
+            self._current_humidity = response.current_humidity
             self._current_temperature = response.indoor_temperature
             self._defrosting = response.defrosting
             self._error = response.err_code
@@ -237,9 +238,9 @@ class DehumidifierAppliance(Appliance):
                     elif data[i] == 0x24:
                         self.supports["light"] = data[i + 3]
                     else:
-                        _LOGGER.warning("unknown property=%x 0x02", data[i])
+                        _LOGGER.warning("unknown property=%02X02", data[i])
                 else:
-                    _LOGGER.warning("unknown property=%x %x", data[i], data[i + 1])
+                    _LOGGER.warning("unknown property=%02X%02X", data[i], data[i + 1])
                 i += 4
 
     @property
@@ -376,6 +377,7 @@ class DehumidifierAppliance(Appliance):
             " running=%s,"
             " target_humidity=%d, fan_speed=%d, tank_full=%s"
             " current_humidity=%s, current_temperature=%s"
+            " defrosting=%s, filter=%s, tank_level=%s, "
             " error_code=%s, prompt=%s, supports=%s}"
             % (
                 self.id,
@@ -387,6 +389,9 @@ class DehumidifierAppliance(Appliance):
                 self.tank_full,
                 self.current_humidity,
                 self.current_temperature,
+                self.defrosting,
+                self.filter_indicator,
+                self.tank_level,
                 self.error_code,
                 self.beep_prompt,
                 self.supports,
@@ -410,8 +415,8 @@ class AirConditionerAppliance(Appliance):
         self._purifier: bool = False
         self._dryer: bool = False
         self._fahrenheit: bool = False
-        self._indoor_temperature: float = 0
-        self._outdoor_temperature: float = 0
+        self._indoor_temperature: float | None = 0
+        self._outdoor_temperature: float | None = 0
         self._vertical_swing: bool = False
         self._horizontal_swing: bool = False
         self._show_screen: bool = True
@@ -429,7 +434,7 @@ class AirConditionerAppliance(Appliance):
             _watch_level,
             "Processing response for air conditioner id=%s data=%s",
             self._id,
-            _Hex(data),
+            data,
         )
         if len(data) > 0:
             self._online = True
@@ -472,7 +477,7 @@ class AirConditionerAppliance(Appliance):
                 if data[i + 1] == 0x02:
                     if data[i] == 0x14:
                         self.supports["mode"] = data[i + 3]
-                    elif data[i] == 0x2AA:
+                    elif data[i] == 0x2A:
                         self.supports["strong_fan"] = data[i + 3]
                     elif data[i] == 0x1F:
                         self.supports["humidity"] = data[i + 3]
@@ -517,9 +522,10 @@ class AirConditionerAppliance(Appliance):
                     elif data[i] == 0x42:
                         self.supports["prevent_direct_fan"] = data[i + 3]
                     else:
-                        _LOGGER.debug("property=%x 0x02", data[i])
+                        _LOGGER.warning("unknown property=%02X02", data[i])
                 else:
-                    _LOGGER.debug("property=%x %x", data[i], data[i + 1])
+                    _LOGGER.warning("unknown property=%02X%02X", data[i], data[i + 1])
+                i += 4
 
     def refresh_command(self) -> AirConditionerStatusCommand:
         return AirConditionerStatusCommand()
@@ -567,11 +573,11 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def outdoor_temperature(self) -> float:
-        return self._outdoor_temperature
+        return self._outdoor_temperature or sys.float_info.min
 
     @property
     def indoor_temperature(self) -> float:
-        return self._indoor_temperature
+        return self._indoor_temperature or sys.float_info.min
 
     @property
     def fan_speed(self) -> int:
