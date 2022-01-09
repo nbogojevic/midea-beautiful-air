@@ -1,9 +1,8 @@
 """Cryptographic tools."""
 from __future__ import annotations
-import binascii
 
+from binascii import unhexlify
 from hashlib import md5, sha256
-import logging
 from os import urandom
 from typing import Any, Final, Tuple
 from urllib.parse import unquote_plus, urlencode, urlparse
@@ -11,11 +10,7 @@ from urllib.parse import unquote_plus, urlencode, urlparse
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from midea_beautiful.exceptions import (
-    AuthenticationError,
-    MideaError,
-    ProtocolError,
-)
+from midea_beautiful.exceptions import AuthenticationError, MideaError, ProtocolError
 from midea_beautiful.midea import (
     DEFAULT_APPKEY,
     DEFAULT_SIGNKEY,
@@ -24,8 +19,6 @@ from midea_beautiful.midea import (
 )
 
 ENCRYPTED_MESSAGE_TYPES: Final = (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST)
-
-_LOGGER = logging.getLogger(__name__)
 
 
 def _strxor(plain_text: bytes, key: bytes) -> bytes:
@@ -524,7 +517,7 @@ class Security:
         key = key or self._data_key
         if key is None:
             raise MideaError("Missing data key")
-        encrypted_data = binascii.unhexlify(data)
+        encrypted_data = unhexlify(data)
 
         cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())
         decryptor = cipher.decryptor()

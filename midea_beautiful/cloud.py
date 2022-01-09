@@ -21,11 +21,7 @@ from midea_beautiful.exceptions import (
     ProtocolError,
     RetryLaterError,
 )
-from midea_beautiful.midea import (
-    CLOUD_API_SERVER_URL,
-    DEFAULT_APP_ID,
-    DEFAULT_APPKEY,
-)
+from midea_beautiful.midea import CLOUD_API_SERVER_URL, DEFAULT_APP_ID, DEFAULT_APPKEY
 from midea_beautiful.util import TRACE
 
 _LOGGER = logging.getLogger(__name__)

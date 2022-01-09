@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from multiprocessing import RLock
 from typing import ByteString
+
 from midea_beautiful.crypto import crc8
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
 
