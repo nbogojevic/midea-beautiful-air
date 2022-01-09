@@ -1,6 +1,8 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
+from typing import Any
+
 from midea_beautiful.util import SPAM, TRACE
 
 # Use colored logs if installed
@@ -74,7 +76,7 @@ def output(appliance: LanDevice, show_credentials: bool = False) -> None:
         print(f"  k1      = {appliance.k1}")
 
 
-def run_discover_command(args: Namespace) -> None:
+def run_discover_command(args: Namespace) -> int:
     appliances = find_appliances(
         appkey=args.appkey,
         account=args.account,
@@ -84,6 +86,7 @@ def run_discover_command(args: Namespace) -> None:
     )
     for appliance in appliances:
         output(appliance, args.credentials)
+    return 0
 
 
 def _check_ip_id(args: Namespace) -> bool:
@@ -96,9 +99,9 @@ def _check_ip_id(args: Namespace) -> bool:
     return True
 
 
-def run_status_command(args: Namespace) -> None:
+def run_status_command(args: Namespace) -> int:
     if not _check_ip_id(args):
-        return
+        return 7
     _LOGGER.debug("run_status_command args: %r", args)
     if not args.token:
         if args.account and args.password:
@@ -111,7 +114,7 @@ def run_status_command(args: Namespace) -> None:
 
         else:
             _LOGGER.error("Missing token/key or cloud credentials")
-            return
+            return 8
     else:
         appliance = appliance_state(
             ip=args.ip, token=args.token, key=args.key, id=args.id
@@ -123,11 +126,29 @@ def run_status_command(args: Namespace) -> None:
             "Unable to get appliance status %s",
             args.ip if hasattr(args, "ip") else args.id,
         )
+        return 9
+    return 0
 
 
-def run_set_command(args: Namespace) -> None:
+_COMMON_ARGUMENTS = [
+    "account",
+    "appid",
+    "appkey",
+    "cloud",
+    "command",
+    "credentials",
+    "id",
+    "ip",
+    "key",
+    "loglevel",
+    "password",
+    "token",
+]
+
+
+def run_set_command(args: Namespace) -> int:
     if not _check_ip_id(args):
-        return
+        return 7
     cloud = None
     if not args.token:
         if args.account and args.password:
@@ -139,32 +160,56 @@ def run_set_command(args: Namespace) -> None:
             )
         else:
             _LOGGER.error("Missing token/key or cloud credentials")
-            return
+            return 8
     else:
         appliance = appliance_state(
             ip=args.ip, token=args.token, key=args.key, id=args.id
         )
-    if appliance:
-        appliance.set_state(
-            target_humidity=args.humidity,
-            fan_speed=args.fan,
-            mode=args.mode,
-            ion_mode=args.ion,
-            running=args.on,
-            prompt=args.prompt,
-            cloud=cloud,
-        )
-        output(appliance, args.credentials)
-    else:
+
+    if not appliance:
         _LOGGER.error(
             "Unable to get appliance status %s",
             args.ip if hasattr(args, "ip") else args.id,
         )
+        return 9
+
+    all_args = {**vars(args)}
+    typ = type(appliance.state)
+    for a in _COMMON_ARGUMENTS:
+        all_args.pop(a)
+
+    set_args: dict[str, Any] = {}
+    for attr in dir(typ):
+        _LOGGER.info(attr)
+        if not attr.startswith("_") and attr not in _EXCLUDED_PROPERTIES:
+            if all_args.get(attr) is not None:
+                p = getattr(typ, attr)
+                if isinstance(p, property):
+                    _LOGGER.warning(attr)
+                    if p.fset:
+                        set_args[attr] = all_args[attr]
+                    else:
+                        _LOGGER.warning("Read-only attribute '%s'", attr)
+                        return 10
+        all_args.pop(attr, None)
+
+    unused_args = []
+    for u, v in all_args.items():
+        if v is not None:
+            unused_args.append(u)
+    if len(unused_args) > 0:
+        _LOGGER.error("Not applicable options: %s", unused_args)
+        return 11
+    if cloud:
+        set_args["cloud"] = cloud
+    appliance.set_state(**set_args)
+    output(appliance, args.credentials)
+    return 0
 
 
-def run_watch_command(args: Namespace) -> None:
+def run_watch_command(args: Namespace) -> int:
     if not _check_ip_id(args):
-        return
+        return 7
     cloud = None
     if not args.token:
         if args.account and args.password:
@@ -173,27 +218,28 @@ def run_watch_command(args: Namespace) -> None:
             )
         else:
             _LOGGER.error("Missing token/key or cloud credentials")
-            return
-    else:
-        set_watch_level(args.watchlevel)
-        if not _LOGGER.isEnabledFor(args.watchlevel):
-            try:
-                coloredlogs_install(level=args.watchlevel)
-            except Exception:
-                logging.basicConfig(level=args.watchlevel)
-        _LOGGER.info("Watching %s with period %d", args.ip, args.interval)
+            return 8
+
+    set_watch_level(args.watchlevel)
+    if not _LOGGER.isEnabledFor(args.watchlevel):
         try:
-            while True:
-                appliance = appliance_state(
-                    args.ip, token=args.token, key=args.key, cloud=cloud
-                )
-                if appliance:
-                    _LOGGER.log(args.watchlevel, "%r", appliance)
-                else:
-                    _LOGGER.error("Unable to get appliance status %s", args.ip)
-                sleep(args.interval)
-        except KeyboardInterrupt:
-            _LOGGER.info("Finished watching")
+            coloredlogs_install(level=args.watchlevel)
+        except Exception:
+            logging.basicConfig(level=args.watchlevel)
+    _LOGGER.info("Watching %s with period %d", args.ip, args.interval)
+    try:
+        while True:
+            appliance = appliance_state(
+                args.ip, token=args.token, key=args.key, cloud=cloud
+            )
+            if appliance:
+                _LOGGER.log(args.watchlevel, "%r", appliance)
+            else:
+                _LOGGER.error("Unable to get appliance status %s", args.ip)
+            sleep(args.interval)
+    except KeyboardInterrupt:
+        _LOGGER.info("Finished watching")
+    return 0
 
 
 def _add_standard_options(parser: ArgumentParser) -> None:
@@ -228,7 +274,7 @@ def _add_standard_options(parser: ArgumentParser) -> None:
     )
 
 
-def cli() -> None:
+def cli() -> int:
     """Command line interface for the library"""
     parser = ArgumentParser(
         prog="midea-beautiful-air-cli",
@@ -273,12 +319,21 @@ def cli() -> None:
     )
     _add_standard_options(parser_set)
     parser_set.add_argument("--cloud", action="store_true")
-    parser_set.add_argument("--humidity", help="target humidity", default=None)
-    parser_set.add_argument("--fan", help="fan strength", default=None)
-    parser_set.add_argument("--mode", help="mode switch", default=None)
-    parser_set.add_argument("--ion", help="ion mode switch", default=None)
-    parser_set.add_argument("--on", help="turn on/off", default=None)
-    parser_set.add_argument("--prompt", help="tone prompt on/off", default=None)
+
+    attrs = _settings_arguments()
+
+    group = parser_set.add_argument_group("set attribute arguments")
+
+    for attr, item in attrs.items():
+        group.add_argument(
+            f"--{attr}", help=f"{item['desc']})", metavar=item["metavar"], default=None
+        )
+    # parser_set.add_argument("--humidity", help="target humidity", default=None)
+    # parser_set.add_argument("--fan", help="fan strength", default=None)
+    # parser_set.add_argument("--mode", help="mode switch", default=None)
+    # parser_set.add_argument("--ion", help="ion mode switch", default=None)
+    # parser_set.add_argument("--on", help="turn on/off", default=None)
+    # parser_set.add_argument("--prompt", help="tone prompt on/off", default=None)
 
     parser_watch = subparsers.add_parser(
         "watch",
@@ -315,17 +370,47 @@ def cli() -> None:
         logging.basicConfig(level=log_level)
 
     if args.command == "discover":
-        run_discover_command(args)
+        return run_discover_command(args)
 
     elif args.command == "status":
-        run_status_command(args)
+        return run_status_command(args)
 
     elif args.command == "set":
-        run_set_command(args)
+        return run_set_command(args)
 
     elif args.command == "watch":
-        run_watch_command(args)
+        return run_watch_command(args)
 
+    return 1
+
+
+def _settings_arguments():
+    objs = {
+        DehumidifierAppliance: "dehumidifier",
+        AirConditionerAppliance: "air conditioner",
+    }
+    attrs: dict[str, Any] = {}
+    for typ, name in objs.items():
+        for attr in dir(typ):
+            if not attr.startswith("_") and attr not in _EXCLUDED_PROPERTIES:
+                p = getattr(typ, attr)
+                if isinstance(p, property) and p.fset:
+                    metavar = attr.upper()
+                    opt = attr.replace("_", "-")
+                    desc = p.__doc__ or attr.replace("_", " ")
+                    if attrs.get(opt):
+                        attrs[opt]["desc"] = f"{attrs[opt]['desc']}, {name}"
+                    else:
+                        attrs[opt] = {
+                            "desc": f"{desc} ({name}",
+                            "metavar": metavar,
+                        }
+
+    return attrs
+
+
+_EXCLUDED_PROPERTIES = ["name"]
 
 if __name__ == "__main__":
-    cli()
+    ret = cli()
+    exit(ret)

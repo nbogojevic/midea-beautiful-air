@@ -265,6 +265,7 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def running(self) -> bool:
+        """turn on/off"""
         return self._running
 
     @running.setter
@@ -295,6 +296,7 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def ion_mode(self) -> bool:
+        """ion (anion) mode on/off"""
         return self._ion_mode
 
     @ion_mode.setter
@@ -325,6 +327,7 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def mode(self) -> int:
+        """operating mode"""
         return self._mode
 
     @mode.setter
@@ -349,6 +352,7 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def pump(self) -> bool:
+        """water pump on/off"""
         return self._pump
 
     @pump.setter
@@ -357,6 +361,7 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def sleep(self) -> bool:
+        """sleep mode on/off"""
         return self._sleep
 
     @sleep.setter
@@ -365,6 +370,7 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def beep_prompt(self) -> bool:
+        """turn beep prompt on/off"""
         return self._beep_prompt
 
     @beep_prompt.setter
@@ -601,6 +607,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def eco_mode(self) -> bool:
+        """eco mode on/off"""
         return self._eco_mode
 
     @eco_mode.setter
@@ -609,6 +616,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def comfort_sleep(self) -> bool:
+        """sleep comfort mode on/off"""
         return self._comfort_sleep
 
     @comfort_sleep.setter
@@ -621,10 +629,13 @@ class AirConditionerAppliance(Appliance):
 
     @turbo_fan.setter
     def turbo_fan(self, value: bool | int | str) -> None:
+        """turbo fan mode on/off"""
         self._turbo_fan = _as_bool(value)
 
     @property
     def turbo(self) -> bool:
+        """turbo (boost) mode on/off"""
+
         return self._turbo
 
     @turbo.setter
@@ -633,6 +644,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def dryer(self) -> bool:
+        """dryer mode on/off"""
         return self._dryer
 
     @dryer.setter
@@ -641,6 +653,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def purifier(self) -> bool:
+        """dryer mode on/off"""
         return self._purifier
 
     @purifier.setter
@@ -657,6 +670,8 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def vertical_swing(self) -> bool:
+        """fan up/down swing on/off"""
+
         return self._vertical_swing
 
     @vertical_swing.setter
@@ -665,6 +680,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def horizontal_swing(self) -> bool:
+        """fan left/right swing on/off"""
         return self._horizontal_swing
 
     @horizontal_swing.setter
@@ -673,6 +689,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def show_screen(self) -> bool:
+        """display on/off"""
         return self._show_screen
 
     @show_screen.setter
@@ -681,6 +698,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def fahrenheit(self) -> bool:
+        """use Fahrenheit degrees"""
         return self._fahrenheit
 
     @fahrenheit.setter
