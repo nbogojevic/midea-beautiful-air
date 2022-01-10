@@ -1,19 +1,11 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
+import importlib
 import sys
 from typing import Any
 
 from midea_beautiful.util import SPAM, TRACE
-
-# Use colored logs if installed
-try:
-    from coloredlogs import install as coloredlogs_install
-except Exception:
-
-    def coloredlogs_install(level, **kw) -> None:
-        logging.basicConfig(level=level)
-
 
 from argparse import ArgumentParser, Namespace
 import logging
@@ -27,6 +19,14 @@ from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def logs_install(level, **kw) -> None:
+    try:
+        module = importlib.import_module(kw.get("logmodule", "coloredlogs"))
+        module.install(level=level, **kw)
+    except Exception:
+        logging.basicConfig(level=level)
 
 
 def output(appliance: LanDevice, show_credentials: bool = False) -> None:
@@ -51,7 +51,7 @@ def output(appliance: LanDevice, show_credentials: bool = False) -> None:
         print(f"  filter  = {appliance.state.filter_indicator}")
         print(f"  pump    = {appliance.state.pump}")
         print(f"  defrost = {appliance.state.defrosting}")
-        print(f"  sleep   = {appliance.state.sleep}")
+        print(f"  sleep   = {appliance.state.sleep_mode}")
     elif AirConditionerAppliance.supported(appliance.type):
         assert isinstance(appliance.state, AirConditionerAppliance)
         print(f"  running = {appliance.state.running}")
@@ -246,7 +246,7 @@ def cli(argv) -> int:
     log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
     logging.addLevelName(TRACE, "TRACE")
     logging.addLevelName(SPAM, "SPAM")
-    coloredlogs_install(
+    logs_install(
         level=log_level,
         level_styles=dict(
             spam=dict(color="white", faint=True),
