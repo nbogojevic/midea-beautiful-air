@@ -426,7 +426,7 @@ class AirConditionerAppliance(Appliance):
         self._vertical_swing: bool = False
         self._horizontal_swing: bool = False
         self._show_screen: bool = True
-
+        self._error: int = 0
         self.supports = {}
 
     @staticmethod
@@ -709,6 +709,10 @@ class AirConditionerAppliance(Appliance):
     def model(self) -> str:
         return "Air conditioner"
 
+    @property
+    def error_code(self) -> int:
+        return self._error
+
     def __str__(self) -> str:
         return (
             "[Air conditioner]{id=%s, type=%s, "
@@ -724,7 +728,8 @@ class AirConditionerAppliance(Appliance):
             " outdoor_temperature=%s,"
             " vertical_swing=%s"
             " horizontal_swing=%s"
-            " comfort_sleep=%d,"
+            " comfort_sleep=%s,"
+            " error_code=%d,"
             " prompt=%s, supports=%s}"
             % (
                 self.id,
@@ -742,6 +747,7 @@ class AirConditionerAppliance(Appliance):
                 self.vertical_swing,
                 self.horizontal_swing,
                 self.comfort_sleep,
+                self.error_code,
                 self.beep_prompt,
                 self.supports,
             )
