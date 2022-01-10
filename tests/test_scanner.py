@@ -3,6 +3,7 @@ import socket
 from typing import Final
 from unittest.mock import MagicMock, patch
 import pytest
+from midea_beautiful import discover_appliances
 from midea_beautiful.crypto import Security
 from midea_beautiful.exceptions import MideaError
 import midea_beautiful.scanner as scanner
@@ -145,6 +146,40 @@ def test_create_MideaDiscovery():
         mock_socket.return_value = mocked_socket
         discovery = scanner.MideaDiscovery(None)
         assert discovery._socket == mocked_socket
+
+
+def test_discover_appliances(
+    mock_cloud, caplog: pytest.LogCaptureFixture, broadcast_packet, lan_device_mocking
+):
+    # This is same as test_create_find_appliances
+    with (
+        patch("midea_beautiful.scanner.LanDevice", side_effect=lan_device_mocking),
+        patch("socket.socket") as mock_socket,
+    ):
+        mocked_socket = MagicMock()
+        mock_socket.return_value = mocked_socket
+        mocked_socket.recvfrom.side_effect = [
+            (unhexlify(broadcast_packet), ["192.0.4.5"]),
+            (unhexlify(broadcast_packet), ["192.0.4.1"]),
+            socket.timeout("timeout"),
+            socket.timeout("timeout"),
+            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            socket.timeout("timeout"),
+        ]
+        mock_cloud.list_appliances.return_value = [
+            {"id": "456", "name": "name-456", "type": "0xa1", "sn": "X0456"},
+            {"id": "123", "name": "name-123", "type": "0xa1", "sn": "X0123"},
+        ]
+        caplog.clear()
+        res = discover_appliances(cloud=mock_cloud)
+        assert len(res) == 2
+        assert res[0].id == "456"
+        assert res[1].id == "123"
+        assert len(caplog.messages) == 1
+        assert (
+            str(caplog.messages[0])
+            == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
+        )
 
 
 def test_create_find_appliances(
