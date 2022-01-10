@@ -25,6 +25,12 @@ def _as_bool(value: Any) -> bool:
     return strtobool(value) if isinstance(value, str) else bool(value)
 
 
+def _dump_data(data: bytes):
+    if _LOGGER.isEnabledFor(SPAM):
+        for i in range(len(data)):
+            _LOGGER.log(SPAM, "%2d %3d %02X", i, data[i], data[i])
+
+
 class Appliance:
     """Base model for any Midea appliance"""
 
@@ -151,9 +157,7 @@ class DehumidifierAppliance(Appliance):
         )
         if len(data) > 0:
             self._online = True
-            if _LOGGER.isEnabledFor(SPAM):
-                for i in range(len(data)):
-                    _LOGGER.log(SPAM, "%2d %3d %02X", i, data[i], data[i])
+            _dump_data(data)
             response = DehumidifierResponse(data)
             _LOGGER.debug("DehumidifierResponse %s", response)
 
@@ -168,7 +172,7 @@ class DehumidifierAppliance(Appliance):
             self._error = response.err_code
             self._filter_indicator = response.filter_indicator
             self.pump = response.pump_switch
-            self.sleep = response.sleep_switch
+            self.sleep_mode = response.sleep_switch
             self._tank_full = response.tank_full
             self._tank_level = response.tank_level
             self.fan_speed = response.fan_speed
@@ -186,7 +190,7 @@ class DehumidifierAppliance(Appliance):
         cmd.mode = self.mode
         cmd.pump_switch = self.pump
         cmd.running = self.running
-        cmd.sleep_switch = self.sleep
+        cmd.sleep_switch = self.sleep_mode
         cmd.target_humidity = self.target_humidity
         return cmd
 
@@ -342,12 +346,12 @@ class DehumidifierAppliance(Appliance):
         self._pump = _as_bool(value)
 
     @property
-    def sleep(self) -> bool:
+    def sleep_mode(self) -> bool:
         """sleep mode on/off"""
         return self._sleep
 
-    @sleep.setter
-    def sleep(self, value: bool | int | str) -> None:
+    @sleep_mode.setter
+    def sleep_mode(self, value: bool | int | str) -> None:
         self._sleep = _as_bool(value)
 
     @property
@@ -425,9 +429,7 @@ class AirConditionerAppliance(Appliance):
         )
         if len(data) > 0:
             self._online = True
-            if _LOGGER.isEnabledFor(SPAM):
-                for i in range(len(data)):
-                    _LOGGER.log(SPAM, "%2d %3d %02X", i, data[i], data[i])
+            _dump_data(data)
             response = AirConditionerResponse(data)
             _LOGGER.debug("AirConditionerResponse %s", response)
 
@@ -467,7 +469,7 @@ class AirConditionerAppliance(Appliance):
                     elif data[i] == 0x10:
                         self.supports["fan_speed"] = data[i + 3]
                     elif data[i] == 0x25:
-                        for j in range(8):
+                        for j in range(7):
                             self.supports[f"temperature{j}"] = data[i + 3 + j]
                         i += 6
                     elif data[i] == 0x12:
@@ -480,9 +482,9 @@ class AirConditionerAppliance(Appliance):
                         self.supports["fahrenheit"] = data[i + 3]
                     elif data[i] == 0x13:
                         self.supports["heat_8"] = data[i + 3]
-                    elif data[i] == 0x18:
+                    elif data[i] == 0x16:
                         self.supports["electricity"] = data[i + 3]
-                    elif data[i] == 0x13:
+                    elif data[i] == 0x19:
                         self.supports["ptc"] = data[i + 3]
                     elif data[i] == 0x32:
                         self.supports["fan_straight"] = data[i + 3]
