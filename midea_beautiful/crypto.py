@@ -505,8 +505,13 @@ class Security:
     @access_token.setter
     def access_token(self, token: str) -> None:
         self._access_token = token
-        md5appkey = md5(self._appkey.encode("utf-8")).hexdigest()[:16]
-        self._data_key = self.aes_decrypt_string(self._access_token, md5appkey)
+        key = self.md5appkey
+        self._data_key = self.aes_decrypt_string(self._access_token, key)
+
+    @property
+    def md5appkey(self) -> str:
+        """Special generated key from appkey"""
+        return md5(self._appkey.encode("utf-8")).hexdigest()[:16]
 
     @property
     def data_key(self) -> str | None:

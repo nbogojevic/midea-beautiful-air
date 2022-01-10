@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-import hashlib
 import json
 import logging
 from threading import RLock
@@ -23,6 +22,9 @@ from midea_beautiful.exceptions import (
 )
 from midea_beautiful.midea import CLOUD_API_SERVER_URL, DEFAULT_APP_ID, DEFAULT_APPKEY
 from midea_beautiful.util import TRACE
+
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-arguments
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -171,18 +173,18 @@ class MideaCloud:
             self.handle_api_error(int(payload["errorCode"]), payload["msg"])
             # If no exception, then retry
             self._retries += 1
-            if self._retries < self._max_retries:
-                _LOGGER.debug(
-                    "Retrying API call %s: %d of %d",
-                    endpoint,
-                    self._retries,
-                    self._max_retries,
-                )
-                return self.api_request(
-                    endpoint, args, authenticate=authenticate, key=key
-                )
-            else:
+            if self._retries >= self._max_retries:
                 raise CloudRequestError(f"Too many retries while calling {endpoint}")
+
+            _LOGGER.debug(
+                "Retrying API call %s: %d of %d",
+                endpoint,
+                self._retries,
+                self._max_retries,
+            )
+            return self.api_request(
+                endpoint, args, authenticate=authenticate, key=key
+            )
 
         self._retries = 0
         return payload.get(key) if key else payload
@@ -252,7 +254,7 @@ class MideaCloud:
             payload = requests.get(url)
             # We could check that content has not been tampered with:
             # str(hashlib.md5(payload.content).hexdigest()) != str(data["md5"]):
-            key = hashlib.md5(self._security._appkey.encode()).hexdigest()[:16]
+            key = self._security.md5appkey
             lua = self._security.aes_decrypt_string(payload.content.decode(), key)
             return lua
         raise MideaError("Error retrieving lua script")
@@ -288,8 +290,7 @@ class MideaCloud:
             raise ProtocolError(
                 f"Invalid size of cloud reply expected 50+, was {len(reply)}"
             )
-        else:
-            reply = reply[50:]
+        reply = reply[50:]
 
         return [reply]
 
