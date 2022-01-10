@@ -165,38 +165,40 @@ midea-beautiful-air-cli status --id APPLIANCE_ID --account ACCOUNT_EMAIL --passw
 
 ### Set appliance attribute
 
+Following are some examples of usage:
+
 Set target relative humidity (0-100)
 
 ```shell
-midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --humidity 55
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --target-humidity 55
 ```
 Sets operating mode (number 1 to 4)
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode 1
 ```
-Set fan strength (0-100)
-```shell
-midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 40
-```
 Turn on/off ion mode (0 or 1)
 ```shell
-midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --ion 1
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --ion-mode 1
 ```
-Turn on/off ion mode (0 or 1)
+Turn appliance on/off mode (0 or 1)
 ```shell
-midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --on 1
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --running 1
 ```
 Turn on/off pump (0 or 1)
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --pump 1
 ```
-Combinations multiple settings
+Combinations of multiple settings
 ```shell
-midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan 60 --humidity 50
+midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan-speed 60 --target-humidity 50
 ```
 Set target humidity via Midea cloud API (note the usage of `--id` and `--cloud` options)
 ```shell
-midea-beautiful-air-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --humidity 55 --cloud
+midea-beautiful-air-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --target-humidity 55 --cloud
+```
+Get list of all settable attributes:
+```shell
+midea-beautiful-air-cli set --help
 ```
 
 ### Watch appliance status
