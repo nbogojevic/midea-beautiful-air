@@ -16,6 +16,9 @@ from midea_beautiful.midea import DISCOVERY_PORT
 from midea_beautiful.util import SPAM, TRACE
 from midea_beautiful.version import __version__
 
+# pylint: disable=too-few-public-methods
+# pylint: disable=too-many-arguments
+
 _LOGGER = logging.getLogger(__name__)
 
 _BROADCAST_TIMEOUT: Final = 3
