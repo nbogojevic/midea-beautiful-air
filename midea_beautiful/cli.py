@@ -1,6 +1,7 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 from midea_beautiful.util import SPAM, TRACE
@@ -11,7 +12,7 @@ try:
 except Exception:
 
     def coloredlogs_install(level, **kw) -> None:
-        pass
+        logging.basicConfig(level=level)
 
 
 from argparse import ArgumentParser, Namespace
@@ -58,7 +59,7 @@ def output(appliance: LanDevice, show_credentials: bool = False) -> None:
         print(f"  running = {appliance.state.running}")
         print(f"  target  = {appliance.state.target_temperature}")
         print(f"  indoor  = {appliance.state.indoor_temperature}")
-        print(f"  indoor  = {appliance.state.outdoor_temperature}")
+        print(f"  outdoor = {appliance.state.outdoor_temperature}")
         print(f"  fan     = {appliance.state.fan_speed}")
         print(f"  mode    = {appliance.state.mode}")
         print(f"  purify  = {appliance.state.purifier}")
@@ -102,7 +103,6 @@ def _check_ip_id(args: Namespace) -> bool:
 def run_status_command(args: Namespace) -> int:
     if not _check_ip_id(args):
         return 7
-    _LOGGER.debug("run_status_command args: %r", args)
     if not args.token:
         if args.account and args.password:
             cloud = connect_to_cloud(
@@ -123,7 +123,7 @@ def run_status_command(args: Namespace) -> int:
         output(appliance, args.credentials)
     else:
         _LOGGER.error(
-            "Unable to get appliance status %s",
+            "Unable to get appliance status ip=%s",
             args.ip if hasattr(args, "ip") else args.id,
         )
         return 9
@@ -168,7 +168,7 @@ def run_set_command(args: Namespace) -> int:
 
     if not appliance:
         _LOGGER.error(
-            "Unable to get appliance status %s",
+            "Unable to get appliance status id=%s",
             args.ip if hasattr(args, "ip") else args.id,
         )
         return 9
@@ -180,13 +180,14 @@ def run_set_command(args: Namespace) -> int:
 
     set_args: dict[str, Any] = {}
     for attr in dir(typ):
-        _LOGGER.info(attr)
         if not attr.startswith("_") and attr not in _EXCLUDED_PROPERTIES:
             if all_args.get(attr) is not None:
                 p = getattr(typ, attr)
                 if isinstance(p, property):
-                    _LOGGER.warning(attr)
                     if p.fset:
+                        _LOGGER.debug(
+                            "Setting attribute '%s' to %r", attr, all_args[attr]
+                        )
                         set_args[attr] = all_args[attr]
                     else:
                         _LOGGER.warning("Read-only attribute '%s'", attr)
@@ -222,10 +223,7 @@ def run_watch_command(args: Namespace) -> int:
 
     set_watch_level(args.watchlevel)
     if not _LOGGER.isEnabledFor(args.watchlevel):
-        try:
-            coloredlogs_install(level=args.watchlevel)
-        except Exception:
-            logging.basicConfig(level=args.watchlevel)
+        coloredlogs_install(level=args.watchlevel)
     _LOGGER.info("Watching %s with period %d", args.ip, args.interval)
     try:
         while True:
@@ -274,8 +272,41 @@ def _add_standard_options(parser: ArgumentParser) -> None:
     )
 
 
-def cli() -> int:
+def cli(argv) -> int:
     """Command line interface for the library"""
+    parser = configure_argparser()
+    args = parser.parse_args(argv)
+
+    log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
+    logging.addLevelName(TRACE, "TRACE")
+    logging.addLevelName(SPAM, "SPAM")
+    coloredlogs_install(
+        level=log_level,
+        level_styles=dict(
+            spam=dict(color="white", faint=True),
+            trace=dict(color="green", faint=True),
+            debug=dict(color="green"),
+            verbose=dict(color="blue"),
+            info=dict(),
+            warning=dict(color="yellow"),
+            error=dict(color="red"),
+            critical=dict(color="red", bold=True),
+        ),
+    )
+
+    commands = {
+        "discover": run_discover_command,
+        "status": run_status_command,
+        "set": run_set_command,
+        "watch": run_watch_command,
+    }
+
+    fn = commands.get(args.command, lambda _: 1)
+
+    return fn(args)
+
+
+def configure_argparser():
     parser = ArgumentParser(
         prog="midea-beautiful-air-cli",
         description=(
@@ -328,12 +359,6 @@ def cli() -> int:
         group.add_argument(
             f"--{attr}", help=f"{item['desc']})", metavar=item["metavar"], default=None
         )
-    # parser_set.add_argument("--humidity", help="target humidity", default=None)
-    # parser_set.add_argument("--fan", help="fan strength", default=None)
-    # parser_set.add_argument("--mode", help="mode switch", default=None)
-    # parser_set.add_argument("--ion", help="ion mode switch", default=None)
-    # parser_set.add_argument("--on", help="turn on/off", default=None)
-    # parser_set.add_argument("--prompt", help="tone prompt on/off", default=None)
 
     parser_watch = subparsers.add_parser(
         "watch",
@@ -347,41 +372,8 @@ def cli() -> int:
     parser_watch.add_argument(
         "--watchlevel", help="level of watch logging", default=20, type=int
     )
-    args = parser.parse_args()
 
-    log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
-    logging.addLevelName(TRACE, "TRACE")
-    logging.addLevelName(SPAM, "SPAM")
-    try:
-        coloredlogs_install(
-            level=log_level,
-            level_styles=dict(
-                spam=dict(color="white", faint=True),
-                trace=dict(color="green", faint=True),
-                debug=dict(color="green"),
-                verbose=dict(color="blue"),
-                info=dict(),
-                warning=dict(color="yellow"),
-                error=dict(color="red"),
-                critical=dict(color="red", bold=True),
-            ),
-        )
-    except Exception:
-        logging.basicConfig(level=log_level)
-
-    if args.command == "discover":
-        return run_discover_command(args)
-
-    elif args.command == "status":
-        return run_status_command(args)
-
-    elif args.command == "set":
-        return run_set_command(args)
-
-    elif args.command == "watch":
-        return run_watch_command(args)
-
-    return 1
+    return parser
 
 
 def _settings_arguments():
@@ -412,5 +404,5 @@ def _settings_arguments():
 _EXCLUDED_PROPERTIES = ["name"]
 
 if __name__ == "__main__":
-    ret = cli()
+    ret = cli(sys.argv[1:])
     exit(ret)

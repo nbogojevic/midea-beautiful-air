@@ -7,6 +7,7 @@
         "--max-line-length=88"
     ],
     "cSpell.words": [
+        "capsys",
         "Comfee",
         "fset",
         "midea"
