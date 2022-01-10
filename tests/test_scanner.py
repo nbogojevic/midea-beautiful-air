@@ -175,7 +175,7 @@ def test_discover_appliances(
         assert len(res) == 2
         assert res[0].id == "456"
         assert res[1].id == "123"
-        assert len(caplog.messages) == 1
+        assert len(caplog.records) == 1
         assert (
             str(caplog.messages[0])
             == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
@@ -208,7 +208,7 @@ def test_create_find_appliances(
         assert len(res) == 2
         assert res[0].id == "456"
         assert res[1].id == "123"
-        assert len(caplog.messages) == 1
+        assert len(caplog.records) == 1
         assert (
             str(caplog.messages[0])
             == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
@@ -244,7 +244,7 @@ def test_create_find_appliances_changed_id(
         assert res[1].id == "123"
         assert res[1].name == "name-124"
         assert res[1].sn == "X0123"
-        assert len(caplog.messages) == 1
+        assert len(caplog.records) == 1
         assert (
             str(caplog.messages[0])
             == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
@@ -273,7 +273,7 @@ def test_create_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFix
             res = scanner.find_appliances(cloud=mock_cloud)
             assert len(res) == 1
             assert res[0].id == "456"
-            assert len(caplog.messages) == 2
+            assert len(caplog.records) == 2
             assert (
                 str(caplog.messages[0])
                 == "Some appliance(s) where not discovered on local network(s): 0 discovered out of 1"  # noqa: E501

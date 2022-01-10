@@ -1,3 +1,5 @@
+from typing import Final
+import logging
 import pytest
 from midea_beautiful.appliance import (
     AirConditionerAppliance,
@@ -8,7 +10,7 @@ from midea_beautiful.command import MideaCommand
 from midea_beautiful.exceptions import MideaError
 
 
-def test_appliance():
+def test_appliance(caplog: pytest.LogCaptureFixture):
     s = Appliance.instance("44", "99")
     assert s.id == "44"
     assert s.type == "99"
@@ -20,6 +22,14 @@ def test_appliance():
     assert not s.online
     assert isinstance(s.refresh_command(), MideaCommand)
     assert isinstance(s.apply_command(), MideaCommand)
+    with caplog.at_level(logging.DEBUG):
+        caplog.clear()
+        s.process_response(b"")
+        assert len(caplog.records) == 1
+    with caplog.at_level(logging.DEBUG):
+        caplog.clear()
+        s.process_response_device_capabilities(b"")
+        assert len(caplog.records) == 1
 
 
 def test_appliance_same_type():
@@ -111,37 +121,60 @@ def test_dehumidifier_beep():
     assert not s.beep_prompt
 
 
-def test_dehumidifier_device_capabilities(caplog):
+def test_dehumidifier_device_capabilities(caplog: pytest.LogCaptureFixture):
     s = Appliance.instance("44", "a1")
     assert isinstance(s, DehumidifierAppliance)
-    capabilities_no_ion = b"\xb5\x03\x10\x02\x01\x07\x1f\x02\x01\x01 \x02\x01\x01\xcb\\"
-    capabilities_ion = b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x1f\x02\x01\x01 \x02\x01\x01\xabU"  # noqa: E501
-    capabilities_no_auto = (
-        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01 \x02\x01\x01\xcb\\"  # noqa: E501
+    capabilities_no_ion: Final = (
+        b"\xb5\x03\x10\x02\x01\x07\x1f\x02\x01\x01 \x02\x01\x01\xcb\\"
     )
-    capabilities_unknown = (
-        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x02\x01\x01\xcb\\"  # noqa: E501
+    capabilities_ion: Final = (
+        b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x1f\x02\x01\x01 \x02\x01\x01\xabU"
     )
-    capabilities_unknown_extra = (
-        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x01\x01\x01\xcb\\"  # noqa: E501
+    capabilities_no_auto: Final = (
+        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01 \x02\x01\x01\xcb\\"
     )
-
+    capabilities_unknown: Final = (
+        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x02\x01\x01\xcb\\"
+    )
+    capabilities_unknown_extra: Final = (
+        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x01\x01\x01\xcb\\"
+    )
+    capabilities_filter: Final = (
+        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\x17\x02\x01\x01\xcb\\"
+    )
+    capabilities_filter_pump: Final = (
+        b"\xb5\x03\x10\x02\x01\x07\x1d\x02\x01\x01\x17\x02\x01\x01\xcb\\"
+    )
+    capabilities_level_pump: Final = (
+        b"\xb5\x03\x10\x02\x01\x03\x1d\x02\x01\x01\x2d\x02\x01\x01\xcb\\"
+    )
+    capabilities_mode_pump: Final = (
+        b"\xb5\x03\x10\x02\x01\x03\x1d\x02\x01\x01\x14\x02\x01\x04\xcb\\"
+    )
     s.process_response_device_capabilities(capabilities_ion)
     assert s.supports == {"fan_speed": 7, "auto": 1, "dry_clothes": 1, "ion": 1}
     s.process_response_device_capabilities(capabilities_no_ion)
     assert s.supports == {"fan_speed": 7, "auto": 1, "dry_clothes": 1}
+    s.process_response_device_capabilities(capabilities_filter)
+    assert s.supports == {"fan_speed": 7, "filter": 1, "light": 1}
+    s.process_response_device_capabilities(capabilities_filter_pump)
+    assert s.supports == {"fan_speed": 7, "filter": 1, "pump": 1}
+    s.process_response_device_capabilities(capabilities_level_pump)
+    assert s.supports == {"fan_speed": 3, "water_level": 1, "pump": 1}
+    s.process_response_device_capabilities(capabilities_mode_pump)
+    assert s.supports == {"fan_speed": 3, "mode": 4, "pump": 1}
     caplog.clear()
     s.process_response_device_capabilities(capabilities_no_auto)
     assert s.supports == {"fan_speed": 7, "light": 1, "dry_clothes": 1}
-    assert len(caplog.messages) == 0
+    assert len(caplog.records) == 0
     caplog.clear()
     s.process_response_device_capabilities(capabilities_unknown)
-    assert len(caplog.messages) == 1
+    assert len(caplog.records) == 1
     assert caplog.messages[0] == "unknown property=FF02"
     assert s.supports == {"fan_speed": 7, "light": 1}
     caplog.clear()
     s.process_response_device_capabilities(capabilities_unknown_extra)
-    assert len(caplog.messages) == 1
+    assert len(caplog.records) == 1
     assert caplog.messages[0] == "unknown property=FF01"
     assert s.supports == {"fan_speed": 7, "light": 1}
 
@@ -253,39 +286,107 @@ def test_aircon_booleans():
     assert s.show_screen
 
 
-def test_aircon_device_capabilities(caplog):
+def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
     s = Appliance.instance("34", "ac")
     assert isinstance(s, AirConditionerAppliance)
-    capabilities_ion = b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x1f\x02\x01\x01\x2a\x02\x01\x01\xabU"  # noqa: E501
-    capabilities_no_auto = (
+    capabilities_ion: Final = (
+        b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x1f\x02\x01\x01\x2a\x02\x01\x01\xabU"
+    )
+    capabilities_no_auto: Final = (
         b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\x12\x02\x01\x01\xcb\\"
     )
-    capabilities_unknown = (
+    capabilities_unknown: Final = (
         b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x02\x01\x01\xcb\\"
     )
-    capabilities_unknown_extra = (
+    capabilities_unknown_extra: Final = (
         b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x01\x01\x01\xcb\\"
     )
-
+    capabilities_fan: Final = (
+        b"\xb5\x04\x10\x02\x01\x03\x1e\x02\x01\x01\x1f\x02\x01\x01\x21\x02\x01\x01\xabU"
+    )
+    capabilities_fahrenheit_filter_check: Final = (
+        b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x13\x02\x01\x01\x22\x02\x01\x01\xabU"
+    )
+    capabilities_fan_avoid_ptc_fan_straight: Final = (
+        b"\xb5\x04\x10\x02\x01\x07\x33\x02\x01\x01\x19\x02\x01\x01\x32\x02\x01\x01\xabU"
+    )
+    capabilities_self_clean_fan_swing: Final = (
+        b"\xb5\x03\x10\x02\x01\x07\x39\x02\x01\x01\x15\x02\x01\x01\xabU"
+    )
+    capabilities_none: Final = b"\xb5\x00\xabU"
+    capabilities_electricity: Final = (
+        b"\xb5\x03\x16\x02\x01\x01\x18\x02\x01\x01\x17\x02\x01\x01\xabU"
+    )
+    capabilities_several_options: Final = (
+        b"\xb5\x05\x14\x02\x01\x06\x43\x02\x01\x01\x30\x02\x01\x01\x42\x02\x01\x01"
+        b"\x18\x02\x01\x01\xabU"
+    )
+    capabilities_several_options_speed: Final = (
+        b"\xb5\x05\x14\x02\x01\x06\x43\x02\x01\x01\x30\x02\x01\x01"
+        b"\x25\x02\x01\x01\x02\x11\x12\x21\x22\x31\x18\x02\x01\x01\xabU"
+    )
+    capabilities_not_b5: Final = (
+        b"\xb3\x03\x16\x02\x01\x01\x18\x02\x01\x01\x17\x02\x01\x01\xabU"
+    )
     s.process_response_device_capabilities(capabilities_ion)
     assert s.supports == {"anion": 1, "fan_speed": 7, "humidity": 1, "strong_fan": 1}
+    s.process_response_device_capabilities(capabilities_fan)
+    assert s.supports == {"anion": 1, "fan_speed": 3, "humidity": 1, "filter_check": 1}
+    s.process_response_device_capabilities(capabilities_fahrenheit_filter_check)
+    assert s.supports == {"anion": 1, "fan_speed": 7, "fahrenheit": 1, "heat_8": 1}
+    s.process_response_device_capabilities(capabilities_fan_avoid_ptc_fan_straight)
+    assert s.supports == {"ptc": 1, "fan_speed": 7, "fan_straight": 1, "fan_avoid": 1}
+    s.process_response_device_capabilities(capabilities_self_clean_fan_swing)
+    assert s.supports == {"fan_speed": 7, "self_clean": 1, "fan_swing": 1}
+    s.process_response_device_capabilities(capabilities_electricity)
+    assert s.supports == {"electricity": 1, "no_fan_sense": 1, "filter_reminder": 1}
+    s.process_response_device_capabilities(capabilities_several_options)
+    assert s.supports == {
+        "energy_save_on_absence": 1,
+        "mode": 6,
+        "fa_no_fan_sense": 1,
+        "prevent_direct_fan": 1,
+        "no_fan_sense": 1,
+    }
+    s.process_response_device_capabilities(capabilities_several_options_speed)
+    assert s.supports == {
+        "energy_save_on_absence": 1,
+        "mode": 6,
+        "no_fan_sense": 1,
+        "fa_no_fan_sense": 1,
+        "temperature0": 1,
+        "temperature1": 2,
+        "temperature2": 17,
+        "temperature3": 18,
+        "temperature4": 33,
+        "temperature5": 34,
+        "temperature6": 49,
+    }
+    s.process_response_device_capabilities(capabilities_none)
+    assert s.supports == {}
+    with caplog.at_level(logging.DEBUG):
+        caplog.clear()
+        s.process_response_device_capabilities(capabilities_not_b5)
+        assert len(caplog.records) == 1
+        assert caplog.records[0].levelno == logging.DEBUG
+        assert caplog.messages[0] == "Not a B5 response"
     caplog.clear()
     s.process_response_device_capabilities(capabilities_no_auto)
     assert s.supports == {"eco": 1, "screen_display": 1, "fan_speed": 7}
-    assert len(caplog.messages) == 0
+    assert len(caplog.records) == 0
     caplog.clear()
     s.process_response_device_capabilities(capabilities_unknown)
     assert s.supports == {"fan_speed": 7, "screen_display": 1}
-    assert len(caplog.messages) == 1
+    assert len(caplog.records) == 1
     assert caplog.messages[0] == "unknown property=FF02"
     caplog.clear()
     s.process_response_device_capabilities(capabilities_unknown_extra)
-    assert len(caplog.messages) == 1
+    assert len(caplog.records) == 1
     assert caplog.messages[0] == "unknown property=FF01"
     assert s.supports == {"fan_speed": 7, "screen_display": 1}
 
 
-def test_aircon_empty_response():
+def test_aircon_empty_response(caplog: pytest.LogCaptureFixture):
     s = Appliance.instance("34", "ac")
     assert isinstance(s, AirConditionerAppliance)
     s._online = True
@@ -295,4 +396,17 @@ def test_aircon_empty_response():
     s.process_response(
         b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
     )
+
+
+def test_dump_data(caplog: pytest.LogCaptureFixture):
+    s = Appliance.instance("34", "ac")
+    assert isinstance(s, AirConditionerAppliance)
+    with caplog.at_level(logging.NOTSET):
+        caplog.clear()
+        sample_buf: Final = b"\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
+        s.process_response(sample_buf)
+        assert len(caplog.records) > len(sample_buf)
+        assert any(r.levelno < logging.DEBUG for r in caplog.records)
+        assert any(" 0  19 13" in m for m in caplog.messages)
+        assert any("12   0 00" in m for m in caplog.messages)
     assert s.online

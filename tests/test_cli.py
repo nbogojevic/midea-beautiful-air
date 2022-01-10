@@ -1,9 +1,12 @@
 from argparse import Namespace
-from unittest.mock import MagicMock, patch
+import logging
+from unittest.mock import MagicMock, call, patch
 import pytest
 import pytest_socket
+from midea_beautiful import connect_to_cloud
 from midea_beautiful.cli import (
     cli,
+    logs_install,
     configure_argparser,
     output,
     run_discover_command,
@@ -144,7 +147,7 @@ def test_status_no_appliance(
         caplog.clear()
         res = run_status_command(namespace)
         assert res == 9
-        assert len(caplog.messages) == 1
+        assert len(caplog.records) == 1
         assert caplog.messages[0], "Unable to get appliance status for '46'"
 
 
@@ -192,7 +195,7 @@ def test_run_cli(caplog: pytest.LogCaptureFixture):
             "test",
         ]
     )
-    assert len(caplog.messages) == 1
+    assert len(caplog.records) == 1
     assert caplog.messages[0] == "Missing ip or appliance id"
     assert ret == 7
 
@@ -279,5 +282,24 @@ def test_set_no_status(
         caplog.clear()
         res = run_set_command(namespace)
         assert res == 9
-        assert len(caplog.messages) == 1
+        assert len(caplog.records) == 1
         assert caplog.messages[0], "Unable to get appliance status for '416'"
+
+
+def test_connect_to_cloud(mock_cloud: MagicMock):
+    with patch("midea_beautiful.MideaCloud", return_value=mock_cloud) as constructor:
+        cloud = connect_to_cloud("user@example.com", "pa55w0rd")
+        assert cloud is mock_cloud
+        assert mock_cloud.mock_calls[0] == call.authenticate()
+        assert constructor.mock_calls[0] == call(
+            "3742e9e5842d4ad59c2db887e12449f9", "user@example.com", "pa55w0rd", 1017
+        )
+
+
+def test_coloredlogs():
+    with patch("midea_beautiful.cli.logging", return_value=MagicMock()) as log:
+        logs_install(logging.DEBUG, logmodule="notexisting")
+        assert log.mock_calls == [call.basicConfig(level=10)]
+    with patch("midea_beautiful.cli.logging", return_value=MagicMock()) as log:
+        logs_install(logging.DEBUG)
+        assert log.mock_calls == []

@@ -1,4 +1,5 @@
 from binascii import unhexlify
+from contextlib import contextmanager
 from datetime import datetime
 from pytest import LogCaptureFixture
 import socket
@@ -8,7 +9,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from midea_beautiful.crypto import Security
-from midea_beautiful.exceptions import MideaError, MideaNetworkError
+from midea_beautiful.exceptions import (
+    AuthenticationError,
+    MideaError,
+    MideaNetworkError,
+)
 from midea_beautiful.lan import LanDevice, get_appliance_state
 from midea_beautiful.midea import (
     APPLIANCE_TYPE_AIRCON,
@@ -27,6 +32,15 @@ BROADCAST_PAYLOAD: Final = (
     "00000000000000"
     "123456789abc069fcd0300080103010000000000000000000000000000000000000000"
 )
+
+
+@contextmanager
+def at_sleep(sleep: float):
+    LanDevice._sleep_interval = sleep
+    try:
+        yield
+    finally:
+        LanDevice._sleep_interval = LanDevice._DEFAULT_SLEEP_INTERVAL
 
 
 def test_lan_packet_header_ac() -> None:
@@ -232,7 +246,7 @@ def test_get_appliance_state_set_state_non_existing(
     # with self.assertLogs("midea_beautiful.lan", logging.WARNING):
     caplog.clear()
     device.set_state(cloud=mock_cloud, non_existing_property="12")
-    assert len(caplog.messages) == 1
+    assert len(caplog.records) == 1
     assert (
         caplog.messages[0]
         == "Unknown state attribute non_existing_property for id=22222 ip=None:6444 version=3"  # noqa: E501
@@ -256,9 +270,10 @@ def test_get_appliance_state_lan(mock_cloud):
                 ],
                 b"",
             )
-            device = get_appliance_state(
-                ip="192.0.13.14", cloud=mock_cloud, security=mock_security
-            )
+            with at_sleep(0.001):
+                device = get_appliance_state(
+                    ip="192.0.13.14", cloud=mock_cloud, security=mock_security
+                )
             assert device is not None
             assert device.id == "2934580344864"
             assert device.model == "Dehumidifier"
@@ -326,3 +341,90 @@ def test_request():
         assert result == b""
         assert device._retries == 4
         assert "test-os-error" in str(device._last_error)
+
+
+def test_authenticate():
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    with pytest.raises(AuthenticationError) as ex:
+        device._authenticate()
+    assert ex.value.message == "Missing token/key pair"
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    device.token = "HASTOKEN"
+    device.k1 = ""
+    with pytest.raises(AuthenticationError) as ex:
+        device._authenticate()
+    assert ex.value.message == "Missing token/key pair"
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    device.token = "INVALID"
+    device.k1 = "HAS-K1"
+    with pytest.raises(AuthenticationError) as ex:
+        device._authenticate()
+    assert "Invalid token" in ex.value.message
+    device = LanDevice(id=str(54321), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    device.token = "C20C7C023E1FA937BABA24D3EBABA87BABAFF07A12AA808DBABAA768BABA94130012000000000000000000003400000000000000560000000000000000000000"  # noqa: E501
+    device.k1 = "0012000000000000000000003400000000000000560000000000000000000000"
+    with patch.object(device, "_request", return_value=b""):
+        with pytest.raises(AuthenticationError) as ex, at_sleep(0.001):
+            device._authenticate()
+        assert "Failed to perform handshake for id=54321" in ex.value.message
+
+
+def test_appliance_send_8370():
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    with patch.object(device, "_authenticate", side_effect=MideaError("test")):
+        with pytest.raises(MideaError) as ex, at_sleep(0.001):
+            device._appliance_send_8370(b"\x00")
+        assert ex.value.message == "test"
+
+
+def test_appliance_send_v2():
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    device.version = 2
+    with patch.object(device, "_request", return_value=b""):
+        with pytest.raises(MideaError) as ex, at_sleep(0.001):
+            device.appliance_send_lan(b"\x00")
+        assert (
+            ex.value.message
+            == "Unable to send data after 3 retries, last error empty reply for id=12345 ip=None:6444 version=2"  # noqa: E501
+        )
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    device.version = 2
+    with patch.object(device, "_request", side_effect=[b"", b"", b"\x00"]):
+        with pytest.raises(MideaError) as ex, at_sleep(0.001):
+            device.appliance_send_lan(b"\x00")
+        assert (
+            ex.value.message
+            == "Unknown response format id=12345 ip=None:6444 version=2 b'\\x00'"
+        )
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    device.version = 2
+    reply_5a5a: Final = b"ZZ\x01\x11X\x00 \x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xe2\xc2\x03\x00\x00\x1d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x8b\x0c\x05\x8f=\xcbml\xff\x95\x16\xd1c\x9e\xc2\xcf\xa1\xdd\xe0\x82\\\xdc\x94\x1aR\x0eFV\xecq7\xff\x96\x0c{Vdt\xde\xe0\xd2}r\xb7>B\xde\xce"  # noqa: E501
+    with patch.object(device, "_request", side_effect=[reply_5a5a]):
+        packets = device.appliance_send_lan(b"\x00")
+        assert len(packets) == 1
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    device.version = 2
+    reply_aa: Final = unhexlify(
+        "aa20a100000000000302480000280000003200000000000000000000000001395e"
+    )
+    with patch.object(device, "_request", side_effect=[reply_aa]):
+        packets = device.appliance_send_lan(b"\x00")
+        assert len(packets) == 1
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    device.version = 2
+    with patch.object(
+        device,
+        "_request",
+        side_effect=[b"", b"", reply_aa],
+    ), at_sleep(0.001):
+        packets = device.appliance_send_lan(b"\x00")
+        assert len(packets) == 1
+
+
+def test_appliance_is_identified():
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    with patch.object(device, "identify", side_effect=MideaError("test")):
+        assert not device.is_identified()
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    with patch.object(device, "identify", return_value=True):
+        assert device.is_identified()

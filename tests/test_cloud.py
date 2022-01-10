@@ -1,7 +1,8 @@
 import json
 from typing import Final
-import pytest
+from unittest.mock import patch
 
+import pytest
 from requests.exceptions import RequestException
 import requests_mock
 
@@ -10,6 +11,7 @@ from midea_beautiful.exceptions import (
     CloudAuthenticationError,
     CloudError,
     CloudRequestError,
+    MideaError,
     RetryLaterError,
 )
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
@@ -322,7 +324,7 @@ def test_get_token(
     assert "" == key
 
 
-def test_appliance_transparent_send(cloud_client, for_login):
+def test_appliance_transparent_send(cloud_client, for_login: requests_mock.Mocker):
     for_login.post(
         "https://mapp.appsmb.com/v1/appliance/transparent/send",
         text=_j(
@@ -353,3 +355,23 @@ def test_appliance_transparent_send(cloud_client, for_login):
         result[0].hex()
         == "412100ff030000020000000000000000000000000b24a400000000000000000000000000000000"  # noqa: E501
     )
+
+
+def test_lua_script(cloud_client: MideaCloud, for_login: requests_mock.Mocker):
+    for_login.post(
+        "https://mapp.appsmb.com/v1/appliance/protocol/lua/luaGet",
+        text=_j({"md5": "12345", "url": "http://test.example.com/script.lua"}),
+    )
+    with pytest.raises(MideaError) as ex:
+        cloud_client.get_lua_script(sn="456", manufacturer="1234")
+    assert ex.value.message == "Error retrieving lua script"
+    for_login.post(
+        "https://mapp.appsmb.com/v1/appliance/protocol/lua/luaGet",
+        text=_j(
+            {"data": {"md5": "12345", "url": "http://test.example.com/script.lua"}}
+        ),
+    )
+    with patch.object(cloud_client._security, "aes_decrypt_string", return_value="LUA"):
+        for_login.get("http://test.example.com/script.lua", text="dummy")
+        res = cloud_client.get_lua_script(sn="456", manufacturer="1234")
+        assert res == "LUA"
