@@ -40,10 +40,10 @@ _MAX_RETRIES: Final = 3
 
 def _encode_as_csv(data: bytes | bytearray) -> str:
     normalized = []
-    for b in data:
-        if b >= 128:
-            b = b - 256
-        normalized.append(str(b))
+    for byt in data:
+        if byt >= 128:
+            byt = byt - 256
+        normalized.append(str(byt))
 
     string = ",".join(normalized)
     return string
@@ -51,13 +51,14 @@ def _encode_as_csv(data: bytes | bytearray) -> str:
 
 def _decode_from_csv(data: str) -> bytes:
     int_data = [int(a) for a in data.split(",")]
-    for i in range(len(int_data)):
-        if int_data[i] < 0:
-            int_data[i] = int_data[i] + 256
+    for i, value in enumerate(int_data):
+        if value < 0:
+            int_data[i] = value + 256
     return bytes(int_data)
 
 
 class MideaCloud:
+    """Client API for Midea cloud"""
     def __init__(
         self,
         appkey: str | None,
@@ -95,7 +96,11 @@ class MideaCloud:
         self._appliance_list: list[dict[str, str]] = []
 
     def api_request(
-        self, endpoint: str, args: dict[str, Any] = {}, authenticate=True, key="result"
+        self,
+        endpoint: str,
+        args: dict[str, Any] = None,
+        authenticate=True,
+        key="result",
     ) -> Any:
         """
         Sends an API request to the Midea cloud service and returns the
@@ -114,8 +119,9 @@ class MideaCloud:
         Returns:
             dict: value of result key in json response
         """
+        args = args or {}
         with self._api_lock:
-            response = {}
+            payload = {}
 
             try:
                 if authenticate:
@@ -146,23 +152,23 @@ class MideaCloud:
                 if endpoint not in PROTECTED_REQUESTS:
                     _LOGGER.log(TRACE, "HTTP request %s: %s", endpoint, data)
                 # POST the endpoint with the payload
-                r = requests.post(url=url, data=data, timeout=9)
-                r.raise_for_status()
+                response = requests.post(url=url, data=data, timeout=9)
+                response.raise_for_status()
                 if endpoint not in PROTECTED_RESPONSES:
-                    _LOGGER.log(TRACE, "HTTP response text: %s", r.text)
+                    _LOGGER.log(TRACE, "HTTP response text: %s", response.text)
 
-                response = json.loads(r.text)
+                payload = json.loads(response.text)
             except RequestException as exc:
                 raise CloudRequestError(
                     f"Request error {exc} while calling {endpoint}"
                 ) from exc
 
         if endpoint not in PROTECTED_RESPONSES:
-            _LOGGER.log(TRACE, "HTTP response: %s", response)
+            _LOGGER.log(TRACE, "HTTP response: %s", payload)
 
         # Check for errors, raise if there are any
-        if str(response.get("errorCode", "0")) != "0":
-            self.handle_api_error(int(response["errorCode"]), response["msg"])
+        if str(payload.get("errorCode", "0")) != "0":
+            self.handle_api_error(int(payload["errorCode"]), payload["msg"])
             # If no exception, then retry
             self._retries += 1
             if self._retries < self._max_retries:
@@ -179,7 +185,7 @@ class MideaCloud:
                 raise CloudRequestError(f"Too many retries while calling {endpoint}")
 
         self._retries = 0
-        return response.get(key) if key else response
+        return payload.get(key) if key else payload
 
     def _get_login_id(self) -> None:
         """
@@ -220,7 +226,12 @@ class MideaCloud:
         self._security.access_token = str(self._session.get("accessToken"))
 
     def get_lua_script(
-        self, manufacturer="0000", type="0xA1", model="0", sn=None, version="0"
+        self,
+        manufacturer="0000",
+        appliance_type="0xA1",
+        model="0",
+        serial_number=None,
+        version="0",
     ):
         """Retrieves Lua script used by mobile app"""
         response: dict = self.api_request(
@@ -228,9 +239,9 @@ class MideaCloud:
             {
                 "iotAppId": DEFAULT_APP_ID,
                 "applianceMFCode": manufacturer,
-                "applianceType": type,
+                "applianceType": appliance_type,
                 "modelNumber": model,
-                "applianceSn": sn,
+                "applianceSn": serial_number,
                 "version": version,
             },
             key=None,
@@ -244,24 +255,35 @@ class MideaCloud:
             key = hashlib.md5(self._security._appkey.encode()).hexdigest()[:16]
             lua = self._security.aes_decrypt_string(payload.content.decode(), key)
             return lua
-        else:
-            raise MideaError("Error retrieving lua script")
+        raise MideaError("Error retrieving lua script")
 
-    def appliance_transparent_send(self, id: str, data: bytes) -> list[bytes]:
-        _LOGGER.debug("Sending to id=%s data=%s", id, data)
+    def appliance_transparent_send(self, appliance_id: str, data: bytes) -> list[bytes]:
+        """Sends payload to appliance via cloud as if it was sent locally.
+
+        Args:
+            appliance_id (str): Cloud appliance id
+            data (bytes): Payload to send
+
+        Raises:
+            ProtocolError: If there was an issue sending payload
+
+        Returns:
+            list[bytes]: List of reply payloads
+        """
+        _LOGGER.debug("Sending to id=%s data=%s", appliance_id, data)
         encoded = _encode_as_csv(data)
-        _LOGGER.log(TRACE, "Encoded id=%s data=%s", id, encoded)
+        _LOGGER.log(TRACE, "Encoded id=%s data=%s", appliance_id, encoded)
 
         order = self._security.aes_encrypt_string(encoded)
         response = self.api_request(
             "appliance/transparent/send",
-            {"order": order, "funId": "0000", "applianceId": id},
+            {"order": order, "funId": "0000", "applianceId": appliance_id},
         )
 
         decrypted = self._security.aes_decrypt_string(response["reply"])
         _LOGGER.log(TRACE, "decrypted reply %s", decrypted)
         reply = _decode_from_csv(decrypted)
-        _LOGGER.debug("Received from id=%s data=%s", id, reply)
+        _LOGGER.debug("Received from id=%s data=%s", appliance_id, reply)
         if len(reply) < 50:
             raise ProtocolError(
                 f"Invalid size of cloud reply expected 50+, was {len(reply)}"

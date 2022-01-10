@@ -7,17 +7,17 @@ from typing import ByteString
 from midea_beautiful.crypto import crc8
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
 
-# Each command has unique sequence id (single byte with roll-over)
-_command_sequence: int = 0
+
+# pylint: disable=too-few-public-methods
+# pylint: disable=too-many-instance-attributes
+
+
 # Lock for command sequence increment
 _order_lock = RLock()
 
 
-def midea_command_reset_sequence(value: int = 0) -> None:
-    global _command_sequence
-    _command_sequence = value
-
-
+# pylint: disable=too-few-public-methods
+# pylint: disable=too-many-instance-attributes
 class MideaCommand:
     """Base command interface"""
 
@@ -25,6 +25,11 @@ class MideaCommand:
         self.data = bytearray()
 
     def finalize(self) -> bytes:
+        """Creates bytes sequence that represents a command to send.
+
+        Returns:
+            bytes: bytes representing the command
+        """
         # Add the CRC8
         self.data[-2] = crc8(self.data[10:-2])
         # Add Message check code
@@ -36,27 +41,37 @@ class MideaCommand:
 class MideaSequenceCommand(MideaCommand):
     """Base command with sequence id/unique id"""
 
+    # Each command has unique sequence id (single byte with roll-over)
+    _command_sequence = 0
+
+    @staticmethod
+    def reset_sequence(value: int = 0) -> None:
+        MideaSequenceCommand._command_sequence = value
+
     def __init__(self, sequence_idx: int = 30) -> None:
+        super().__init__()
         self.sequence_idx = sequence_idx
 
     def finalize(self) -> bytes:
-        global _command_sequence
         with _order_lock:
-            _command_sequence = (_command_sequence + 1) & 0b11111111
+            MideaSequenceCommand._command_sequence = (
+                MideaSequenceCommand._command_sequence + 1
+            ) & 0b11111111
         # Add the sequence
-        self.data[self.sequence_idx] = _command_sequence
+        self.data[self.sequence_idx] = MideaSequenceCommand._command_sequence
         return super().finalize()
 
 
 class DeviceCapabilitiesCommand(MideaCommand):
     """B5 Command"""
 
-    def __init__(self, type: int = 0xA1) -> None:
+    def __init__(self, appliance_type: int = 0xA1) -> None:
+        super().__init__()
         self.data = bytearray(
             [
                 0xAA,
                 0x0E,
-                type,
+                appliance_type,
                 0x00,
                 0x00,
                 0x00,
@@ -76,12 +91,13 @@ class DeviceCapabilitiesCommand(MideaCommand):
 class DeviceCapabilitiesCommandMore(MideaCommand):
     """B5 Command"""
 
-    def __init__(self, type: int = 0xA1) -> None:
+    def __init__(self, appliance_type: int = 0xA1) -> None:
+        super().__init__()
         self.data = bytearray(
             [
                 0xAA,
                 0x0E,
-                type,
+                appliance_type,
                 0x00,
                 0x00,
                 0x00,
@@ -323,6 +339,7 @@ class DehumidifierResponse:
     """Response from dehumidifier queries"""
 
     def __init__(self, data: ByteString) -> None:
+        # pylint: disable=too-many-statements
         self.fault = (data[1] & 0b10000000) != 0
         self.run_status = (data[1] & 0b00000001) != 0
         self.i_mode = (data[1] & 0b00000100) != 0
@@ -737,7 +754,7 @@ class AirConditionerResponse:
     """Response from air conditioner queries"""
 
     def __init__(self, data: bytes) -> None:
-
+        # pylint: disable=too-many-statements
         self.run_status = (data[1] & 0b00000001) != 0
         self.i_mode = (data[1] & 0b00000100) != 0
         self.timing_mode = (data[1] & 0b00010000) != 0

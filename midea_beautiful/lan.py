@@ -33,6 +33,8 @@ from midea_beautiful.midea import (
 )
 from midea_beautiful.util import SPAM, TRACE
 
+# pylint: disable=too-many-arguments
+
 _LOGGER = logging.getLogger(__name__)
 
 _STATE_SOCKET_TIMEOUT: Final = 3
@@ -40,8 +42,10 @@ _STATE_SOCKET_TIMEOUT: Final = 3
 
 def matches_lan_cloud(device: LanDevice, cloud_details: dict[str, Any]):
     """Checks if lan device and cloud details correspond to same appliance"""
-    # _LOGGER.error("%s %s", device.id, device.sn, cloud_details)
-    return cloud_details["id"] == device.id or cloud_details["sn"] == device.sn
+    return (
+        cloud_details["id"] == device.appliance_id
+        or cloud_details["sn"] == device.serial_number
+    )
 
 
 def _is_token_version(version: int):
@@ -131,15 +135,18 @@ DISCOVERY_MSG: Final = bytes(
 
 
 def _get_udp_id(data) -> str:
-    b = sha256(data).digest()
-    b1, b2 = b[:16], b[16:]
-    b3 = bytearray(16)
+    digest = sha256(data).digest()
+    first, second = digest[:16], digest[16:]
+    result = bytearray(16)
     for i in range(16):
-        b3[i] = b1[i] ^ b2[i]
-    return b3.hex()
+        result[i] = first[i] ^ second[i]
+    return result.hex()
 
 
 class LanDevice:
+    """Represents a Midea device"""
+    # pylint: disable=too-many-instance-attributes
+
     # Default sleep unit of time. By default 1 second.
     _DEFAULT_SLEEP_INTERVAL: Final = 1
     # Unit of time for sleep.
@@ -148,8 +155,8 @@ class LanDevice:
 
     def __init__(
         self,
-        id: str = "",
-        ip: str = None,
+        appliance_id: str = "",
+        address: str = None,
         port: int | str = 6444,
         token: str = "",
         key: str = "",
@@ -161,10 +168,10 @@ class LanDevice:
         self._retries = 0
         self._socket = None
         self.token = token
-        self.k1 = key
+        self.key = key
         self._got_tcp_key = False
         self._last_error = ""
-        self._max_retries = 3
+        self.max_retries = 3
         self._no_responses = 0
         self._lock = RLock()
         self.firmware_version = None
@@ -175,108 +182,118 @@ class LanDevice:
         self.flags = 0
         self.extra = 0
         self.subtype = 0
+        self._buffer = b""
+        self.address = address
+        self.serial_number = None
+        self.mac = None
+        self.ssid = None
 
         if data:
-            data = bytes(data)
-            if data[:2] == b"\x5a\x5a":  # 5a5a
-                self.version = 2
-            elif data[:2] == b"\x83\x70":  # 8370
-                self.version = 3
-            else:
-                self.version = 0
-                return
-
-            if data[8:10] == b"\x5a\x5a":  # 5a5a
-                data = data[8:-16]
-            id = str(int.from_bytes(data[20:26], "little"))
-            encrypted_data = data[40:-16]
-            reply = self._security.aes_decrypt(encrypted_data)
-            self.ip = ".".join([str(i) for i in reply[3::-1]])
-            _LOGGER.log(TRACE, "From %s decrypted reply=%s", self.ip, reply)
-            self.port = int.from_bytes(reply[4:8], "little")
-            self.sn = reply[8:40].decode("ascii")
-            ssid_len = reply[40]
-            # ssid like midea_xx_xxxx net_xx_xxxx
-            self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
-            if len(reply) >= (69 + ssid_len):
-                self.mac = reply[63 + ssid_len : 69 + ssid_len].hex()
-            else:
-                self.mac = self.sn[16:32]
-
-            if len(reply) >= (56 + ssid_len) and reply[55 + ssid_len] != 0:
-                # Get type
-                self.type = hex(reply[55 + ssid_len])
-                if len(reply) >= (59 + ssid_len):
-                    self.subtype = int.from_bytes(
-                        reply[57 + ssid_len : 59 + ssid_len], "little"
-                    )
-            else:
-                # Get from SSID
-                self.type = self.ssid.split("_")[1].lower()
-                self.subtype = 0
-            if len(reply) >= (46 + ssid_len):
-                self.reserved = reply[43 + ssid_len]
-                self.flags = reply[44 + ssid_len]
-                self.extra = reply[45 + ssid_len]
-
-            # m_enable_extra = (b >> 7) == 1
-            # m_support_extra_auth = (b & 1) == 1
-            # m_support_extra_channel = (b & 2) == 2
-            # m_support_extra_last_error_code = (b & 4) == 4
-
-            if len(reply) >= (94 + ssid_len):
-                self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
-            if len(reply) >= (50 + ssid_len):
-                self.udp_version = int.from_bytes(
-                    reply[46 + ssid_len : 50 + ssid_len], "little"
-                )
-            if len(reply) >= (72 + ssid_len):
-                self.protocol_version = reply[69 + ssid_len : 72 + ssid_len].hex()
-            if len(reply) >= (75 + ssid_len):
-                self.firmware_version = (
-                    f"{reply[72 + ssid_len]}."
-                    f"{reply[73 + ssid_len]}."
-                    f"{reply[74 + ssid_len]}"
-                )
-            self.state = Appliance.instance(id=id, appliance_type=self.type)
-            self._online = True
-
-            _LOGGER.debug("Descriptor data from %s: %r", self, self)
+            self._init_from_data(data)
 
         else:
-            id = id
-            self.ip = ip
+            self.address = address
             self.port = int(port)
-            self.sn = None
-            self.mac = None
-            self.ssid = None
+
             self.type = appliance_type
 
-            self.state = Appliance.instance(id=id, appliance_type=self.type)
+            self.state = Appliance.instance(
+                appliance_id=appliance_id, appliance_type=self.type
+            )
             self._online = True
             # Default interface version is 3
             self.version = 3
-        self.unique_id = self.sn or id
+        self.unique_id = self.serial_number or appliance_id
 
     def update(self, other: LanDevice) -> None:
+        """Updates this LanDevice with data from another one"""
         self.token = other.token
-        self.k1 = other.k1
+        self.key = other.key
         self._socket = None
         self._got_tcp_key = False
-        self._max_retries = other._max_retries
-        self._retries = other._retries
-        self.ip = other.ip
+        self.max_retries = other.max_retries
+        self._retries = other._retries  # pylint: disable=protected-access
+        self.address = other.address
         self.port = other.port
         self.firmware_version = other.firmware_version
         self.protocol_version = other.protocol_version
         self.udp_version = other.protocol_version
-        self.sn = other.sn
+        self.serial_number = other.serial_number
         self.mac = other.mac
         self.ssid = other.ssid
 
+    def _init_from_data(self, data: bytes):
+        data = bytes(data)
+        if data[:2] == b"\x5a\x5a":  # 5a5a
+            self.version = 2
+        elif data[:2] == b"\x83\x70":  # 8370
+            self.version = 3
+        else:
+            self.version = 0
+            return
+
+        if data[8:10] == b"\x5a\x5a":  # 5a5a
+            data = data[8:-16]
+        appliance_id = str(int.from_bytes(data[20:26], "little"))
+        encrypted_data = data[40:-16]
+        reply = self._security.aes_decrypt(encrypted_data)
+        self.address = ".".join([str(i) for i in reply[3::-1]])
+        _LOGGER.log(TRACE, "From %s decrypted reply=%s", self.address, reply)
+        self.port = int.from_bytes(reply[4:8], "little")
+        self.serial_number = reply[8:40].decode("ascii")
+        ssid_len = reply[40]
+        # ssid like midea_xx_xxxx net_xx_xxxx
+        self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
+        if len(reply) >= (69 + ssid_len):
+            self.mac = reply[63 + ssid_len : 69 + ssid_len].hex()
+        else:
+            self.mac = self.serial_number[16:32]
+
+        if len(reply) >= (56 + ssid_len) and reply[55 + ssid_len] != 0:
+            # Get type
+            self.type = hex(reply[55 + ssid_len])
+            if len(reply) >= (59 + ssid_len):
+                self.subtype = int.from_bytes(
+                    reply[57 + ssid_len : 59 + ssid_len], "little"
+                )
+        else:
+            # Get from SSID
+            self.type = self.ssid.split("_")[1].lower()
+            self.subtype = 0
+        if len(reply) >= (46 + ssid_len):
+            self.reserved = reply[43 + ssid_len]
+            self.flags = reply[44 + ssid_len]
+            self.extra = reply[45 + ssid_len]
+
+        # m_enable_extra = (b >> 7) == 1
+        # m_support_extra_auth = (b & 1) == 1
+        # m_support_extra_channel = (b & 2) == 2
+        # m_support_extra_last_error_code = (b & 4) == 4
+
+        if len(reply) >= (94 + ssid_len):
+            self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
+        if len(reply) >= (50 + ssid_len):
+            self.udp_version = int.from_bytes(
+                reply[46 + ssid_len : 50 + ssid_len], "little"
+            )
+        if len(reply) >= (72 + ssid_len):
+            self.protocol_version = reply[69 + ssid_len : 72 + ssid_len].hex()
+        if len(reply) >= (75 + ssid_len):
+            self.firmware_version = (
+                f"{reply[72 + ssid_len]}."
+                f"{reply[73 + ssid_len]}."
+                f"{reply[74 + ssid_len]}"
+            )
+        self.state = Appliance.instance(
+            appliance_id=appliance_id, appliance_type=self.type
+        )
+        self._online = True
+
+        _LOGGER.debug("Descriptor data from %s: %r", self, self)
+
     def _lan_packet(self, command: MideaCommand, local_packet: bool = True) -> bytes:
-        id_bytes = int(self.id).to_bytes(8, "little")
-        d: datetime = datetime.now()
+        id_bytes = int(self.appliance_id).to_bytes(8, "little")
+        now: datetime = datetime.now()
         # Init the packet with the header data.
         packet = bytearray(
             [
@@ -298,14 +315,14 @@ class LanDevice:
                 0x00,
                 0x00,
                 # 8 bytes - Date&Time
-                int(d.microsecond / 10000),
-                d.second,
-                d.minute,
-                d.hour,
-                d.day,
-                d.month,
-                d.year % 100,
-                int(d.year / 100),
+                int(now.microsecond / 10000),
+                now.second,
+                now.minute,
+                now.hour,
+                now.day,
+                now.month,
+                now.year % 100,
+                int(now.year / 100),
                 # 8 bytes - Device ID
                 id_bytes[0],
                 id_bytes[1],
@@ -344,6 +361,7 @@ class LanDevice:
         return bytes(packet)
 
     def refresh(self, cloud: MideaCloud = None) -> None:
+        """Refreshes appliance data from network or cloud"""
         with self._lock:
 
             cmd = self.state.refresh_command()
@@ -366,9 +384,9 @@ class LanDevice:
                     "refresh %s no response %d of max %d",
                     self,
                     self._no_responses,
-                    self._max_retries,
+                    self.max_retries,
                 )
-                if self._no_responses > self._max_retries:
+                if self._no_responses > self.max_retries:
                     if self._online:
                         _LOGGER.debug(
                             "No response for %s in %d retries. Considered offline",
@@ -387,9 +405,9 @@ class LanDevice:
                 # set timeout
                 self._socket.settimeout(socket_timeout)
                 try:
-                    self._socket.connect((self.ip, self.port))
+                    self._socket.connect((self.address, self.port))
 
-                except Exception as error:
+                except Exception as error:  # pylint: disable=broad-except
                     _LOGGER.debug(
                         "Connection error: %s for %s", self, error, exc_info=True
                     )
@@ -404,7 +422,7 @@ class LanDevice:
             self._got_tcp_key = False
 
     def _sleep(self, duration: float) -> None:
-        sleep(duration * LanDevice._sleep_interval)
+        sleep(duration * self._sleep_interval)
 
     def _request(self, message) -> bytes:
         with self._lock:
@@ -420,7 +438,7 @@ class LanDevice:
             try:
                 _LOGGER.log(TRACE, "Sending to %s, message=%s", self, message)
                 self._socket.sendall(message)
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-except
                 _LOGGER.debug("Error sending to %s: %s", self, error)
                 self._last_error = str(error)
                 self._disconnect()
@@ -448,27 +466,26 @@ class LanDevice:
                     self._disconnect()
                     self._retries += 1
                     return b""
-                else:
-                    self._retries = 0
-                    return response
+                self._retries = 0
+                return response
 
     def _authenticate(self):
-        if not self.token or not self.k1:
+        if not self.token or not self.key:
             raise AuthenticationError("Missing token/key pair")
         try:
             byte_token = binascii.unhexlify(self.token)
         except binascii.Error as ex:
-            raise AuthenticationError(f"Invalid token {ex}")
-        _LOGGER.log(SPAM, "token='%s' k1='%s' for %s", self.token, self.k1, self)
+            raise AuthenticationError(f"Invalid token {ex}") from ex
+        _LOGGER.log(SPAM, "token='%s' key='%s' for %s", self.token, self.key, self)
         response = b""
-        for i in range(self._max_retries):
+        for i in range(self.max_retries):
             request = self._security.encode_8370(byte_token, MSGTYPE_HANDSHAKE_REQUEST)
             response = self._request(request)
 
             if not response:
                 if i > 0:
                     # Retry handshake
-                    _LOGGER.debug("Handshake retry %d of %d", i + 1, self._max_retries)
+                    _LOGGER.debug("Handshake retry %d of %d", i + 1, self.max_retries)
                     self._sleep(i + 1)
             else:
                 break
@@ -479,7 +496,7 @@ class LanDevice:
         response = response[8:72]
 
         try:
-            tcp_key = self._security.tcp_key(response, binascii.unhexlify(self.k1))
+            tcp_key = self._security.tcp_key(response, binascii.unhexlify(self.key))
             _LOGGER.log(SPAM, "tcp_key=%s for %s", tcp_key, self)
 
             self._got_tcp_key = True
@@ -495,14 +512,14 @@ class LanDevice:
         _LOGGER.debug("Packet for: %s data=%s", self, data)
         if cloud is not None:
             _LOGGER.debug("Sending request via cloud API to: %s", self)
-            responses = cloud.appliance_transparent_send(self.id, data)
+            responses = cloud.appliance_transparent_send(self.appliance_id, data)
         else:
-            responses = self.appliance_send_lan(data)
+            responses = self._appliance_send_lan(data)
 
         if len(responses) == 0:
             _LOGGER.debug("Got no responses on status from: %s", self)
             self._no_responses += 1
-            if self._no_responses > self._max_retries:
+            if self._no_responses > self.max_retries:
                 self._online = False
             self._disconnect()
         else:
@@ -520,17 +537,17 @@ class LanDevice:
             _LOGGER.log(TRACE, "Socket %s closed, creating new socket", self)
             self._disconnect()
 
-            for i in range(self._max_retries):
+            for i in range(self.max_retries):
                 try:
                     self._authenticate()
                 except MideaError as ex:
-                    if i == self._max_retries - 1:
+                    if i == self.max_retries - 1:
                         _LOGGER.debug("Failed to authenticate %s", self)
                         raise ex
                     _LOGGER.debug(
                         "Retrying authenticate, %d out of %d: %s",
                         i + 2,
-                        self._max_retries,
+                        self.max_retries,
                         self,
                     )
                     self._disconnect()
@@ -604,35 +621,35 @@ class LanDevice:
 
     def _retry_send(self, data: bytes, response_buf: bytes) -> list[bytes]:
         if not response_buf:
-            if self._retries < self._max_retries:
+            if self._retries < self.max_retries:
                 _LOGGER.log(
                     SPAM,
                     "retrying appliance_send_lan %d of %d",
                     self._retries,
-                    self._max_retries,
+                    self.max_retries,
                 )
                 self._last_error = "empty reply"
                 self._retries += 1
-                packets = self.appliance_send_lan(data)
+                packets = self._appliance_send_lan(data)
                 self._retries = 0
                 return packets
-            else:
-                error = self._last_error
-                self._last_error = ""
-                raise MideaNetworkError(
-                    f"Unable to send data after {self._max_retries} retries,"
-                    f" last error {error} for {self}"
-                )
+            error = self._last_error
+            self._last_error = ""
+            raise MideaNetworkError(
+                f"Unable to send data after {self.max_retries} retries,"
+                f" last error {error} for {self}"
+            )
         return []
 
-    def appliance_send_lan(self, data: bytes) -> list[bytes]:
+    def _appliance_send_lan(self, data: bytes) -> list[bytes]:
         if _is_token_version(self.version):
             return self._appliance_send_8370(data)
-        elif _is_no_token_version(self.version):
+        if _is_no_token_version(self.version):
             return self._appliance_send_v2(data)
         raise ProtocolError(f"Unsupported protocol {self.version}")
 
     def apply(self, cloud: MideaCloud = None) -> None:
+        """Applies changes to device. I.e. sends command to update data."""
         with self._lock:
             cmd = self.state.apply_command()
 
@@ -641,9 +658,9 @@ class LanDevice:
             _LOGGER.log(TRACE, "Packet for %s data: %s", self, data)
             if cloud:
                 _LOGGER.debug("Sending request via cloud to %s", self)
-                responses = cloud.appliance_transparent_send(self.id, data)
+                responses = cloud.appliance_transparent_send(self.appliance_id, data)
             else:
-                responses = self.appliance_send_lan(data)
+                responses = self._appliance_send_lan(data)
             _LOGGER.debug("Got response(s) from: %s", self)
 
             if responses:
@@ -672,20 +689,21 @@ class LanDevice:
             bool: True if successful
         """
         for udp_id in [
-            _get_udp_id(int(self.id).to_bytes(6, "little")),
-            _get_udp_id(int(self.id).to_bytes(6, "big")),
+            _get_udp_id(int(self.appliance_id).to_bytes(6, "little")),
+            _get_udp_id(int(self.appliance_id).to_bytes(6, "big")),
         ]:
-            self.token, self.k1 = cloud.get_token(udp_id)
+            self.token, self.key = cloud.get_token(udp_id)
             try:
                 self._authenticate()
                 _LOGGER.debug("Token valid for %s udp_id=%s", self, udp_id)
                 return True
             except MideaError:
                 # token/key were not valid, forget them
-                self.token, self.k1 = "", ""
+                self.token, self.key = "", ""
         return False
 
     def is_identified(self, cloud: MideaCloud = None) -> bool:
+        """Returns True if this appliance can be identified"""
         try:
             self.identify(cloud)
             return True
@@ -693,23 +711,25 @@ class LanDevice:
             _LOGGER.debug("Error identifying appliance %s", ex)
             return False
 
+    def _valid_token(self, cloud: MideaCloud | None):
+        if not self.token or not self.key:
+            if not cloud:
+                raise MideaError(
+                    f"Provide either token/key pair or cloud {self!r}"
+                )
+            if not self._get_valid_token(cloud):
+                raise AuthenticationError(
+                    f"Unable to get valid token for {self}"
+                )
+        else:
+            self._authenticate()
+
     def identify(self, cloud: MideaCloud = None, use_cloud: bool = False) -> None:
+        """Identifies appliance data on network and/or from cloud"""
+
         if self.is_supported or use_cloud:
             if _is_token_version(self.version) and not use_cloud:
-                if not self.token or not self.k1:
-                    if not cloud:
-                        raise MideaError(
-                            f"Provide either token/key pair or cloud {self!r}"
-                        )
-                    if not self._get_valid_token(cloud):
-                        raise AuthenticationError(
-                            f"Unable to get valid token for {self}"
-                        )
-                else:
-                    self._authenticate()
-            else:
-                # No token here
-                pass
+                self._valid_token(cloud)
         else:
             raise UnsupportedError(f"Appliance {self} protocol is not supported.")
 
@@ -737,6 +757,10 @@ class LanDevice:
         _LOGGER.debug("Identified appliance: %r", self)
 
     def set_state(self, **kwargs) -> None:
+        """
+        Sets state attributes of the appliance. Attribute cloud has special meaning
+        and is used to pass MideaCloud object.
+        """
         cloud = None
         for attr, value in kwargs.items():
             if attr == "cloud":
@@ -750,17 +774,21 @@ class LanDevice:
         self.apply(cloud)
 
     def __str__(self) -> str:
-        return f"id={self.id} ip={self.ip}:{self.port} version={self.version}"
+        return (
+            f"id={self.appliance_id}"
+            f" address={self.address}:{self.port}"
+            f" version={self.version}"
+        )
 
     def __repr__(self) -> str:
         return (
-            "{id=%s, ip=%s, port=%d, version=%d, name=%s, online=%s,"
+            "{id=%s, address=%s, port=%d, version=%d, name=%s, online=%s,"
             " type=%s, subtype=%x, flags=%x, extra=%x, reserved=%x,"
             " mac=%s, ssid=%s, udp_version=%x, protocol=%s, version=%s,"
             " sn=%s, state=%s}"
         ) % (
-            self.id,
-            self.ip,
+            self.appliance_id,
+            self.address,
             self.port,
             self.version,
             self.name,
@@ -775,87 +803,120 @@ class LanDevice:
             self.udp_version,
             self.protocol_version,
             self.firmware_version,
-            self.sn,
+            self.serial_number,
             self.state,
         )
 
     @property
-    def id(self) -> str:
-        return self.state.id
+    def appliance_id(self) -> str:
+        """Returns appliance id (from Midea app)"""
+        return self.state.appliance_id
 
     @property
     def name(self) -> str:
+        """Returns appliance name"""
         return self.state.name
 
     @property
     def model(self) -> str:
+        """Returns appliance model"""
         return self.state.model
 
     @name.setter
     def name(self, name: str) -> None:
+        """Set the name of the appliance"""
         self.state.name = name
 
     @property
     def is_supported(self) -> bool:
+        """Returns True if appliance protocol is supported"""
         return self.version >= 2
 
     @property
     def online(self) -> bool:
+        """Returns True if appliance is online and responds to requests"""
         return self._online
 
 
 def get_appliance_state(
-    ip: str | None = None,
-    port: int = DISCOVERY_PORT,
+    address: str | None = None,
     token: str = None,
     key: str = None,
     cloud: MideaCloud = None,
     use_cloud: bool = False,
-    id: str | None = None,
+    appliance_id: str | None = None,
     appliance_type: str = APPLIANCE_TYPE_DEHUMIDIFIER,
     security: Security = None,
 ) -> LanDevice:
+    """Gets the current state of an appliance
+
+    Args:
+        address (str, optional): IPv4 address of the appliance. Defaults to None.
+        token (str, optional): Token used for appliance. Defaults to None.
+        key (str, optional): Key used for appliance. Defaults to None.
+        cloud (MideaCloud, optional): An instance of cloud client. Defaults to None.
+        use_cloud (bool, optional): True if state should be retrieved from cloud.
+        Defaults to False.
+        appliance_id (str, optional): Id of the appliance as stored in Midea API.
+        Defaults to None.
+        appliance_type (str, optional): Type of the appliance.
+        Defaults to APPLIANCE_TYPE_DEHUMIDIFIER.
+        security (Security, optional): Security object. If None, a new one is allocated.
+        Defaults to None.
+
+    Raises:
+        MideaNetworkError: [description]
+        MideaNetworkError: [description]
+        MideaError: [description]
+        MideaError: [description]
+
+    Returns:
+        LanDevice: [description]
+    """
     # Create a TCP/IP socket
-    if ip:
+    if address:
         token = token or ""
         key = key or ""
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(_STATE_SOCKET_TIMEOUT)
+        port = DISCOVERY_PORT
 
         try:
             # Connect to the appliance
-            sock.connect((ip, port))
+            sock.connect((address, port))
 
             # Send the discovery query
-            _LOGGER.log(TRACE, "Sending to %s:%d %s", ip, port, DISCOVERY_MSG)
+            _LOGGER.log(TRACE, "Sending to %s:%d %s", address, port, DISCOVERY_MSG)
             sock.sendall(DISCOVERY_MSG)
 
             # Received data
             response = sock.recv(512)
-            _LOGGER.log(TRACE, "Received from %s:%d %s", ip, port, response)
+            _LOGGER.log(TRACE, "Received from %s:%d %s", address, port, response)
             appliance = LanDevice(
                 data=response, token=token, key=key, security=security
             )
             _LOGGER.log(TRACE, "Appliance %s", appliance)
         except socket.timeout as ex:
             raise MideaNetworkError(
-                f"Timeout while connecting to appliance {ip}:{port}"
+                f"Timeout while connecting to appliance {address}:{port}"
             ) from ex
         except socket.error as ex:
             raise MideaNetworkError(
-                f"Could not connect to appliance {ip}:{port}"
+                f"Could not connect to appliance {address}:{port}"
             ) from ex
         finally:
             sock.close()
-    elif id is not None:
+    elif appliance_id is not None:
         if use_cloud and cloud:
             appliance = LanDevice(
-                id=id, appliance_type=appliance_type, security=security
+                appliance_id=appliance_id,
+                appliance_type=appliance_type,
+                security=security,
             )
         else:
             raise MideaError("Missing cloud credentials")
     else:
-        raise MideaError("Must provide appliance id or ip")
+        raise MideaError("Must provide appliance id or ip address")
 
     appliance.identify(cloud, use_cloud)
     if cloud:

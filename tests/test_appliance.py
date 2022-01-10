@@ -1,3 +1,5 @@
+"""Test appliance class"""
+
 from typing import Final
 import logging
 import pytest
@@ -9,10 +11,16 @@ from midea_beautiful.appliance import (
 from midea_beautiful.command import MideaCommand
 from midea_beautiful.exceptions import MideaError
 
+# pylint: disable=protected-access
+# pylint: disable=missing-function-docstring
+# pylint: disable=invalid-name line-too-long
+# pylint: disable=unused-argument
+# pylint: disable=redefined-outer-name
+
 
 def test_appliance(caplog: pytest.LogCaptureFixture):
     s = Appliance.instance("44", "99")
-    assert s.id == "44"
+    assert s.appliance_id == "44"
     assert s.type == "99"
     assert not isinstance(s, DehumidifierAppliance)
     assert not isinstance(s, AirConditionerAppliance)
@@ -49,7 +57,7 @@ def test_dehumidifier():
 
     assert "[Dehumidifier]" in str(s)
 
-    assert s.id == "44"
+    assert s.appliance_id == "44"
     assert s.type == "a1"
     assert not s.running
     s.running = "On"
@@ -225,7 +233,7 @@ def test_aircon_booleans():
     s = Appliance.instance("45", "ac")
     assert isinstance(s, AirConditionerAppliance)
 
-    assert s.id == "45"
+    assert s.appliance_id == "45"
     assert s.type == "ac"
     s.running = "TRUE"
     assert s.running
@@ -260,18 +268,6 @@ def test_aircon_booleans():
     s.dryer = 0
     assert not s.dryer
 
-    assert not s.vertical_swing
-    s.vertical_swing = 1
-    assert s.vertical_swing
-    s.vertical_swing = 0
-    assert not s.vertical_swing
-
-    assert not s.horizontal_swing
-    s.horizontal_swing = True
-    assert s.horizontal_swing
-    s.horizontal_swing = 0
-    assert not s.horizontal_swing
-
     assert not s.fahrenheit
     s.fahrenheit = "t"
     assert s.fahrenheit
@@ -286,48 +282,68 @@ def test_aircon_booleans():
     assert s.show_screen
 
 
+def test_aircon_swing():
+    s = Appliance.instance("45", "ac")
+    assert isinstance(s, AirConditionerAppliance)
+
+    assert not s.vertical_swing
+    s.vertical_swing = 1
+    assert s.vertical_swing
+    s.vertical_swing = 0
+    assert not s.vertical_swing
+
+    assert not s.horizontal_swing
+    s.horizontal_swing = True
+    assert s.horizontal_swing
+    s.horizontal_swing = 0
+    assert not s.horizontal_swing
+
+
+capabilities_ion: Final = (
+    b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x1f\x02\x01\x01\x2a\x02\x01\x01\xabU"
+)
+capabilities_no_auto: Final = (
+    b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\x12\x02\x01\x01\xcb\\"
+)
+capabilities_unknown: Final = (
+    b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x02\x01\x01\xcb\\"
+)
+capabilities_unknown_extra: Final = (
+    b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x01\x01\x01\xcb\\"
+)
+capabilities_fan: Final = (
+    b"\xb5\x04\x10\x02\x01\x03\x1e\x02\x01\x01\x1f\x02\x01\x01\x21\x02\x01\x01\xabU"
+)
+capabilities_fahrenheit_filter_check: Final = (
+    b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x13\x02\x01\x01\x22\x02\x01\x01\xabU"
+)
+capabilities_fan_avoid_ptc_fan_straight: Final = (
+    b"\xb5\x04\x10\x02\x01\x07\x33\x02\x01\x01\x19\x02\x01\x01\x32\x02\x01\x01\xabU"
+)
+capabilities_self_clean_fan_swing: Final = (
+    b"\xb5\x03\x10\x02\x01\x07\x39\x02\x01\x01\x15\x02\x01\x01\xabU"
+)
+capabilities_none: Final = b"\xb5\x00\xabU"
+capabilities_electricity: Final = (
+    b"\xb5\x03\x16\x02\x01\x01\x18\x02\x01\x01\x17\x02\x01\x01\xabU"
+)
+capabilities_several_options: Final = (
+    b"\xb5\x05\x14\x02\x01\x06\x43\x02\x01\x01\x30\x02\x01\x01\x42\x02\x01\x01"
+    b"\x18\x02\x01\x01\xabU"
+)
+capabilities_several_options_speed: Final = (
+    b"\xb5\x05\x14\x02\x01\x06\x43\x02\x01\x01\x30\x02\x01\x01"
+    b"\x25\x02\x01\x01\x02\x11\x12\x21\x22\x31\x18\x02\x01\x01\xabU"
+)
+capabilities_not_b5: Final = (
+    b"\xb3\x03\x16\x02\x01\x01\x18\x02\x01\x01\x17\x02\x01\x01\xabU"
+)
+
+
 def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
     s = Appliance.instance("34", "ac")
     assert isinstance(s, AirConditionerAppliance)
-    capabilities_ion: Final = (
-        b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x1f\x02\x01\x01\x2a\x02\x01\x01\xabU"
-    )
-    capabilities_no_auto: Final = (
-        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\x12\x02\x01\x01\xcb\\"
-    )
-    capabilities_unknown: Final = (
-        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x02\x01\x01\xcb\\"
-    )
-    capabilities_unknown_extra: Final = (
-        b"\xb5\x03\x10\x02\x01\x07\x24\x02\x01\x01\xff\x01\x01\x01\xcb\\"
-    )
-    capabilities_fan: Final = (
-        b"\xb5\x04\x10\x02\x01\x03\x1e\x02\x01\x01\x1f\x02\x01\x01\x21\x02\x01\x01\xabU"
-    )
-    capabilities_fahrenheit_filter_check: Final = (
-        b"\xb5\x04\x10\x02\x01\x07\x1e\x02\x01\x01\x13\x02\x01\x01\x22\x02\x01\x01\xabU"
-    )
-    capabilities_fan_avoid_ptc_fan_straight: Final = (
-        b"\xb5\x04\x10\x02\x01\x07\x33\x02\x01\x01\x19\x02\x01\x01\x32\x02\x01\x01\xabU"
-    )
-    capabilities_self_clean_fan_swing: Final = (
-        b"\xb5\x03\x10\x02\x01\x07\x39\x02\x01\x01\x15\x02\x01\x01\xabU"
-    )
-    capabilities_none: Final = b"\xb5\x00\xabU"
-    capabilities_electricity: Final = (
-        b"\xb5\x03\x16\x02\x01\x01\x18\x02\x01\x01\x17\x02\x01\x01\xabU"
-    )
-    capabilities_several_options: Final = (
-        b"\xb5\x05\x14\x02\x01\x06\x43\x02\x01\x01\x30\x02\x01\x01\x42\x02\x01\x01"
-        b"\x18\x02\x01\x01\xabU"
-    )
-    capabilities_several_options_speed: Final = (
-        b"\xb5\x05\x14\x02\x01\x06\x43\x02\x01\x01\x30\x02\x01\x01"
-        b"\x25\x02\x01\x01\x02\x11\x12\x21\x22\x31\x18\x02\x01\x01\xabU"
-    )
-    capabilities_not_b5: Final = (
-        b"\xb3\x03\x16\x02\x01\x01\x18\x02\x01\x01\x17\x02\x01\x01\xabU"
-    )
+
     s.process_response_device_capabilities(capabilities_ion)
     assert s.supports == {"anion": 1, "fan_speed": 7, "humidity": 1, "strong_fan": 1}
     s.process_response_device_capabilities(capabilities_fan)

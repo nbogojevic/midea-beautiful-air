@@ -23,12 +23,11 @@ ENCRYPTED_MESSAGE_TYPES: Final = (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_
 
 def _strxor(plain_text: bytes, key: bytes) -> bytes:
     """returns encrypted plain text by repeatedly xoring it with key"""
-    pt = plain_text
     len_key = len(key)
-    encoded = bytearray(len(pt))
+    encoded = bytearray(len(plain_text))
 
-    for i in range(len(pt)):
-        encoded[i] = pt[i] ^ key[i % len_key]
+    for i, k in enumerate(plain_text):
+        encoded[i] = k ^ key[i % len_key]
     return bytes(encoded)
 
 
@@ -295,8 +294,8 @@ crc8_854_table: Final = [
 def crc8(data: bytes) -> int:
     """8-bit CRC calculation"""
     crc_value: int = 0
-    for m in data:
-        crc_value = crc8_854_table[crc_value ^ m]
+    for byt in data:
+        crc_value = crc8_854_table[crc_value ^ byt]
     return crc_value
 
 
@@ -306,6 +305,7 @@ BLOCKSIZE: Final = 16
 class Security:
     """Various security and cryptography services for Midea protocol"""
 
+    # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         appkey: str = DEFAULT_APPKEY,
@@ -385,6 +385,7 @@ class Security:
         return encryptor.update(raw) + encryptor.finalize()
 
     def md5fingerprint(self, raw: bytes) -> bytes:
+        """Generates Midea md5 fingerprint of the raw payload"""
         return md5(raw + self._signkey).digest()
 
     def tcp_key(self, response: bytes, key: bytes) -> bytes:
@@ -408,14 +409,14 @@ class Security:
     def encode_8370(self, data: bytes, msgtype: int) -> bytes:
         """Encodes message in v3 (8370) protocol"""
         header = bytearray(b"\x83\x70")
-        size, padding = len(data), 0
+        size, pad = len(data), 0
         if msgtype in ENCRYPTED_MESSAGE_TYPES:
             if (size + 2) % 16 != 0:
-                padding = 16 - (size + 2 & 0xF)
-                size += padding + 32
-                data += urandom(padding)
+                pad = 16 - (size + 2 & 0xF)
+                size += pad + 32
+                data += urandom(pad)
         header.extend(size.to_bytes(2, "big"))
-        header.extend([0x20, padding << 4 | msgtype])
+        header.extend([0x20, pad << 4 | msgtype])
         data = self._request_count.to_bytes(2, "big") + data
         self._request_count += 1
         if msgtype in ENCRYPTED_MESSAGE_TYPES:
@@ -437,13 +438,13 @@ class Security:
         # If there is not enough data in buffer, we need to wait for more data
         if len(data) < size:
             return [], data
-        elif len(data) > size:
+        if len(data) > size:
             # If there is too much data, save the overflow
             leftover = data[size:]
             data = data[:size]
         if header[4] != 0x20:
             raise ProtocolError("Byte 4 was not 0x20")
-        padding = header[5] >> 4
+        pad = header[5] >> 4
         msgtype = header[5] & 0xF
         data = data[6:]
 
@@ -454,8 +455,8 @@ class Security:
             data = self.aes_cbc_decrypt(data, self._tcp_key)
             if sha256(header + data).digest() != sign:
                 raise ProtocolError("Signature does not match payload")
-            if padding:
-                data = data[:-padding]
+            if pad:
+                data = data[:-pad]
         self._response_count = int.from_bytes(data[:2], "big")
         data = data[2:]
         # If we have remaining data, process it
@@ -478,26 +479,27 @@ class Security:
 
         # Combine all the signing elements, then SHA256 it
         sign: str = path + query_str + self._appkey
-        m = sha256()
-        m.update(sign.encode("ascii"))
+        sha = sha256()
+        sha.update(sign.encode("ascii"))
 
-        return m.hexdigest()
+        return sha.hexdigest()
 
-    def encrypt_password(self, loginId: str, password: str) -> str:
+    def encrypt_password(self, login_id: str, password: str) -> str:
         """Encrypts password for cloud API"""
         # Hash the password
-        m = sha256()
-        m.update(password.encode("ascii"))
+        sha = sha256()
+        sha.update(password.encode("ascii"))
 
         # Create the login hash with the loginID + password hash + appKey,
         # then hash it all again
-        loginHash = loginId + m.hexdigest() + self._appkey
-        m = sha256()
-        m.update(loginHash.encode("ascii"))
-        return m.hexdigest()
+        login_hash = login_id + sha.hexdigest() + self._appkey
+        sha = sha256()
+        sha.update(login_hash.encode("ascii"))
+        return sha.hexdigest()
 
     @property
     def access_token(self) -> str | None:
+        """Returns current access token"""
         return self._access_token
 
     @access_token.setter
@@ -508,6 +510,7 @@ class Security:
 
     @property
     def data_key(self) -> str | None:
+        """Returns current data encryption key"""
         return self._data_key
 
     def aes_decrypt_string(self, data: str, key: str | None = None) -> str:

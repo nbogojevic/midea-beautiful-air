@@ -1,65 +1,72 @@
+"""Test command line interface and global functions"""
 from argparse import Namespace
 import logging
 from unittest.mock import MagicMock, call, patch
+
 import pytest
 import pytest_socket
+
 from midea_beautiful import connect_to_cloud
 from midea_beautiful.cli import (
+    _configure_argparser,
+    _logs_install,
+    _output,
+    _run_discover_command,
+    _run_set_command,
+    _run_status_command,
     cli,
-    logs_install,
-    configure_argparser,
-    output,
-    run_discover_command,
-    run_set_command,
-    run_status_command,
 )
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import LanDevice
 
+# pylint: disable=protected-access
+# pylint: disable=missing-function-docstring
+# pylint: disable=invalid-name line-too-long
+
 
 def test_argparser():
-    parser = configure_argparser()
+    parser = _configure_argparser()
     with pytest.raises(SystemExit):
         parser.parse_args(["--test"])
 
 
 def test_argparser_set():
-    parser = configure_argparser()
+    parser = _configure_argparser()
     with pytest.raises(SystemExit):
         parser.parse_args(["set", "--test"])
 
 
 def test_output(capsys: pytest.CaptureFixture):
-    lan = LanDevice(id="456", appliance_type="a1")
-    output(lan, True)
+    lan = LanDevice(appliance_id="456", appliance_type="a1")
+    _output(lan, True)
     captured = capsys.readouterr()
     assert "token" in captured.out
-    assert "k1" in captured.out
+    assert "key" in captured.out
     assert "Dehumidifier" in captured.out
     assert "humid%" in captured.out
     assert "Air conditioner" not in captured.out
 
-    output(lan, False)
+    _output(lan, False)
     captured = capsys.readouterr()
     assert "token" not in captured.out
     assert "humid%" in captured.out
     assert "Air conditioner" not in captured.out
 
-    lan = LanDevice(id="123", appliance_type="ac")
-    output(lan, True)
+    lan = LanDevice(appliance_id="123", appliance_type="ac")
+    _output(lan, True)
     captured = capsys.readouterr()
     assert "token" in captured.out
-    assert "k1" in captured.out
+    assert "key" in captured.out
     assert "target" in captured.out
     assert "indoor" in captured.out
     assert "outdoor" in captured.out
     assert "Dehumidifier" not in captured.out
     assert "Air conditioner" in captured.out
 
-    output(lan, False)
+    _output(lan, False)
     captured = capsys.readouterr()
     assert "token" not in captured.out
-    assert "k1" not in captured.out
+    assert "key" not in captured.out
     assert "target" in captured.out
     assert "indoor" in captured.out
     assert "outdoor" in captured.out
@@ -69,13 +76,13 @@ def test_output(capsys: pytest.CaptureFixture):
 
 def test_status():
     namespace = Namespace(ip=None, id=None)
-    ret = run_status_command(namespace)
+    ret = _run_status_command(namespace)
     assert ret == 7
     namespace = Namespace(ip="1.2.3.4", id="123")
-    ret = run_status_command(namespace)
+    ret = _run_status_command(namespace)
     assert ret == 7
     namespace = Namespace(ip="1.2.3.4", id="", token=None, account=None)
-    ret = run_status_command(namespace)
+    ret = _run_status_command(namespace)
     assert ret == 8
     namespace = Namespace(
         ip="1.2.3.4",
@@ -85,7 +92,7 @@ def test_status():
         account=None,
     )
     with pytest.raises(pytest_socket.SocketBlockedError):
-        run_status_command(namespace)
+        _run_status_command(namespace)
     namespace = Namespace(
         ip=None,
         id="45",
@@ -98,7 +105,7 @@ def test_status():
         cloud=True,
     )
     with pytest.raises(pytest_socket.SocketBlockedError):
-        run_status_command(namespace)
+        _run_status_command(namespace)
 
 
 def test_status_ok(
@@ -118,7 +125,7 @@ def test_status_ok(
         credentials=False,
     )
     with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
-        res = run_status_command(namespace)
+        res = _run_status_command(namespace)
         assert res == 0
         captured = capsys.readouterr()
         assert "id      = 45" in captured.out
@@ -145,7 +152,7 @@ def test_status_no_appliance(
             credentials=False,
         )
         caplog.clear()
-        res = run_status_command(namespace)
+        res = _run_status_command(namespace)
         assert res == 9
         assert len(caplog.records) == 1
         assert caplog.messages[0], "Unable to get appliance status for '46'"
@@ -162,7 +169,7 @@ def test_run_discover_command(capsys: pytest.CaptureFixture):
             network=None,
             credentials=False,
         )
-        res = run_discover_command(namespace)
+        res = _run_discover_command(namespace)
         assert res == 0
         captured = capsys.readouterr()
         assert "target" not in captured.out
@@ -196,19 +203,19 @@ def test_run_cli(caplog: pytest.LogCaptureFixture):
         ]
     )
     assert len(caplog.records) == 1
-    assert caplog.messages[0] == "Missing ip or appliance id"
+    assert caplog.messages[0] == "Missing ip address or appliance id"
     assert ret == 7
 
 
 def test_set_command():
     namespace = Namespace(ip=None, id=None)
-    ret = run_set_command(namespace)
+    ret = _run_set_command(namespace)
     assert ret == 7
     namespace = Namespace(ip="1.2.3.4", id="123")
-    ret = run_set_command(namespace)
+    ret = _run_set_command(namespace)
     assert ret == 7
     namespace = Namespace(ip="1.2.3.4", id="", token=None, account=None)
-    ret = run_set_command(namespace)
+    ret = _run_set_command(namespace)
     assert ret == 8
     namespace = Namespace(
         ip="1.2.3.4",
@@ -218,7 +225,7 @@ def test_set_command():
         account=None,
     )
     with pytest.raises(pytest_socket.SocketBlockedError):
-        run_set_command(namespace)
+        _run_set_command(namespace)
     namespace = Namespace(
         ip=None,
         id="45",
@@ -231,7 +238,7 @@ def test_set_command():
         cloud=True,
     )
     with pytest.raises(pytest_socket.SocketBlockedError):
-        run_set_command(namespace)
+        _run_set_command(namespace)
 
 
 def test_set_with_cloud(
@@ -253,7 +260,7 @@ def test_set_with_cloud(
         loglevel="INFO",
     )
     with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
-        run_set_command(namespace)
+        _run_set_command(namespace)
         captured = capsys.readouterr()
         assert "id      = 411" in captured.out
 
@@ -280,7 +287,7 @@ def test_set_no_status(
             credentials=False,
         )
         caplog.clear()
-        res = run_set_command(namespace)
+        res = _run_set_command(namespace)
         assert res == 9
         assert len(caplog.records) == 1
         assert caplog.messages[0], "Unable to get appliance status for '416'"
@@ -292,15 +299,18 @@ def test_connect_to_cloud(mock_cloud: MagicMock):
         assert cloud is mock_cloud
         assert mock_cloud.mock_calls[0] == call.authenticate()
         assert constructor.mock_calls[0] == call(
-            "3742e9e5842d4ad59c2db887e12449f9", "user@example.com", "pa55w0rd", 1017
+            appkey="3742e9e5842d4ad59c2db887e12449f9",
+            account="user@example.com",
+            password="pa55w0rd",
+            appid=1017,
         )
 
 
 def test_coloredlogs():
     with patch("midea_beautiful.cli.logging", return_value=MagicMock()) as log:
-        logs_install(logging.DEBUG, logmodule="notexisting")
+        _logs_install(logging.DEBUG, logmodule="notexisting")
         assert log.mock_calls == [call.basicConfig(level=10)]
     # coloredlogs must be installed otherwise this will fail
     with patch("midea_beautiful.cli.logging", return_value=MagicMock()) as log:
-        logs_install(logging.DEBUG)
+        _logs_install(logging.DEBUG)
         assert log.mock_calls == []

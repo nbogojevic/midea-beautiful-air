@@ -1,3 +1,4 @@
+"""Test local network appliance scanner class"""
 from binascii import unhexlify
 import socket
 from typing import Final
@@ -7,6 +8,10 @@ from midea_beautiful import discover_appliances
 from midea_beautiful.crypto import Security
 from midea_beautiful.exceptions import MideaError
 import midea_beautiful.scanner as scanner
+
+# pylint: disable=protected-access
+# pylint: disable=missing-function-docstring
+# pylint: disable=invalid-name line-too-long
 
 BROADCAST_PAYLOAD: Final = (
     "020100c02c190000"
@@ -105,15 +110,15 @@ def broadcast_packet():
 @pytest.fixture(name="lan_device_mocking")
 def lan_device_mocking():
     x = MagicMock()
-    x.id = "456"
-    x.sn = "X0456"
+    x.appliance_id = "456"
+    x.serial_number = "X0456"
     y = MagicMock()
-    y.id = "999"
-    y.sn = "X0999"
+    y.appliance_id = "999"
+    y.serial_number = "X0999"
     y.__str__.return_value = "appliance-999"
     z = MagicMock()
-    z.id = "123"
-    z.sn = "X0123"
+    z.appliance_id = "123"
+    z.serial_number = "X0123"
     z.__str__.return_value = "appliance-123"
     return [x, y, z]
 
@@ -173,8 +178,8 @@ def test_discover_appliances(
         caplog.clear()
         res = discover_appliances(cloud=mock_cloud)
         assert len(res) == 2
-        assert res[0].id == "456"
-        assert res[1].id == "123"
+        assert res[0].appliance_id == "456"
+        assert res[1].appliance_id == "123"
         assert len(caplog.records) == 1
         assert (
             str(caplog.messages[0])
@@ -206,8 +211,8 @@ def test_create_find_appliances(
         caplog.clear()
         res = scanner.find_appliances(cloud=mock_cloud)
         assert len(res) == 2
-        assert res[0].id == "456"
-        assert res[1].id == "123"
+        assert res[0].appliance_id == "456"
+        assert res[1].appliance_id == "123"
         assert len(caplog.records) == 1
         assert (
             str(caplog.messages[0])
@@ -240,10 +245,10 @@ def test_create_find_appliances_changed_id(
         caplog.clear()
         res = scanner.find_appliances(cloud=mock_cloud)
         assert len(res) == 2
-        assert res[0].id == "456"
-        assert res[1].id == "123"
+        assert res[0].appliance_id == "456"
+        assert res[1].appliance_id == "123"
         assert res[1].name == "name-124"
-        assert res[1].sn == "X0123"
+        assert res[1].serial_number == "X0123"
         assert len(caplog.records) == 1
         assert (
             str(caplog.messages[0])
@@ -253,9 +258,9 @@ def test_create_find_appliances_changed_id(
 
 def test_create_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFixture):
     x = MagicMock()
-    x.id = "456"
+    x.appliance_id = "456"
     y = MagicMock()
-    y.id = "999"
+    y.appliance_id = "999"
     y.__str__.return_value = "appliance-999"
     with patch("midea_beautiful.scanner.LanDevice", side_effect=[x, y]):
         with patch("socket.socket") as mock_socket:
@@ -272,7 +277,7 @@ def test_create_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFix
             caplog.clear()
             res = scanner.find_appliances(cloud=mock_cloud)
             assert len(res) == 1
-            assert res[0].id == "456"
+            assert res[0].appliance_id == "456"
             assert len(caplog.records) == 2
             assert (
                 str(caplog.messages[0])

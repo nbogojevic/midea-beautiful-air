@@ -1,13 +1,13 @@
 """ Library for local network access to Midea dehumidifier appliances """
 from __future__ import annotations
 
-from midea_beautiful.version import __version__
+import midea_beautiful.version as version
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import LanDevice, get_appliance_state
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 from midea_beautiful.scanner import find_appliances
 
-__version__ = __version__
+__version__ = version.__version__
 
 
 def discover_appliances(
@@ -16,7 +16,7 @@ def discover_appliances(
     password: str = None,
     appid: int = DEFAULT_APP_ID,
     cloud: MideaCloud | None = None,
-    networks: list[str] = [],
+    networks: list[str] = None,
 ) -> list[LanDevice]:
     """
     Discovers appliances on local network
@@ -44,16 +44,23 @@ def discover_appliances(
             are found via Midea cloud API, but are not discovered will
             have IP address set to None.
     """
-    return find_appliances(cloud, appkey, account, password, str(appid), networks)
+    return find_appliances(
+        cloud=cloud,
+        appkey=appkey,
+        account=account,
+        password=password,
+        appid=str(appid),
+        networks=networks,
+    )
 
 
 def appliance_state(
-    ip: str | None = None,
+    address: str | None = None,
     token: str | None = None,
     key: str | None = None,
     cloud: MideaCloud = None,
     use_cloud: bool = False,
-    id: str | None = None,
+    appliance_id: str | None = None,
 ) -> LanDevice | None:
     """
     Retrieves appliance state
@@ -77,7 +84,12 @@ def appliance_state(
         LanDevice: Appliance descriptor and state
     """
     return get_appliance_state(
-        ip=ip, token=token, key=key, cloud=cloud, use_cloud=use_cloud, id=id
+        address=address,
+        token=token,
+        key=key,
+        cloud=cloud,
+        use_cloud=use_cloud,
+        appliance_id=appliance_id,
     )
 
 
@@ -96,6 +108,6 @@ def connect_to_cloud(
     Returns:
         MideaCloud: Interface to Midea cloud API
     """
-    cloud = MideaCloud(appkey, account, password, appid)
+    cloud = MideaCloud(appkey=appkey, account=account, password=password, appid=appid)
     cloud.authenticate()
     return cloud

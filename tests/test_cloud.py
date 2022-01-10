@@ -1,3 +1,4 @@
+"""Tests for Midea cloud client API"""
 import json
 from typing import Final
 from unittest.mock import patch
@@ -15,6 +16,12 @@ from midea_beautiful.exceptions import (
     RetryLaterError,
 )
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
+
+# pylint: disable=protected-access
+# pylint: disable=redefined-outer-name
+# pylint: disable=missing-function-docstring
+# pylint: disable=invalid-name line-too-long
+# pylint: disable=unused-argument
 
 _j = json.dumps
 
@@ -82,7 +89,7 @@ def test_request_handling(
         "https://mapp.appsmb.com/v1/dummy", text=_j({"result": "response text"})
     )
     response = cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
-    assert "response text" == response
+    assert response == "response text"
 
 
 def test_request_missing_result(
@@ -103,9 +110,9 @@ def test_request_error(cloud_client: MideaCloud, requests_mock: requests_mock.Mo
     )
     with pytest.raises(CloudError) as ex:
         cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
-    assert "error message" == ex.value.message
-    assert 2 == ex.value.error_code
-    assert "Midea cloud API error 2 error message" == str(ex.value)
+    assert ex.value.message == "error message"
+    assert ex.value.error_code == 2
+    assert str(ex.value) == "Midea cloud API error 2 error message"
 
 
 def test_request_retry(cloud_client: MideaCloud, requests_mock: requests_mock.Mocker):
@@ -115,8 +122,8 @@ def test_request_retry(cloud_client: MideaCloud, requests_mock: requests_mock.Mo
     )
     with pytest.raises(RetryLaterError) as ex:
         cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
-    assert "retry error message" == ex.value.message
-    assert "Retry later 7610 retry error message" == str(ex.value)
+    assert ex.value.message == "retry error message"
+    assert str(ex.value) == "Retry later 7610 retry error message"
 
 
 def test_request_authentication_error(
@@ -128,9 +135,9 @@ def test_request_authentication_error(
     )
     with pytest.raises(CloudAuthenticationError) as ex:
         cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
-    assert "authentication error" == ex.value.message
-    assert 3102 == ex.value.error_code
-    assert "Authentication 3102 authentication error" == str(ex.value)
+    assert ex.value.message == "authentication error"
+    assert ex.value.error_code == 3102
+    assert str(ex.value) == "Authentication 3102 authentication error"
 
 
 def test_request_too_many_retries(
@@ -142,7 +149,7 @@ def test_request_too_many_retries(
     )
     with pytest.raises(CloudRequestError) as ex:
         cloud_client.api_request("too-many-retries", DUMMY_RQ, authenticate=False)
-    assert "Too many retries while calling too-many-retries" == ex.value.message
+    assert ex.value.message == "Too many retries while calling too-many-retries"
 
 
 def test_request_exception(
@@ -154,7 +161,7 @@ def test_request_exception(
     )
     with pytest.raises(CloudRequestError) as ex:
         cloud_client.api_request("exception", DUMMY_RQ, authenticate=False)
-    assert "Request error simulated while calling exception" == ex.value.message
+    assert ex.value.message == "Request error simulated while calling exception"
 
 
 def test_session_restart(cloud_client: MideaCloud, requests_mock: requests_mock.Mocker):
@@ -188,7 +195,7 @@ def test_session_restart(cloud_client: MideaCloud, requests_mock: requests_mock.
         text=_j({"errorCode": "0", "result": {"loginId": "test-login"}}),
     )
     result = cloud.api_request("dummy", DUMMY_RQ, authenticate=False)
-    assert "response text" == result
+    assert result == "response text"
     history = requests_mock.request_history
 
     assert history[0].url == "https://mapp.appsmb.com/v1/dummy"
@@ -211,9 +218,9 @@ def test_full_restart(
         ],
     )
     result = cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
-    assert "successful" == result
-    assert "test-login" == cloud_client._login_id
-    assert "session-1" == cloud_client._session["sessionId"]
+    assert result == "successful"
+    assert cloud_client._login_id == "test-login"
+    assert cloud_client._session["sessionId"] == "session-1"
     history = requests_mock.request_history
     assert history[0].url == "https://mapp.appsmb.com/v1/dummy"
     assert history[1].url == "https://mapp.appsmb.com/v1/user/login/id/get"
@@ -235,7 +242,7 @@ def test_full_restart_retries(
     )
     with pytest.raises(CloudRequestError) as ex:
         cloud_client.api_request("full_restart", DUMMY_RQ, authenticate=False)
-    assert "Too many retries while calling full_restart" == ex.value.message
+    assert ex.value.message == "Too many retries while calling full_restart"
 
 
 def test_list_appliance(
@@ -244,14 +251,14 @@ def test_list_appliance(
     for_login,
     appliance_list,
 ):
-    list = cloud_client.list_appliances()
-    assert 2 == len(list)
+    list_od_appliances = cloud_client.list_appliances()
+    assert len(list_od_appliances) == 2
 
     cloud_client._appliance_list = [{}]
-    list = cloud_client.list_appliances()
-    assert 1 == len(list)
-    list = cloud_client.list_appliances(force=True)
-    assert 2 == len(list)
+    list_od_appliances = cloud_client.list_appliances()
+    assert len(list_od_appliances) == 1
+    list_od_appliances = cloud_client.list_appliances(force=True)
+    assert len(list_od_appliances) == 2
 
 
 def test_homegroup_no_default(
@@ -276,7 +283,7 @@ def test_homegroup_no_default(
     )
     with pytest.raises(CloudRequestError) as ex:
         cloud_client.list_appliances(force=True)
-    assert "Unable to get default home group from Midea API" == ex.value.message
+    assert ex.value.message == "Unable to get default home group from Midea API"
 
 
 def test_no_homegroups(
@@ -291,7 +298,7 @@ def test_no_homegroups(
     )
     with pytest.raises(CloudRequestError) as ex:
         cloud_client.list_appliances(force=True)
-    assert "Unable to get home groups from Midea API" == ex.value.message
+    assert ex.value.message == "Unable to get home groups from Midea API"
 
 
 def test_get_token(
@@ -312,16 +319,16 @@ def test_get_token(
         ),
     )
     token, key = cloud_client.get_token("1")
-    assert "token-1" == token
-    assert "key-1" == key
+    assert token == "token-1"
+    assert key == "key-1"
 
     token, key = cloud_client.get_token("2")
-    assert "token-2" == token
-    assert "key-2" == key
+    assert token == "token-2"
+    assert key == "key-2"
 
     token, key = cloud_client.get_token("absent")
-    assert "" == token
-    assert "" == key
+    assert token == ""
+    assert key == ""
 
 
 def test_appliance_transparent_send(cloud_client, for_login: requests_mock.Mocker):
@@ -363,7 +370,7 @@ def test_lua_script(cloud_client: MideaCloud, for_login: requests_mock.Mocker):
         text=_j({"md5": "12345", "url": "http://test.example.com/script.lua"}),
     )
     with pytest.raises(MideaError) as ex:
-        cloud_client.get_lua_script(sn="456", manufacturer="1234")
+        cloud_client.get_lua_script(serial_number="456", manufacturer="1234")
     assert ex.value.message == "Error retrieving lua script"
     for_login.post(
         "https://mapp.appsmb.com/v1/appliance/protocol/lua/luaGet",
@@ -373,5 +380,5 @@ def test_lua_script(cloud_client: MideaCloud, for_login: requests_mock.Mocker):
     )
     with patch.object(cloud_client._security, "aes_decrypt_string", return_value="LUA"):
         for_login.get("http://test.example.com/script.lua", text="dummy")
-        res = cloud_client.get_lua_script(sn="456", manufacturer="1234")
+        res = cloud_client.get_lua_script(serial_number="456", manufacturer="1234")
         assert res == "LUA"

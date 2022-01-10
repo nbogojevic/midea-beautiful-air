@@ -1,39 +1,35 @@
 """ Discover Midea Humidifiers on local network using command-line """
 from __future__ import annotations
 
+from argparse import ArgumentParser, Namespace
 import importlib
+import logging
 import sys
 from typing import Any
 
-from midea_beautiful.util import SPAM, TRACE
-
-from argparse import ArgumentParser, Namespace
-import logging
-
 from midea_beautiful import appliance_state, connect_to_cloud, find_appliances
-from midea_beautiful.appliance import (
-    AirConditionerAppliance,
-    DehumidifierAppliance,
-)
+from midea_beautiful.appliance import AirConditionerAppliance, DehumidifierAppliance
+from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
+from midea_beautiful.util import SPAM, TRACE
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def logs_install(level, **kw) -> None:
+def _logs_install(level, **kw) -> None:
     try:
         module = importlib.import_module(kw.get("logmodule", "coloredlogs"))
         module.install(level=level, **kw)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         logging.basicConfig(level=level)
 
 
-def output(appliance: LanDevice, show_credentials: bool = False) -> None:
+def _output(appliance: LanDevice, show_credentials: bool = False) -> None:
     print(f"id {appliance.unique_id}")
-    print(f"  id      = {appliance.id}")
-    print(f"  addr    = {appliance.ip if appliance.ip else 'Unknown'}")
-    print(f"  s/n     = {appliance.sn}")
+    print(f"  id      = {appliance.appliance_id}")
+    print(f"  addr    = {appliance.address if appliance.address else 'Unknown'}")
+    print(f"  s/n     = {appliance.serial_number}")
     print(f"  model   = {appliance.model}")
     print(f"  ssid    = {appliance.ssid}")
     print(f"  online  = {appliance.online}")
@@ -72,10 +68,10 @@ def output(appliance: LanDevice, show_credentials: bool = False) -> None:
 
     if show_credentials:
         print(f"  token   = {appliance.token}")
-        print(f"  k1      = {appliance.k1}")
+        print(f"  key      = {appliance.key}")
 
 
-def run_discover_command(args: Namespace) -> int:
+def _run_discover_command(args: Namespace) -> int:
     appliances = find_appliances(
         appkey=args.appkey,
         account=args.account,
@@ -84,7 +80,7 @@ def run_discover_command(args: Namespace) -> int:
         networks=args.network,
     )
     for appliance in appliances:
-        output(appliance, args.credentials)
+        _output(appliance, args.credentials)
     return 0
 
 
@@ -93,12 +89,12 @@ def _check_ip_id(args: Namespace) -> bool:
         _LOGGER.error("Both ip address and id provided. Please provide only one")
         return False
     if not args.ip and not args.id:
-        _LOGGER.error("Missing ip or appliance id")
+        _LOGGER.error("Missing ip address or appliance id")
         return False
     return True
 
 
-def run_status_command(args: Namespace) -> int:
+def _run_status_command(args: Namespace) -> int:
     if not _check_ip_id(args):
         return 7
     if not args.token:
@@ -107,7 +103,7 @@ def run_status_command(args: Namespace) -> int:
                 args.account, args.password, args.appkey, args.appid
             )
             appliance = appliance_state(
-                ip=args.ip, cloud=cloud, use_cloud=args.cloud, id=args.id
+                address=args.ip, cloud=cloud, use_cloud=args.cloud, appliance_id=args.id
             )
 
         else:
@@ -115,10 +111,10 @@ def run_status_command(args: Namespace) -> int:
             return 8
     else:
         appliance = appliance_state(
-            ip=args.ip, token=args.token, key=args.key, id=args.id
+            address=args.ip, token=args.token, key=args.key, appliance_id=args.id
         )
     if appliance:
-        output(appliance, args.credentials)
+        _output(appliance, args.credentials)
     else:
         _LOGGER.error(
             "Unable to get appliance status for '%s'",
@@ -144,45 +140,21 @@ _COMMON_ARGUMENTS = [
 ]
 
 
-def run_set_command(args: Namespace) -> int:
-    if not _check_ip_id(args):
-        return 7
-    cloud = None
-    if not args.token:
-        if args.account and args.password:
-            cloud = connect_to_cloud(
-                args.account, args.password, args.appkey, args.appid
-            )
-            appliance = appliance_state(
-                ip=args.ip, cloud=cloud, use_cloud=args.cloud, id=args.id
-            )
-        else:
-            _LOGGER.error("Missing token/key or cloud credentials")
-            return 8
-    else:
-        appliance = appliance_state(
-            ip=args.ip, token=args.token, key=args.key, id=args.id
-        )
-
-    if not appliance:
-        _LOGGER.error(
-            "Unable to get appliance status id=%s",
-            args.ip if hasattr(args, "ip") else args.id,
-        )
-        return 9
-
+def _process_attr_arguments(
+    args: Namespace, appliance: LanDevice, cloud: MideaCloud | None
+):
     all_args = {**vars(args)}
     typ = type(appliance.state)
-    for a in _COMMON_ARGUMENTS:
-        all_args.pop(a)
+    for arg in _COMMON_ARGUMENTS:
+        all_args.pop(arg)
 
     set_args: dict[str, Any] = {}
     for attr in dir(typ):
         if not attr.startswith("_") and attr not in _EXCLUDED_PROPERTIES:
             if all_args.get(attr) is not None:
-                p = getattr(typ, attr)
-                if isinstance(p, property):
-                    if p.fset:
+                prop_candidate = getattr(typ, attr)
+                if isinstance(prop_candidate, property):
+                    if prop_candidate.fset:
                         _LOGGER.debug(
                             "Setting attribute '%s' to %r", attr, all_args[attr]
                         )
@@ -193,17 +165,47 @@ def run_set_command(args: Namespace) -> int:
         all_args.pop(attr, None)
 
     unused_args = []
-    for u, v in all_args.items():
-        if v is not None:
-            unused_args.append(u)
+    for unused, value in all_args.items():
+        if value is not None:
+            unused_args.append(unused)
     if len(unused_args) > 0:
         _LOGGER.error("Not applicable options: %s", unused_args)
         return 11
     if cloud:
         set_args["cloud"] = cloud
     appliance.set_state(**set_args)
-    output(appliance, args.credentials)
+    _output(appliance, args.credentials)
     return 0
+
+
+def _run_set_command(args: Namespace) -> int:
+    if not _check_ip_id(args):
+        return 7
+    cloud = None
+    if not args.token:
+        if args.account and args.password:
+            cloud = connect_to_cloud(
+                args.account, args.password, args.appkey, args.appid
+            )
+            appliance = appliance_state(
+                address=args.ip, cloud=cloud, use_cloud=args.cloud, appliance_id=args.id
+            )
+        else:
+            _LOGGER.error("Missing token/key or cloud credentials")
+            return 8
+    else:
+        appliance = appliance_state(
+            address=args.ip, token=args.token, key=args.key, appliance_id=args.id
+        )
+
+    if not appliance:
+        _LOGGER.error(
+            "Unable to get appliance status id=%s",
+            args.ip if hasattr(args, "ip") else args.id,
+        )
+        return 9
+
+    return _process_attr_arguments(args, appliance, cloud)
 
 
 def _add_standard_options(parser: ArgumentParser) -> None:
@@ -240,13 +242,13 @@ def _add_standard_options(parser: ArgumentParser) -> None:
 
 def cli(argv) -> int:
     """Command line interface for the library"""
-    parser = configure_argparser()
+    parser = _configure_argparser()
     args = parser.parse_args(argv)
 
     log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
     logging.addLevelName(TRACE, "TRACE")
     logging.addLevelName(SPAM, "SPAM")
-    logs_install(
+    _logs_install(
         level=log_level,
         level_styles=dict(
             spam=dict(color="white", faint=True),
@@ -261,17 +263,17 @@ def cli(argv) -> int:
     )
 
     commands = {
-        "discover": run_discover_command,
-        "status": run_status_command,
-        "set": run_set_command,
+        "discover": _run_discover_command,
+        "status": _run_status_command,
+        "set": _run_set_command,
     }
 
-    fn = commands.get(args.command, lambda _: 1)
+    function = commands.get(args.command, lambda _: 1)
 
-    return fn(args)
+    return function(args)
 
 
-def configure_argparser():
+def _configure_argparser():
     parser = ArgumentParser(
         prog="midea-beautiful-air-cli",
         description=(
@@ -337,11 +339,11 @@ def _settings_arguments():
     for typ, name in objs.items():
         for attr in dir(typ):
             if not attr.startswith("_") and attr not in _EXCLUDED_PROPERTIES:
-                p = getattr(typ, attr)
-                if isinstance(p, property) and p.fset:
+                prop_candidate = getattr(typ, attr)
+                if isinstance(prop_candidate, property) and prop_candidate.fset:
                     metavar = attr.upper()
                     opt = attr.replace("_", "-")
-                    desc = p.__doc__ or attr.replace("_", " ")
+                    desc = prop_candidate.__doc__ or attr.replace("_", " ")
                     if attrs.get(opt):
                         attrs[opt]["desc"] = f"{attrs[opt]['desc']}, {name}"
                     else:
@@ -357,4 +359,4 @@ _EXCLUDED_PROPERTIES = ["name"]
 
 if __name__ == "__main__":
     ret = cli(sys.argv[1:])
-    exit(ret)
+    sys.exit(ret)

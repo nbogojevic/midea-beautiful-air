@@ -1,3 +1,4 @@
+"""Tests for Midea commands"""
 from binascii import unhexlify
 from typing import Final
 
@@ -11,7 +12,7 @@ from midea_beautiful.command import (
     DehumidifierSetCommand,
     DeviceCapabilitiesCommand,
     DeviceCapabilitiesCommandMore,
-    midea_command_reset_sequence,
+    MideaSequenceCommand,
 )
 from midea_beautiful.midea import (
     APPLIANCE_TYPE_AIRCON,
@@ -19,16 +20,23 @@ from midea_beautiful.midea import (
     DEFAULT_APPKEY,
 )
 
+# pylint: disable=protected-access
+# pylint: disable=missing-function-docstring
+# pylint: disable=redefined-outer-name
+# pylint: disable=invalid-name line-too-long
+
 APP_KEY: Final = DEFAULT_APPKEY
 
 
-def setup_function(fun):
-    midea_command_reset_sequence()
+def setup_function():
+    MideaSequenceCommand.reset_sequence()
 
 
 @pytest.fixture(name="dehumidifier")
 def dehumidifier():
-    return DehumidifierAppliance(id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    return DehumidifierAppliance(
+        appliance_id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
 
 
 @pytest.fixture(name="aircon")
@@ -38,12 +46,12 @@ def aircon():
 
 def test_device_capabilities_command() -> None:
     dc = DeviceCapabilitiesCommand()
-    assert "aa0ea100000000000303b501118ef6" == dc.finalize().hex()
+    assert dc.finalize().hex() == "aa0ea100000000000303b501118ef6"
 
 
 def test_device_capabilities_command_more() -> None:
     dc = DeviceCapabilitiesCommandMore()
-    assert "aa0ea100000000000303b501011381" == dc.finalize().hex()
+    assert dc.finalize().hex() == "aa0ea100000000000303b501011381"
 
 
 def test_dehumidifier_status(dehumidifier: DehumidifierAppliance) -> None:
@@ -119,7 +127,7 @@ def test_ac_status(aircon: AirConditionerAppliance) -> None:
 
 
 def test_ac_status_in_sequence(aircon: AirConditionerAppliance) -> None:
-    midea_command_reset_sequence(2)
+    MideaSequenceCommand.reset_sequence(2)
     cmd = aircon.refresh_command().finalize()
     assert (
         "aa20ac00000000000003418100ff03ff000200000000000000000000000003cd9c"

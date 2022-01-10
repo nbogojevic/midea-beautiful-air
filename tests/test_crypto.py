@@ -1,3 +1,4 @@
+"""Test encryption functions"""
 import binascii
 from typing import Final
 import pytest
@@ -9,6 +10,10 @@ from midea_beautiful.midea import (
     DEFAULT_APPKEY,
     MSGTYPE_ENCRYPTED_REQUEST,
 )
+
+# pylint: disable=protected-access
+# pylint: disable=missing-function-docstring
+# pylint: disable=invalid-name line-too-long
 
 APP_KEY: Final = DEFAULT_APPKEY
 
@@ -97,7 +102,7 @@ def test_data_key() -> None:
     security.access_token = (
         "f4fe051b7611d07d54a7f0a5e07ca2beb920ebb829d567559397ded751813801"
     )
-    assert "23f4b15525824bc3" == security.data_key
+    assert security.data_key == "23f4b15525824bc3"
 
 
 def test_decode_8730_exception() -> None:

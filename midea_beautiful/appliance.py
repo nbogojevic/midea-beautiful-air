@@ -27,8 +27,8 @@ def _as_bool(value: Any) -> bool:
 
 def _dump_data(data: bytes):
     if _LOGGER.isEnabledFor(SPAM):
-        for i in range(len(data)):
-            _LOGGER.log(SPAM, "%2d %3d %02X", i, data[i], data[i])
+        for i, byte in enumerate(data):
+            _LOGGER.log(SPAM, "%2d %3d %02X", i, byte, byte)
 
 
 class Appliance:
@@ -40,32 +40,46 @@ class Appliance:
         self._online = False
 
     @staticmethod
-    def instance(id, appliance_type: str = "") -> Appliance:
+    def instance(appliance_id, appliance_type: str = "") -> Appliance:
         """
         Factory method to create an instance of appliance corresponding to
         requested type.
         """
         if DehumidifierAppliance.supported(appliance_type):
             _LOGGER.log(
-                TRACE, "Creating DehumidifierAppliance %s %s", id, appliance_type
+                TRACE,
+                "Creating DehumidifierAppliance %s %s",
+                appliance_id,
+                appliance_type,
             )
-            return DehumidifierAppliance(id=id, appliance_type=appliance_type)
+            return DehumidifierAppliance(
+                appliance_id=appliance_id, appliance_type=appliance_type
+            )
         if AirConditionerAppliance.supported(appliance_type):
             _LOGGER.log(
-                TRACE, "Creating AirConditionerAppliance %s %s", id, appliance_type
+                TRACE,
+                "Creating AirConditionerAppliance %s %s",
+                appliance_id,
+                appliance_type,
             )
-            return AirConditionerAppliance(id=id, appliance_type=appliance_type)
-        _LOGGER.warning("Creating unsupported appliance %s %s", id, appliance_type)
-        return Appliance(id, appliance_type)
+            return AirConditionerAppliance(
+                id=appliance_id, appliance_type=appliance_type
+            )
+        _LOGGER.warning(
+            "Creating unsupported appliance %s %s", appliance_id, appliance_type
+        )
+        return Appliance(appliance_id, appliance_type)
 
     @staticmethod
     def supported(appliance_type: str | int) -> bool:
+        """Returns True if appliance is supported by library"""
         return DehumidifierAppliance.supported(
             appliance_type
         ) or AirConditionerAppliance.supported(appliance_type)
 
     @staticmethod
     def same_types(type1: str | int, type2: str | int) -> bool:
+        """Returns True if two types represent same appliance type"""
         if type1 == type2:
             return True
         if isinstance(type1, int):
@@ -74,12 +88,12 @@ class Appliance:
         if isinstance(type2, int):
             if Appliance.same_types(type1, hex(type2)):
                 return True
-        t1 = str(type1).lower()
-        t2 = str(type2).lower()
-        return t1 == t2 or ("0x" + t1) == t2 or ("0x" + t2) == t1
+        type1 = str(type1).lower()
+        type2 = str(type2).lower()
+        return type1 == type2 or ("0x" + type1) == type2 or ("0x" + type2) == type1
 
     @property
-    def id(self) -> str:
+    def appliance_id(self) -> str:
         return self._id
 
     @property
@@ -104,13 +118,11 @@ class Appliance:
 
     def process_response(self, data: bytes) -> None:
         _LOGGER.debug("Ignored process_response %r", self)
-        pass
 
     def process_response_device_capabilities(
         self, data: bytes, sequence: int = 0
     ) -> None:
         _LOGGER.debug("Ignored process_response_device_capabilities %r", self)
-        pass
 
     def refresh_command(self) -> MideaCommand:
         return MideaCommand()
@@ -119,12 +131,14 @@ class Appliance:
         return MideaCommand()
 
     def __str__(self) -> str:
-        return "[UnknownAppliance]{id=%s type=%s}" % (self.id, self.type)
+        return "[UnknownAppliance]{id=%s type=%s}" % (self.appliance_id, self.type)
 
 
 class DehumidifierAppliance(Appliance):
-    def __init__(self, id, appliance_type: str = "") -> None:
-        super().__init__(id, appliance_type)
+    """Midea Dehumidifier Appliance model"""
+
+    def __init__(self, appliance_id, appliance_type: str = "") -> None:
+        super().__init__(appliance_id, appliance_type)
 
         self._running = False
         self._ion_mode = False
@@ -144,9 +158,14 @@ class DehumidifierAppliance(Appliance):
         self.supports = {}
 
     @staticmethod
-    def supported(type: str | int) -> bool:
-        lwr = str(type).lower()
-        return lwr == "a1" or lwr == "0xa1" or type == 161 or type == -95
+    def supported(appliance_type: str | int) -> bool:
+        lwr = str(appliance_type).lower()
+        return (
+            lwr == "a1"
+            or lwr == "0xa1"
+            or appliance_type == 161
+            or appliance_type == -95
+        )
 
     def process_response(self, data: bytes) -> None:
         _LOGGER.log(
@@ -194,6 +213,18 @@ class DehumidifierAppliance(Appliance):
         cmd.target_humidity = self.target_humidity
         return cmd
 
+    _CAPABILITIES = {
+        0x10: "fan_speed",
+        0x14: "mode",
+        0x17: "filter",
+        0x1D: "pump",
+        0x1E: "ion",
+        0x1F: "auto",
+        0x20: "dry_clothes",
+        0x24: "light",
+        0x2D: "water_level",
+    }
+
     def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
         if data:
             if data[0] != 0xB5:
@@ -205,24 +236,9 @@ class DehumidifierAppliance(Appliance):
                 self.supports = {}
             for _ in range(properties_count):
                 if data[i + 1] == 0x02:
-                    if data[i] == 0x20:
-                        self.supports["dry_clothes"] = data[i + 3]
-                    elif data[i] == 0x1F:
-                        self.supports["auto"] = data[i + 3]
-                    elif data[i] == 0x10:
-                        self.supports["fan_speed"] = data[i + 3]
-                    elif data[i] == 0x1E:
-                        self.supports["ion"] = data[i + 3]
-                    elif data[i] == 0x17:
-                        self.supports["filter"] = data[i + 3]
-                    elif data[i] == 0x1D:
-                        self.supports["pump"] = data[i + 3]
-                    elif data[i] == 0x2D:
-                        self.supports["water_level"] = data[i + 3]
-                    elif data[i] == 0x14:
-                        self.supports["mode"] = data[i + 3]
-                    elif data[i] == 0x24:
-                        self.supports["light"] = data[i + 3]
+                    attr = self._CAPABILITIES.get(data[i])
+                    if attr:
+                        self.supports[attr] = data[i + 3]
                     else:
                         _LOGGER.warning("unknown property=%02X02", data[i])
                 else:
@@ -298,13 +314,13 @@ class DehumidifierAppliance(Appliance):
         target_humidity = float(target_humidity)
         if target_humidity < 0:
             _LOGGER.debug(
-                "Tried to set target humidity to less than 0%: %s",
+                "Tried to set target humidity to less than 0%% value=%s",
                 target_humidity,
             )
             self._target_humidity = 0
         elif target_humidity > 100:
             _LOGGER.debug(
-                "Tried to set target humidity to greater than 100%: %s",
+                "Tried to set target humidity to greater than 100%% value=%s",
                 target_humidity,
             )
             self._target_humidity = 100
@@ -372,7 +388,7 @@ class DehumidifierAppliance(Appliance):
             " defrosting=%s, filter=%s, tank_level=%s, "
             " error_code=%s, prompt=%s, supports=%s}"
             % (
-                self.id,
+                self.appliance_id,
                 self.type,
                 self.mode,
                 self.running,
@@ -450,6 +466,30 @@ class AirConditionerAppliance(Appliance):
         else:
             self._online = False
 
+    _CAPABILITIES = {
+        0x14: "mode",
+        0x2A: "strong_fan",
+        0x1F: "humidity",
+        0x10: "fan_speed",
+        0x12: "eco",
+        0x17: "filter_reminder",
+        0x21: "filter_check",
+        0x22: "fahrenheit",
+        0x13: "heat_8",
+        0x16: "electricity",
+        0x19: "ptc",
+        0x32: "fan_straight",
+        0x33: "fan_avoid",
+        0x15: "fan_swing",
+        0x18: "no_fan_sense",
+        0x24: "screen_display",
+        0x1E: "anion",
+        0x39: "self_clean",
+        0x43: "fa_no_fan_sense",
+        0x30: "energy_save_on_absence",
+        0x42: "prevent_direct_fan",
+    }
+
     def process_response_device_capabilities(self, data: bytes):
         if data:
             if data[0] != 0xB5:
@@ -460,54 +500,16 @@ class AirConditionerAppliance(Appliance):
             self.supports = {}
             for _ in range(properties_count):
                 if data[i + 1] == 0x02:
-                    if data[i] == 0x14:
-                        self.supports["mode"] = data[i + 3]
-                    elif data[i] == 0x2A:
-                        self.supports["strong_fan"] = data[i + 3]
-                    elif data[i] == 0x1F:
-                        self.supports["humidity"] = data[i + 3]
-                    elif data[i] == 0x10:
-                        self.supports["fan_speed"] = data[i + 3]
-                    elif data[i] == 0x25:
+                    if data[i] == 0x25:
                         for j in range(7):
                             self.supports[f"temperature{j}"] = data[i + 3 + j]
                         i += 6
-                    elif data[i] == 0x12:
-                        self.supports["eco"] = data[i + 3]
-                    elif data[i] == 0x17:
-                        self.supports["filter_reminder"] = data[i + 3]
-                    elif data[i] == 0x21:
-                        self.supports["filter_check"] = data[i + 3]
-                    elif data[i] == 0x22:
-                        self.supports["fahrenheit"] = data[i + 3]
-                    elif data[i] == 0x13:
-                        self.supports["heat_8"] = data[i + 3]
-                    elif data[i] == 0x16:
-                        self.supports["electricity"] = data[i + 3]
-                    elif data[i] == 0x19:
-                        self.supports["ptc"] = data[i + 3]
-                    elif data[i] == 0x32:
-                        self.supports["fan_straight"] = data[i + 3]
-                    elif data[i] == 0x33:
-                        self.supports["fan_avoid"] = data[i + 3]
-                    elif data[i] == 0x15:
-                        self.supports["fan_swing"] = data[i + 3]
-                    elif data[i] == 0x18:
-                        self.supports["no_fan_sense"] = data[i + 3]
-                    elif data[i] == 0x24:
-                        self.supports["screen_display"] = data[i + 3]
-                    elif data[i] == 0x1E:
-                        self.supports["anion"] = data[i + 3]
-                    elif data[i] == 0x39:
-                        self.supports["self_clean"] = data[i + 3]
-                    elif data[i] == 0x43:
-                        self.supports["fa_no_fan_sense"] = data[i + 3]
-                    elif data[i] == 0x30:
-                        self.supports["energy_save_on_absence"] = data[i + 3]
-                    elif data[i] == 0x42:
-                        self.supports["prevent_direct_fan"] = data[i + 3]
                     else:
-                        _LOGGER.warning("unknown property=%02X02", data[i])
+                        attr = self._CAPABILITIES.get(data[i])
+                        if attr:
+                            self.supports[attr] = data[i + 3]
+                        else:
+                            _LOGGER.warning("unknown property=%02X02", data[i])
                 else:
                     _LOGGER.warning("unknown property=%02X%02X", data[i], data[i + 1])
                 i += 4
@@ -579,7 +581,7 @@ class AirConditionerAppliance(Appliance):
     @mode.setter
     def mode(self, mode: int) -> None:
         mode = int(mode)
-        if 0 <= mode and mode <= 15:
+        if 0 <= mode <= 15:
             self._mode = mode
         else:
             raise MideaError(f"Tried to set mode to invalid value: {mode}")
@@ -711,7 +713,7 @@ class AirConditionerAppliance(Appliance):
             " error_code=%d,"
             " prompt=%s, supports=%s}"
             % (
-                self.id,
+                self.appliance_id,
                 self.type,
                 self.mode,
                 self.running,

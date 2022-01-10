@@ -256,7 +256,7 @@ Get appliance state:
 from midea_beautiful import appliance_state
 
 appliance = appliance_state(
-    ip=192.0.1.2,  # APPLIANCE_IP_ADDRESS 
+    address=192.0.1.2,  # APPLIANCE_IP_ADDRESS 
     token="TOKEN",  # TOKEN obtained from Midea API
     key="KEY",  # Token KEY obtained from Midea API
 )
