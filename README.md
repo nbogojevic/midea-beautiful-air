@@ -29,7 +29,7 @@ It may as well work with other Midea Wi-Fi air conditioners and dehumidifiers.
 
 ## Dehumidifier data
 
-The following dehumidifier data is accessible via library: 
+The following dehumidifier data is accessible through this library: 
 
 * on/off switch (boolean, can be set)
 * current relative humidity (read-only)
@@ -54,7 +54,7 @@ The following dehumidifier data is accessible via library:
 
 ## Air Conditioner Data
 
-The following air conditioner data is accessible via library: 
+The following air conditioner data is accessible through this library: 
 
 * on/off switch (boolean, can be set)
 * target temperature(celsius, can be set)
@@ -80,7 +80,7 @@ This library is able to discover appliances on local network. This is done by br
 
 Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful/midea.py](midea_beautiful/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
-The discovery should work on Linux and Windows based systems, however it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs depending on network setup. For example, VM or container need to have rights to broadcast to physical network to make discovery work. One workaround, if it is not possible, is to run discovery from non-virtualized environment host. 
+The discovery should work on Linux and Windows based systems, however it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs depending on network setup. For example, a VM or a container needs to have rights to broadcast to physical network to make discovery work. One workaround, if physical network access is not possible, is to run discovery from non-virtualized environment host. 
 
 If this discovery mechanism doesn't work on particular set-up, it is still possible to either target appliances directly using their IP address when it is known or to retrieve or set their status using cloud service. 
 
@@ -157,7 +157,7 @@ Get status of an appliance using Midea app credentials
 midea-beautiful-air-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
-Get status of an appliance via Midea cloud API (note the usage of `--id` and `--cloud` options)
+Get status of an appliance through Midea cloud API (note the usage of `--id` and `--cloud` options)
 
 ```shell
 midea-beautiful-air-cli status --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --cloud
@@ -192,7 +192,7 @@ Combinations of multiple settings
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan-speed 60 --target-humidity 50
 ```
-Set target humidity via Midea cloud API (note the usage of `--id` and `--cloud` options)
+Set target humidity through Midea cloud API (note the usage of `--id` and `--cloud` options)
 ```shell
 midea-beautiful-air-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --target-humidity 55 --cloud
 ```
@@ -201,25 +201,10 @@ Get list of all settable attributes:
 midea-beautiful-air-cli set --help
 ```
 
-### Watch appliance status
-
-Watch appliance status allows to debug packets received when polling it. It will repeatedly retrieve appliance status with specified pauses between each poll. Polling can be interrupted via keyboard.
-
-Continuously watch status of an appliance using known TOKEN and KEY (e.g. retrieved using `discover` command) with interval of 10 seconds between polling
-
-```shell
-midea-beautiful-air-cli watch --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --interval 10
-```
-
-Continuously watch status of an appliance using Midea app credentials with interval of 30 seconds between polling
-
-```shell
-midea-beautiful-air-cli status --ip APPLIANCE_IP_ADDRESS --account ACCOUNT_EMAIL --password PASSWORD --interval 30
-```
 
 ### Specifying log level
 
-Log level is specified using `--log` option:
+Log level is specified using `--log` option.
 
 Set `DEBUG` level
 
@@ -234,6 +219,8 @@ Set `WARNING` level (default log level if option was not specified)
 ```shell
 midea-beautiful-air-cli --log WARNING discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
+
+Level can be specified as number, for example `--log 5` or `--log 1`.
 
 ## Code examples
 
