@@ -339,7 +339,7 @@ class DehumidifierResponse:
 
         self.target_humidity = data[7]
         if self.target_humidity > 100:
-            self.target_humidity = 99
+            self.target_humidity = 100
 
         target_humidity_decimal: float = (data[8] & 15) * 0.0625
         # CONFLICT WITH tank full self.mode_FD_return = data[10] & 0b00000111
