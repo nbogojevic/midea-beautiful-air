@@ -67,6 +67,8 @@ def test_dehumidifier_mode():
     with pytest.raises(MideaError) as ex:
         s.mode = 16
     assert ex.value.message == "Tried to set mode to invalid value: 16"
+    # Let's test __str__ method
+    assert str(ex.value) == "Tried to set mode to invalid value: 16"
 
 
 def test_dehumidifier_target_humidity():
