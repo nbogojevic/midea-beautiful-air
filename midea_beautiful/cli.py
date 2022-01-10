@@ -17,13 +17,11 @@ except Exception:
 
 from argparse import ArgumentParser, Namespace
 import logging
-from time import sleep
 
 from midea_beautiful import appliance_state, connect_to_cloud, find_appliances
 from midea_beautiful.appliance import (
     AirConditionerAppliance,
     DehumidifierAppliance,
-    set_watch_level,
 )
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
@@ -123,8 +121,8 @@ def run_status_command(args: Namespace) -> int:
         output(appliance, args.credentials)
     else:
         _LOGGER.error(
-            "Unable to get appliance status ip=%s",
-            args.ip if hasattr(args, "ip") else args.id,
+            "Unable to get appliance status for '%s'",
+            args.ip or args.id,
         )
         return 9
     return 0
@@ -208,38 +206,6 @@ def run_set_command(args: Namespace) -> int:
     return 0
 
 
-def run_watch_command(args: Namespace) -> int:
-    if not _check_ip_id(args):
-        return 7
-    cloud = None
-    if not args.token:
-        if args.account and args.password:
-            cloud = connect_to_cloud(
-                args.account, args.password, args.appkey, args.appid
-            )
-        else:
-            _LOGGER.error("Missing token/key or cloud credentials")
-            return 8
-
-    set_watch_level(args.watchlevel)
-    if not _LOGGER.isEnabledFor(args.watchlevel):
-        coloredlogs_install(level=args.watchlevel)
-    _LOGGER.info("Watching %s with period %d", args.ip, args.interval)
-    try:
-        while True:
-            appliance = appliance_state(
-                args.ip, token=args.token, key=args.key, cloud=cloud
-            )
-            if appliance:
-                _LOGGER.log(args.watchlevel, "%r", appliance)
-            else:
-                _LOGGER.error("Unable to get appliance status %s", args.ip)
-            sleep(args.interval)
-    except KeyboardInterrupt:
-        _LOGGER.info("Finished watching")
-    return 0
-
-
 def _add_standard_options(parser: ArgumentParser) -> None:
     parser.add_argument("--ip", help="IP address of the appliance")
     parser.add_argument("--id", help="appliance id")
@@ -298,7 +264,6 @@ def cli(argv) -> int:
         "discover": run_discover_command,
         "status": run_status_command,
         "set": run_set_command,
-        "watch": run_watch_command,
     }
 
     fn = commands.get(args.command, lambda _: 1)
@@ -359,19 +324,6 @@ def configure_argparser():
         group.add_argument(
             f"--{attr}", help=f"{item['desc']})", metavar=item["metavar"], default=None
         )
-
-    parser_watch = subparsers.add_parser(
-        "watch",
-        help="watches status of appliance",
-        description="Watches status of an appliance.",
-    )
-    _add_standard_options(parser_watch)
-    parser_watch.add_argument(
-        "--interval", help="time to sleep between polling", default=10, type=int
-    )
-    parser_watch.add_argument(
-        "--watchlevel", help="level of watch logging", default=20, type=int
-    )
 
     return parser
 

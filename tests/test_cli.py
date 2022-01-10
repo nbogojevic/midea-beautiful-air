@@ -7,9 +7,10 @@ from midea_beautiful.cli import (
     configure_argparser,
     output,
     run_discover_command,
+    run_set_command,
     run_status_command,
-    run_watch_command,
 )
+from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import LanDevice
 
 
@@ -63,43 +64,9 @@ def test_output(capsys: pytest.CaptureFixture):
     assert "Air conditioner" in captured.out
 
 
-def test_watch():
-    namespace = Namespace(ip="1.2.3.4", id="123")
-    ret = run_watch_command(namespace)
-    assert ret == 7
-    namespace = Namespace(ip="1.2.3.4", id="", token=None, account=None)
-    ret = run_watch_command(namespace)
-    assert ret == 8
-    namespace = Namespace(
-        ip="1.2.3.4",
-        id="",
-        token="45",
-        key="24",
-        account=None,
-        watchlevel=6,
-        interval=20,
-    )
-    with pytest.raises(pytest_socket.SocketBlockedError):
-        run_watch_command(namespace)
-    namespace = Namespace(
-        ip=None,
-        id="45",
-        token=None,
-        key=None,
-        account="user@example.com",
-        password="test",
-        appkey="45",
-        appid="1000",
-        watchlevel=6,
-        interval=20,
-    )
-    with pytest.raises(pytest_socket.SocketBlockedError):
-        run_watch_command(namespace)
-
-
 def test_status():
     namespace = Namespace(ip=None, id=None)
-    ret = run_watch_command(namespace)
+    ret = run_status_command(namespace)
     assert ret == 7
     namespace = Namespace(ip="1.2.3.4", id="123")
     ret = run_status_command(namespace)
@@ -123,11 +90,62 @@ def test_status():
         key=None,
         account="user@example.com",
         password="test",
-        appkey="45",
+        appkey="876",
         appid="1000",
+        cloud=True,
     )
     with pytest.raises(pytest_socket.SocketBlockedError):
         run_status_command(namespace)
+
+
+def test_status_ok(
+    mock_cloud: MideaCloud,
+    capsys: pytest.CaptureFixture,
+):
+    namespace = Namespace(
+        ip=None,
+        id="45",
+        token=None,
+        key=None,
+        account="user@example.com",
+        password="test",
+        appkey="876",
+        appid="1000",
+        cloud=True,
+        credentials=False,
+    )
+    with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
+        res = run_status_command(namespace)
+        assert res == 0
+        captured = capsys.readouterr()
+        assert "id      = 45" in captured.out
+
+
+def test_status_no_appliance(
+    mock_cloud: MideaCloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    with (
+        patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud),
+        patch("midea_beautiful.cli.appliance_state", return_value=None),
+    ):
+        namespace = Namespace(
+            ip=None,
+            id="46",
+            token=None,
+            key=None,
+            account="user@example.com",
+            password="test",
+            appkey="876",
+            appid="1000",
+            cloud=True,
+            credentials=False,
+        )
+        caplog.clear()
+        res = run_status_command(namespace)
+        assert res == 9
+        assert len(caplog.messages) == 1
+        assert caplog.messages[0], "Unable to get appliance status for '46'"
 
 
 def test_run_discover_command(capsys: pytest.CaptureFixture):
@@ -136,7 +154,7 @@ def test_run_discover_command(capsys: pytest.CaptureFixture):
         namespace = Namespace(
             account="user@example.com",
             password="test",
-            appkey="45",
+            appkey="876",
             appid="1000",
             network=None,
             credentials=False,
@@ -177,3 +195,89 @@ def test_run_cli(caplog: pytest.LogCaptureFixture):
     assert len(caplog.messages) == 1
     assert caplog.messages[0] == "Missing ip or appliance id"
     assert ret == 7
+
+
+def test_set_command():
+    namespace = Namespace(ip=None, id=None)
+    ret = run_set_command(namespace)
+    assert ret == 7
+    namespace = Namespace(ip="1.2.3.4", id="123")
+    ret = run_set_command(namespace)
+    assert ret == 7
+    namespace = Namespace(ip="1.2.3.4", id="", token=None, account=None)
+    ret = run_set_command(namespace)
+    assert ret == 8
+    namespace = Namespace(
+        ip="1.2.3.4",
+        id="",
+        token="45",
+        key="24",
+        account=None,
+    )
+    with pytest.raises(pytest_socket.SocketBlockedError):
+        run_set_command(namespace)
+    namespace = Namespace(
+        ip=None,
+        id="45",
+        token=None,
+        key=None,
+        account="user@example.com",
+        password="test",
+        appkey="876",
+        appid="1000",
+        cloud=True,
+    )
+    with pytest.raises(pytest_socket.SocketBlockedError):
+        run_set_command(namespace)
+
+
+def test_set_with_cloud(
+    mock_cloud: MideaCloud,
+    capsys: pytest.CaptureFixture,
+):
+    namespace = Namespace(
+        ip=None,
+        id="411",
+        token=None,
+        key=None,
+        account="user@example.com",
+        password="test",
+        appkey="876",
+        appid="1000",
+        cloud=True,
+        credentials=False,
+        command="set",
+        loglevel="INFO",
+    )
+    with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
+        run_set_command(namespace)
+        captured = capsys.readouterr()
+        assert "id      = 411" in captured.out
+
+
+def test_set_no_status(
+    mock_cloud: MideaCloud,
+    caplog: pytest.LogCaptureFixture,
+):
+
+    with (
+        patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud),
+        patch("midea_beautiful.cli.appliance_state", return_value=None),
+    ):
+        namespace = Namespace(
+            ip=None,
+            id="416",
+            token=None,
+            key=None,
+            account="user@example.com",
+            password="test",
+            appkey="876",
+            appid="1000",
+            cloud=True,
+            credentials=False,
+        )
+        caplog.clear()
+        res = run_set_command(namespace)
+        assert res == 9
+        assert len(caplog.messages) == 1
+        assert caplog.messages[0], "Unable to get appliance status for '416'"

@@ -20,14 +20,6 @@ from midea_beautiful.util import SPAM, TRACE, strtobool
 
 _LOGGER = logging.getLogger(__name__)
 
-# Used when watch mechanism is active
-_watch_level: int = SPAM
-
-
-def set_watch_level(level: int) -> None:
-    global _watch_level
-    _watch_level = level
-
 
 def _as_bool(value: Any) -> bool:
     return strtobool(value) if isinstance(value, str) else bool(value)
@@ -40,7 +32,6 @@ class Appliance:
         self._id = str(id)
         self._type = appliance_type
         self._online = False
-        self._active = False
 
     @staticmethod
     def instance(id, appliance_type: str = "") -> Appliance:
@@ -102,10 +93,6 @@ class Appliance:
         return self._type
 
     @property
-    def active(self) -> bool:
-        return self._active
-
-    @property
     def online(self) -> bool:
         return self._online
 
@@ -156,22 +143,17 @@ class DehumidifierAppliance(Appliance):
         return lwr == "a1" or lwr == "0xa1" or type == 161 or type == -95
 
     def process_response(self, data: bytes) -> None:
-        global _watch_level
         _LOGGER.log(
-            _watch_level,
+            SPAM,
             "Processing response for dehumidifier id=%s data=%s",
             self._id,
             data,
         )
         if len(data) > 0:
             self._online = True
-            self._active = True
-            for i in range(len(data)):
-                if _LOGGER.isEnabledFor(_watch_level):
-                    _LOGGER.log(
-                        _watch_level,
-                        f"{i:2} {data[i]:3} {data[i]:02X} {data[i]:08b}",
-                    )
+            if _LOGGER.isEnabledFor(SPAM):
+                for i in range(len(data)):
+                    _LOGGER.log(SPAM, "%2d %3d %02X", i, data[i], data[i])
             response = DehumidifierResponse(data)
             _LOGGER.debug("DehumidifierResponse %s", response)
 
@@ -435,22 +417,17 @@ class AirConditionerAppliance(Appliance):
         return lwr == "ac" or lwr == "0xac" or type == 172 or type == -84
 
     def process_response(self, data: bytes) -> None:
-        global _watch_level
         _LOGGER.log(
-            _watch_level,
+            SPAM,
             "Processing response for air conditioner id=%s data=%s",
             self._id,
             data,
         )
         if len(data) > 0:
             self._online = True
-            self._active = True
-            for i in range(len(data)):
-                if _LOGGER.isEnabledFor(_watch_level):
-                    _LOGGER.log(
-                        _watch_level,
-                        f"{i:2} {data[i]:3} {data[i]:02X} {data[i]:08b}",
-                    )
+            if _LOGGER.isEnabledFor(SPAM):
+                for i in range(len(data)):
+                    _LOGGER.log(SPAM, "%2d %3d %02X", i, data[i], data[i])
             response = AirConditionerResponse(data)
             _LOGGER.debug("AirConditionerResponse %s", response)
 
