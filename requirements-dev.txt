@@ -1,0 +1,2 @@
+-r requirements.txt
+coloredlogs>=15.0
