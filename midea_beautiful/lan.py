@@ -140,6 +140,12 @@ def _get_udp_id(data) -> str:
 
 
 class LanDevice:
+    # Default sleep unit of time. By default 1 second.
+    _DEFAULT_SLEEP_INTERVAL: Final = 1
+    # Unit of time for sleep.
+    # Can be set to different value during tests.
+    _sleep_interval: float = _DEFAULT_SLEEP_INTERVAL
+
     def __init__(
         self,
         id: str = "",
@@ -397,6 +403,9 @@ class LanDevice:
             self._socket = None
             self._got_tcp_key = False
 
+    def _sleep(self, duration: float) -> None:
+        sleep(duration * LanDevice._sleep_interval)
+
     def _request(self, message) -> bytes:
         with self._lock:
             # Create a TCP/IP socket
@@ -460,11 +469,11 @@ class LanDevice:
                 if i > 0:
                     # Retry handshake
                     _LOGGER.debug("Handshake retry %d of %d", i + 1, self._max_retries)
-                    sleep(i + 1)
+                    self._sleep(i + 1)
             else:
                 break
         else:
-            raise AuthenticationError("Failed to perform handshake for {self}")
+            raise AuthenticationError(f"Failed to perform handshake for {self}")
 
         _LOGGER.log(SPAM, "handshake_response=%s for %s", response, self)
         response = response[8:72]
@@ -477,7 +486,7 @@ class LanDevice:
             _LOGGER.debug("Got TCP key for: %s", self)
             # After authentication, don’t send data immediately,
             # so sleep 500ms.
-            sleep(0.5)
+            self._sleep(0.5)
         except Exception as ex:
             raise AuthenticationError(f"Failed to get TCP key for: {self}") from ex
 
@@ -526,11 +535,9 @@ class LanDevice:
                     )
                     self._disconnect()
 
-                    sleep((i + 1) * 2)
+                    self._sleep((i + 1) * 2)
                 else:
                     break
-
-        packets = []
 
         # copy from data in order to resend data
         original_data = bytes(data)
@@ -538,27 +545,11 @@ class LanDevice:
         _LOGGER.log(SPAM, "encode_8370 %s data=%s", self, data)
 
         # wait few seconds before re-sending data, default is 0
-        sleep(self._retries)
+        self._sleep(self._retries)
         response_buf = self._request(data)
-        if not response_buf:
-            if self._retries < self._max_retries:
-                _LOGGER.log(
-                    SPAM,
-                    "retrying appliance_send_8370 %d of %d",
-                    self._retries,
-                    self._max_retries,
-                )
-
-                packets = self._appliance_send_8370(original_data)
-                self._retries = 0
-                return packets
-            else:
-                error = self._last_error
-                self._last_error = ""
-                raise MideaNetworkError(
-                    f"Unable to send data after {self._max_retries} retries,"
-                    f" last error {error} for {self}"
-                )
+        packets = self._retry_send(original_data, response_buf)
+        if packets:
+            return packets
 
         responses, self._buffer = self._security.decode_8370(
             self._buffer + response_buf
@@ -580,29 +571,12 @@ class LanDevice:
 
     def _appliance_send_v2(self, data: bytes) -> list[bytes]:
         # wait few seconds before re-sending data, default is 0
-        sleep(self._retries)
+        self._sleep(self._retries)
         _LOGGER.log(SPAM, "appliance_send_v2 %s data=%s", self, data)
         response_buf = self._request(data)
-        if not response_buf:
-            if self._retries < self._max_retries:
-                _LOGGER.log(
-                    SPAM,
-                    "retrying appliance_send_v2 %d of %d",
-                    self._retries,
-                    self._max_retries,
-                )
-                packets = self._appliance_send_v2(data)
-                self._retries = 0
-                return packets
-            else:
-                error = self._last_error
-                self._last_error = ""
-                raise MideaNetworkError(
-                    f"Unable to send data after {self._max_retries} retries,"
-                    f" last error {error} for {self}"
-                )
-
-        packets = []
+        packets = self._retry_send(data, response_buf)
+        if packets:
+            return packets
         response_len = len(response_buf)
         if response_buf[:2] == b"\x5a\x5a" and response_len > 5:
             i = 0
@@ -615,6 +589,7 @@ class LanDevice:
                     packets.append(data[10:])
                 i += size
         elif response_buf[0] == 0xAA and response_len > 2:
+            # B5 response
             i = 0
             while i < response_len:
                 size = response_buf[i + 1]
@@ -626,6 +601,29 @@ class LanDevice:
         else:
             raise ProtocolError(f"Unknown response format {self} {response_buf}")
         return packets
+
+    def _retry_send(self, data: bytes, response_buf: bytes) -> list[bytes]:
+        if not response_buf:
+            if self._retries < self._max_retries:
+                _LOGGER.log(
+                    SPAM,
+                    "retrying appliance_send_lan %d of %d",
+                    self._retries,
+                    self._max_retries,
+                )
+                self._last_error = "empty reply"
+                self._retries += 1
+                packets = self.appliance_send_lan(data)
+                self._retries = 0
+                return packets
+            else:
+                error = self._last_error
+                self._last_error = ""
+                raise MideaNetworkError(
+                    f"Unable to send data after {self._max_retries} retries,"
+                    f" last error {error} for {self}"
+                )
+        return []
 
     def appliance_send_lan(self, data: bytes) -> list[bytes]:
         if _is_token_version(self.version):
@@ -680,13 +678,11 @@ class LanDevice:
             self.token, self.k1 = cloud.get_token(udp_id)
             try:
                 self._authenticate()
-            except MideaError:
-                pass
-            else:
                 _LOGGER.debug("Token valid for %s udp_id=%s", self, udp_id)
                 return True
-            # token/key were not valid, forget them
-            self.token, self.k1 = "", ""
+            except MideaError:
+                # token/key were not valid, forget them
+                self.token, self.k1 = "", ""
         return False
 
     def is_identified(self, cloud: MideaCloud = None) -> bool:
