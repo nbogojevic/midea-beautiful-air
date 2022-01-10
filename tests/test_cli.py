@@ -300,6 +300,7 @@ def test_coloredlogs():
     with patch("midea_beautiful.cli.logging", return_value=MagicMock()) as log:
         logs_install(logging.DEBUG, logmodule="notexisting")
         assert log.mock_calls == [call.basicConfig(level=10)]
+    # coloredlogs must be installed otherwise this will fail
     with patch("midea_beautiful.cli.logging", return_value=MagicMock()) as log:
         logs_install(logging.DEBUG)
         assert log.mock_calls == []
