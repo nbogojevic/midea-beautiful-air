@@ -3,7 +3,7 @@ from datetime import datetime
 from pytest import LogCaptureFixture
 import socket
 from typing import Final
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -281,3 +281,48 @@ def test_get_appliance_state_socket_error(mock_cloud):
         with pytest.raises(MideaNetworkError) as ex:
             get_appliance_state(ip="192.0.20.22", cloud=mock_cloud)
         assert "Could not connect to appliance 192.0.20.22:6445" == ex.value.message
+
+
+def test_request():
+    device = LanDevice(id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    with patch.object(device, "_connect", return_value="1"):
+        device._connect()
+        assert device._socket is None
+        result = device._request(b"123")
+        assert result == b""
+        assert device._retries == 1
+        assert "Socket not open for " in str(device._last_error)
+        device._last_error = ""
+        result = device._request(b"123")
+        assert result == b""
+        assert device._retries == 2
+        assert "Socket not open for " in str(device._last_error)
+        device._last_error = ""
+        result = device._request(b"123")
+        assert result == b""
+        assert device._retries == 3
+        assert "Socket not open for " in str(device._last_error)
+        device._retries = 0
+        device._socket = MagicMock()
+        result = device._request(b"123")
+        assert result == b""
+        assert device._retries == 1
+        assert "No results from id=12345 " in str(device._last_error)
+        device._socket = MagicMock()
+        device._socket.sendall.side_effect = Exception("test-sendall")
+        result = device._request(b"123")
+        assert result == b""
+        assert device._retries == 2
+        assert "test-sendall" in str(device._last_error)
+        device._socket = MagicMock()
+        device._socket.recv.side_effect = socket.timeout("test-timeout")
+        result = device._request(b"123")
+        assert result == b""
+        assert device._retries == 3
+        assert "test-timeout" in str(device._last_error)
+        device._socket = MagicMock()
+        device._socket.recv.side_effect = OSError("test-os-error")
+        result = device._request(b"123")
+        assert result == b""
+        assert device._retries == 4
+        assert "test-os-error" in str(device._last_error)
