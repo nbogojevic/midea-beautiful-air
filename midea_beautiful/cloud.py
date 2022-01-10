@@ -236,15 +236,14 @@ class MideaCloud:
             key=None,
         )
         if data := response.get("data", {}):
-            md5 = data.get("md5")
             url = str(data.get("url"))
             _LOGGER.debug("Lua script url=%s", url)
             payload = requests.get(url)
-            if str(hashlib.md5(payload.content).hexdigest()) != str(md5):
-                raise MideaError(f"Invalid fingerprint for {url}")
+            # We could check that content has not been tampered with:
+            # str(hashlib.md5(payload.content).hexdigest()) != str(data["md5"]):
             key = hashlib.md5(self._security._appkey.encode()).hexdigest()[:16]
             lua = self._security.aes_decrypt_string(payload.content.decode(), key)
-            _LOGGER.info("Lua script: %s", lua)
+            return lua
         else:
             raise MideaError("Error retrieving lua script")
 
