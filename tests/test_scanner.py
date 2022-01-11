@@ -1,6 +1,5 @@
 """Test local network appliance scanner class"""
 from binascii import unhexlify
-import logging
 import socket
 from typing import Final
 from unittest.mock import MagicMock, patch
@@ -394,9 +393,7 @@ def test_scanner_find_appliances_with_update(
     lan_device_with_update,
 ):
     with (
-        patch(
-            "midea_beautiful.scanner.LanDevice", side_effect=lan_device_with_update
-        ),
+        patch("midea_beautiful.scanner.LanDevice", side_effect=lan_device_with_update),
         patch("socket.socket") as mock_socket,
     ):
         mocked_socket = MagicMock()

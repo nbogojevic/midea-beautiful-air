@@ -225,7 +225,8 @@ def find_appliances(
         appid (str, optional): Midea mobile application key. Defaults to None.
         networks (list[str], optional): List of networks to search.
         If omitted, search local networks. Defaults to None.
-        appliances (list[LanDevice], optional): List of known appliances. Defaults to None.
+        appliances (list[LanDevice], optional): List of known appliances.
+        Defaults to None.
 
     Returns:
         list[LanDevice]: [description]
