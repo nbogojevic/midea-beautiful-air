@@ -373,7 +373,7 @@ class LanDevice:
                 self._no_responses = 0
                 if len(responses) > 1:
                     _LOGGER.debug(
-                        "Got several responses on refresh from: %s, %d",
+                        "Got several responses on refresh from: %s, got=%d",
                         self,
                         len(responses),
                     )

@@ -2,6 +2,7 @@
 from binascii import unhexlify
 from contextlib import contextmanager
 from datetime import datetime
+import logging
 import socket
 from typing import Final
 from unittest.mock import MagicMock, patch
@@ -14,6 +15,7 @@ from midea_beautiful.exceptions import (
     AuthenticationError,
     MideaError,
     MideaNetworkError,
+    ProtocolError,
 )
 from midea_beautiful.lan import LanDevice, get_appliance_state
 from midea_beautiful.midea import (
@@ -468,3 +470,103 @@ def test_appliance_is_identified():
     )
     with patch.object(device, "identify", return_value=True):
         assert device.is_identified()
+
+
+def test_get_valid_token_fails(mock_cloud):
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    mock_cloud.get_token.return_value = ("TOKEN", "KEY")
+    with patch.object(device, "_authenticate", side_effect=MideaError("test")):
+        assert not device._get_valid_token(cloud=mock_cloud)
+    with patch.object(device, "_authenticate", side_effect=ValueError("test")):
+        with pytest.raises(ValueError):
+            device._get_valid_token(cloud=mock_cloud)
+
+
+def test_valid_token(mock_cloud):
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    with pytest.raises(MideaError) as ex:
+        device._valid_token(None)
+    assert "Provide either token/key pair or cloud " in ex.value.message
+    with patch.object(device, "_get_valid_token", side_effect=[False]):
+        with pytest.raises(AuthenticationError) as ex:
+            device._valid_token(mock_cloud)
+        assert "Unable to get valid token for " in ex.value.message
+    with patch.object(device, "_get_valid_token", side_effect=[True]):
+        with patch.object(device, "_authenticate") as _authenticate:
+            device._valid_token(mock_cloud)
+            _authenticate.assert_not_called()
+    device.token = "TOKEN"
+    device.key = "TOKEN"
+    with patch.object(device, "_authenticate") as _authenticate:
+        device._valid_token(None)
+        _authenticate.assert_called_once()
+
+
+def test_refresh_multiple_replies(mock_cloud, caplog: pytest.LogCaptureFixture):
+    device = LanDevice(
+        appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    with patch.object(device, "_status", side_effect=[[b"", b"", b"", b""]]):
+        caplog.clear()
+        with caplog.at_level(logging.DEBUG):
+            device.refresh(None)
+        assert "got=4" in caplog.messages[0]
+
+
+def test_refresh_all_fail(mock_cloud, caplog: pytest.LogCaptureFixture):
+    device = LanDevice(
+        appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    with patch.object(device, "_status", side_effect=[[], [], [], []]):
+        device._no_responses = 0
+        device._online = True
+        device.refresh(None)
+        assert device._no_responses == 1
+        assert device.online
+        device.refresh(None)
+        assert device._no_responses == 2
+        assert device.online
+        device.refresh(None)
+        assert device._no_responses == device.max_retries
+        assert device.online
+        device.refresh(None)
+        assert device._no_responses == 4
+        assert not device.online
+
+
+def test_appliance_send_unsupported_version():
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    device.version = 1
+    with pytest.raises(ProtocolError) as ex:
+        device._appliance_send_lan(b"\x00")
+    assert ex.value.message == "Unsupported protocol 1"
+
+
+def test_appliance_apply_on_lan_offline():
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    with patch.object(device, "_appliance_send_lan", side_effect=[[]]):
+        device._online = True
+        device.apply()
+        assert not device.online
+
+
+def test_appliance_apply_on_lan_multiple_replies():
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    reply_5a5a: Final = b"ZZ\x01\x11X\x00 \x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xe2\xc2\x03\x00\x00\x1d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x8b\x0c\x05\x8f=\xcbml\xff\x95\x16\xd1c\x9e\xc2\xcf\xa1\xdd\xe0\x82\\\xdc\x94\x1aR\x0eFV\xecq7\xff\x96\x0c{Vdt\xde\xe0\xd2}r\xb7>B\xde\xce"  # noqa: E501
+
+    with patch.object(
+        device, "_appliance_send_lan", side_effect=[[reply_5a5a, reply_5a5a]]
+    ):
+        device._online = False
+        device.apply()
+        assert device.online
