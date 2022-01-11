@@ -1,5 +1,6 @@
 """Test local network appliance scanner class"""
 from binascii import unhexlify
+import logging
 import socket
 from typing import Final
 from unittest.mock import MagicMock, patch
@@ -116,6 +117,19 @@ def lan_device_not_supported():
     q = MagicMock(appliance_id="456", type="a1", serial_number="X0456")
 
     return [x, y, z, q]
+
+
+@pytest.fixture(name="lan_device_with_update")
+def lan_device_with_update():
+    x = MagicMock(appliance_id="456", type="a0", serial_number="X0456")
+    x.__str__.return_value = "appliance-456"
+    y = MagicMock(appliance_id="999", type="a1", serial_number="X0999")
+    y.__str__.return_value = "appliance-999"
+    z = MagicMock(appliance_id="123", type="a1", serial_number="X0123")
+    z.__str__.return_value = "appliance-123"
+    q = MagicMock(appliance_id="123", type="a1", serial_number="X0123")
+    q.__str__.return_value = "appliance-123-2"
+    return [x, y, z, q, x]
 
 
 def test_get_broadcast_addresses():
@@ -363,6 +377,47 @@ def test_scanner_find_appliances_not_supported(
         caplog.clear()
         res = scanner.find_appliances(cloud=mock_cloud)
         assert len(res) == 2
+        assert res[0].appliance_id == "123"
+        assert res[1].appliance_id == "456"
+        assert len(caplog.records) == 3
+        assert (
+            str(caplog.messages[0])
+            == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
+        )
+
+
+def test_scanner_find_appliances_with_update(
+    mock_cloud,
+    caplog: pytest.LogCaptureFixture,
+    broadcast_packet,
+    broadcast_packet_not_supported,
+    lan_device_with_update,
+):
+    with (
+        patch(
+            "midea_beautiful.scanner.LanDevice", side_effect=lan_device_with_update
+        ),
+        patch("socket.socket") as mock_socket,
+    ):
+        mocked_socket = MagicMock()
+        mock_socket.return_value = mocked_socket
+        mocked_socket.recvfrom.side_effect = [
+            (unhexlify(broadcast_packet_not_supported), ["192.0.4.5"]),
+            (unhexlify(broadcast_packet_not_supported), ["192.0.4.1"]),
+            socket.timeout("timeout"),
+            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            socket.timeout("timeout"),
+            (unhexlify(broadcast_packet), ["192.0.4.7"]),
+            socket.timeout("timeout"),
+        ]
+        mock_cloud.list_appliances.return_value = [
+            {"id": "456", "name": "name-456", "type": "0xa1", "sn": "X0456"},
+            {"id": "123", "name": "name-123", "type": "0xa1", "sn": "X0123"},
+        ]
+        caplog.clear()
+        res = scanner.find_appliances(cloud=mock_cloud)
+        assert len(res) == 2
+        print(res)
         assert res[0].appliance_id == "123"
         assert res[1].appliance_id == "456"
         assert len(caplog.records) == 3

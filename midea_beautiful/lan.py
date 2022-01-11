@@ -56,6 +56,7 @@ def _is_token_version(version: int):
 def _is_no_token_version(version: int):
     return version == 2
 
+
 # pylint: disable=duplicate-code
 
 
@@ -166,6 +167,7 @@ class LanDevice:
         key: str = "",
         appliance_type: str = "",
         data: bytes = None,
+        serial_number: str = None,
         security: Security = None,
     ) -> None:
         self._security = security or Security()
@@ -188,7 +190,7 @@ class LanDevice:
         self.subtype = 0
         self._buffer = b""
         self.address = address
-        self.serial_number = None
+        self.serial_number = serial_number
         self.mac = None
         self.ssid = None
 

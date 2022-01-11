@@ -143,54 +143,61 @@ def _add_missing_appliances(
                     break
             else:
                 local = LanDevice(
-                    appliance_id=known["id"], appliance_type=known["type"]
+                    appliance_id=known["id"],
+                    appliance_type=known["type"],
+                    serial_number=known["sn"],
                 )
                 appliances.append(local)
                 _LOGGER.warning(
                     "Unable to discover registered appliance %s",
                     known,
                 )
-            if local.serial_number is None:
-                local.serial_number = known["sn"]
             local.name = known["name"]
 
 
 def _find_appliances_on_lan(
-    cloud: MideaCloud | None, networks: list[str]
+    cloud: MideaCloud | None, networks: list[str], appliances: list[LanDevice] = None
 ) -> list[LanDevice]:
 
     discovery = MideaDiscovery(cloud=cloud)
-    appliances: list[LanDevice] = []
+    appliances = appliances or []
     _LOGGER.debug("Starting LAN discovery")
     cloud_appliances = cloud.list_appliances() if cloud else []
     count = sum(Appliance.supported(a["type"]) for a in cloud_appliances)
     known_cloud_appliances = set(a["id"] for a in cloud_appliances)
     for i in range(_BROADCAST_RETRIES):
-        _LOGGER.debug("Broadcast attempt %d of max %d", i + 1, _BROADCAST_RETRIES)
+        _LOGGER.debug(
+            "Broadcast attempt %d of max %d %s", i + 1, _BROADCAST_RETRIES, appliances
+        )
 
         scanned_appliances = list(discovery.collect_appliances(networks))
+
         scanned_appliances.sort(key=lambda appliance: appliance.appliance_id)
         for scanned in scanned_appliances:
             for appliance in appliances:
                 if appliance.appliance_id == scanned.appliance_id:
-                    _LOGGER.debug("Known appliance %s", scanned.appliance_id)
                     if appliance.address != scanned.address:
-                        # Already known
+                        _LOGGER.debug(
+                            "Known appliance %s, data changed %s", appliance, scanned
+                        )
                         appliance.update(scanned)
                     break
-
-            for details in cloud_appliances:
-                if matches_lan_cloud(scanned, details):
-                    scanned.name = details["name"]
-                    appliances.append(scanned)
-                    _LOGGER.info("Found appliance %s", scanned)
-                    known_cloud_appliances.remove(details["id"])
-                    break
             else:
-                _LOGGER.warning(
-                    "Found an appliance that is not registered to the account: %s",
-                    scanned,
-                )
+                for details in cloud_appliances:
+                    if matches_lan_cloud(scanned, details):
+                        scanned.name = details["name"]
+                        appliances.append(scanned)
+                        _LOGGER.info(
+                            "Found appliance %s %s", scanned, known_cloud_appliances
+                        )
+                        if details["id"] in known_cloud_appliances:
+                            known_cloud_appliances.remove(details["id"])
+                        break
+                else:
+                    _LOGGER.warning(
+                        "Found an appliance that is not registered to the account: %s",
+                        scanned,
+                    )
         if len(known_cloud_appliances) == 0:
             break
     _LOGGER.info("Found %d of %d appliance(s)", len(appliances), count)
@@ -206,16 +213,19 @@ def find_appliances(
     password: str = None,
     appid: str = None,
     networks: list[str] = None,
+    appliances: list[LanDevice] = None,
 ) -> list[LanDevice]:
     """Finds appliances on local network(s)
 
     Args:
         cloud (MideaCloud, optional): Cloud client. Defaults to None.
         appkey (str, optional): Midea mobile application key. Defaults to None.
-        account (str, optional): [description]. Defaults to None.
-        password (str, optional): [description]. Defaults to None.
+        account (str, optional): User account. Defaults to None.
+        password (str, optional): Account password. Defaults to None.
         appid (str, optional): Midea mobile application key. Defaults to None.
-        networks (list[str], optional): [description]. Defaults to None.
+        networks (list[str], optional): List of networks to search.
+        If omitted, search local networks. Defaults to None.
+        appliances (list[LanDevice], optional): List of known appliances. Defaults to None.
 
     Returns:
         list[LanDevice]: [description]
@@ -230,4 +240,4 @@ def find_appliances(
 
     addresses = _get_broadcast_addresses(networks or [])
     _LOGGER.debug("Scanning for midea dehumidifier appliances via %s", addresses)
-    return _find_appliances_on_lan(cloud, addresses)
+    return _find_appliances_on_lan(cloud, addresses, appliances)
