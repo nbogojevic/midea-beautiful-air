@@ -34,6 +34,7 @@ from midea_beautiful.midea import (
 from midea_beautiful.util import SPAM, TRACE
 
 # pylint: disable=too-many-arguments
+# pylint: disable=duplicate-code
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +55,8 @@ def _is_token_version(version: int):
 
 def _is_no_token_version(version: int):
     return version == 2
+
+# pylint: disable=duplicate-code
 
 
 DISCOVERY_MSG: Final = bytes(
@@ -145,6 +148,7 @@ def _get_udp_id(data) -> str:
 
 class LanDevice:
     """Represents a Midea device"""
+
     # pylint: disable=too-many-instance-attributes
 
     # Default sleep unit of time. By default 1 second.
@@ -158,7 +162,7 @@ class LanDevice:
         appliance_id: str = "",
         address: str = None,
         port: int | str = 6444,
-        token: str = "",
+        token: str = None,
         key: str = "",
         appliance_type: str = "",
         data: bytes = None,
@@ -260,36 +264,35 @@ class LanDevice:
             # Get from SSID
             self.type = self.ssid.split("_")[1].lower()
             self.subtype = 0
-        if len(reply) >= (46 + ssid_len):
-            self.reserved = reply[43 + ssid_len]
-            self.flags = reply[44 + ssid_len]
-            self.extra = reply[45 + ssid_len]
 
-        # m_enable_extra = (b >> 7) == 1
-        # m_support_extra_auth = (b & 1) == 1
-        # m_support_extra_channel = (b & 2) == 2
-        # m_support_extra_last_error_code = (b & 4) == 4
+        self._init_extra_data(reply, ssid_len)
 
-        if len(reply) >= (94 + ssid_len):
-            self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
-        if len(reply) >= (50 + ssid_len):
-            self.udp_version = int.from_bytes(
-                reply[46 + ssid_len : 50 + ssid_len], "little"
-            )
-        if len(reply) >= (72 + ssid_len):
-            self.protocol_version = reply[69 + ssid_len : 72 + ssid_len].hex()
-        if len(reply) >= (75 + ssid_len):
-            self.firmware_version = (
-                f"{reply[72 + ssid_len]}."
-                f"{reply[73 + ssid_len]}."
-                f"{reply[74 + ssid_len]}"
-            )
         self.state = Appliance.instance(
             appliance_id=appliance_id, appliance_type=self.type
         )
         self._online = True
 
         _LOGGER.debug("Descriptor data from %s: %r", self, self)
+
+    def _init_extra_data(self, reply: bytes, ssid_len: int):
+        if len(reply) >= (46 + ssid_len):
+            self.reserved = reply[43 + ssid_len]
+            self.flags = reply[44 + ssid_len]
+            self.extra = reply[45 + ssid_len]
+            if len(reply) >= (50 + ssid_len):
+                self.udp_version = int.from_bytes(
+                    reply[46 + ssid_len : 50 + ssid_len], "little"
+                )
+            if len(reply) >= (72 + ssid_len):
+                self.protocol_version = reply[69 + ssid_len : 72 + ssid_len].hex()
+            if len(reply) >= (75 + ssid_len):
+                self.firmware_version = (
+                    f"{reply[72 + ssid_len]}."
+                    f"{reply[73 + ssid_len]}."
+                    f"{reply[74 + ssid_len]}"
+                )
+            if len(reply) >= (94 + ssid_len):
+                self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
 
     def _lan_packet(self, command: MideaCommand, local_packet: bool = True) -> bytes:
         id_bytes = int(self.appliance_id).to_bytes(8, "little")
@@ -714,13 +717,9 @@ class LanDevice:
     def _valid_token(self, cloud: MideaCloud | None):
         if not self.token or not self.key:
             if not cloud:
-                raise MideaError(
-                    f"Provide either token/key pair or cloud {self!r}"
-                )
+                raise MideaError(f"Provide either token/key pair or cloud {self!r}")
             if not self._get_valid_token(cloud):
-                raise AuthenticationError(
-                    f"Unable to get valid token for {self}"
-                )
+                raise AuthenticationError(f"Unable to get valid token for {self}")
         else:
             self._authenticate()
 

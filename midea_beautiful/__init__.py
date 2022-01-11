@@ -7,6 +7,8 @@ from midea_beautiful.lan import LanDevice, get_appliance_state
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 from midea_beautiful.scanner import find_appliances
 
+# pylint: disable=too-many-arguments
+
 __version__ = version.__version__
 
 

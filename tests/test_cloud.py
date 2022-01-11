@@ -9,6 +9,7 @@ import requests_mock
 
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.exceptions import (
+    AuthenticationError,
     CloudAuthenticationError,
     CloudError,
     CloudRequestError,
@@ -26,6 +27,9 @@ from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 _j = json.dumps
 
 DUMMY_RQ: Final = {"arg1": "value1"}
+TEST_ACCESS_TOKEN: Final = (
+    "87836529d24810fb715db61f2d3eba2ab920ebb829d567559397ded751813801"
+)
 
 
 @pytest.fixture(name="appliance_list")
@@ -67,10 +71,7 @@ def for_login(requests_mock: requests_mock.Mocker):
         text=_j(
             {
                 "errorCode": "0",
-                "result": {
-                    "sessionId": "session-1",
-                    "accessToken": "87836529d24810fb715db61f2d3eba2ab920ebb829d567559397ded751813801",  # noqa: E501
-                },
+                "result": {"sessionId": "session-1", "accessToken": TEST_ACCESS_TOKEN},
             }
         ),
     )
@@ -140,6 +141,36 @@ def test_request_authentication_error(
     assert str(ex.value) == "Authentication 3102 authentication error"
 
 
+def test_bad_authentication_reply(
+    cloud_client: MideaCloud, requests_mock: requests_mock.Mocker
+):
+    requests_mock.post(
+        "https://mapp.appsmb.com/v1/user/login/id/get",
+        text=_j({"errorCode": "0", "result": {"loginId": "test-login"}}),
+    )
+    requests_mock.post(
+        "https://mapp.appsmb.com/v1/user/login",
+        text=_j(
+            {
+                "errorCode": "0",
+                "result": {"accessToken": TEST_ACCESS_TOKEN},
+            }
+        ),
+    )
+    with pytest.raises(AuthenticationError) as ex:
+        cloud_client.authenticate()
+    assert ex.value.message == "Unable to retrieve session id from Midea API"
+
+
+def test_cache_login_reply(cloud_client: MideaCloud, for_login: requests_mock.Mocker):
+    res = cloud_client.api_request("user/login", DUMMY_RQ)
+    assert res == {
+        "accessToken": TEST_ACCESS_TOKEN,
+        "sessionId": "session-1",
+    }
+    assert len(for_login.request_history) == 2
+
+
 def test_request_too_many_retries(
     cloud_client: MideaCloud, requests_mock: requests_mock.Mocker
 ):
@@ -183,10 +214,7 @@ def test_session_restart(cloud_client: MideaCloud, requests_mock: requests_mock.
         text=_j(
             {
                 "errorCode": "0",
-                "result": {
-                    "sessionId": "session-1",
-                    "accessToken": "87836529d24810fb715db61f2d3eba2ab920ebb829d567559397ded751813801",  # noqa E501
-                },
+                "result": {"sessionId": "session-1", "accessToken": TEST_ACCESS_TOKEN},
             }
         ),
     )
@@ -353,9 +381,8 @@ def test_appliance_transparent_send(cloud_client, for_login: requests_mock.Mocke
         ),
     )
     cloud_client.authenticate()
-    cloud_client._security.access_token = (
-        "87836529d24810fb715db61f2d3eba2ab920ebb829d567559397ded751813801"  # noqa: E501
-    )
+    cloud_client._security.access_token = TEST_ACCESS_TOKEN
+
     result = cloud_client.appliance_transparent_send(str(12345), b"\x12\x34\x81")
     assert len(result) == 1
     assert (

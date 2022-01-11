@@ -12,6 +12,7 @@ import midea_beautiful.scanner as scanner
 # pylint: disable=protected-access
 # pylint: disable=missing-function-docstring
 # pylint: disable=invalid-name line-too-long
+# pylint: disable=redefined-outer-name
 
 BROADCAST_PAYLOAD: Final = (
     "020100c02c190000"

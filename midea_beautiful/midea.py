@@ -18,8 +18,14 @@ SUPPORTED_APPS: Final = {
     "Midea Air": {"appkey": "ff0cf6f5f0c3471de36341cab3f7a9af", "appid": 1117},
 }
 
+# spell-checker: disable
+# pylint: disable=unsubscriptable-object
+# spell-checker: enable
 DEFAULT_APPKEY: Final[str] = SUPPORTED_APPS["NetHome Plus"]["appkey"]
 DEFAULT_APP_ID: Final[int] = SUPPORTED_APPS["NetHome Plus"]["appid"]
+# spell-checker: disable
+# pylint: enable=unsubscriptable-object
+# spell-checker: enable
 
 DEFAULT_SIGNKEY: Final = "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S"
 

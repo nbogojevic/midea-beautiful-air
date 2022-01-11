@@ -5,7 +5,7 @@ from argparse import ArgumentParser, Namespace
 import importlib
 import logging
 import sys
-from typing import Any
+from typing import Any, cast
 
 from midea_beautiful import appliance_state, connect_to_cloud, find_appliances
 from midea_beautiful.appliance import AirConditionerAppliance, DehumidifierAppliance
@@ -33,33 +33,33 @@ def _output(appliance: LanDevice, show_credentials: bool = False) -> None:
     print(f"  model   = {appliance.model}")
     print(f"  ssid    = {appliance.ssid}")
     print(f"  online  = {appliance.online}")
-    print(f"  name    = {appliance.state.name}")
+    print(f"  name    = {appliance.name}")
     if DehumidifierAppliance.supported(appliance.type):
-        assert isinstance(appliance.state, DehumidifierAppliance)
-        print(f"  running = {appliance.state.running}")
-        print(f"  humid%  = {appliance.state.current_humidity}")
-        print(f"  target% = {appliance.state.target_humidity}")
-        print(f"  temp    = {appliance.state.current_temperature}")
-        print(f"  fan     = {appliance.state.fan_speed}")
-        print(f"  tank    = {appliance.state.tank_full}")
-        print(f"  mode    = {appliance.state.mode}")
-        print(f"  ion     = {appliance.state.ion_mode}")
-        print(f"  filter  = {appliance.state.filter_indicator}")
-        print(f"  pump    = {appliance.state.pump}")
-        print(f"  defrost = {appliance.state.defrosting}")
-        print(f"  sleep   = {appliance.state.sleep_mode}")
+        state = cast(DehumidifierAppliance, appliance.state)
+        print(f"  running = {state.running}")
+        print(f"  humid%  = {state.current_humidity}")
+        print(f"  target% = {state.target_humidity}")
+        print(f"  temp    = {state.current_temperature}")
+        print(f"  fan     = {state.fan_speed}")
+        print(f"  tank    = {state.tank_full}")
+        print(f"  mode    = {state.mode}")
+        print(f"  ion     = {state.ion_mode}")
+        print(f"  filter  = {state.filter_indicator}")
+        print(f"  pump    = {state.pump}")
+        print(f"  defrost = {state.defrosting}")
+        print(f"  sleep   = {state.sleep_mode}")
     elif AirConditionerAppliance.supported(appliance.type):
-        assert isinstance(appliance.state, AirConditionerAppliance)
-        print(f"  running = {appliance.state.running}")
-        print(f"  target  = {appliance.state.target_temperature}")
-        print(f"  indoor  = {appliance.state.indoor_temperature}")
-        print(f"  outdoor = {appliance.state.outdoor_temperature}")
-        print(f"  fan     = {appliance.state.fan_speed}")
-        print(f"  mode    = {appliance.state.mode}")
-        print(f"  purify  = {appliance.state.purifier}")
-        print(f"  eco     = {appliance.state.eco_mode}")
-        print(f"  sleep   = {appliance.state.comfort_sleep}")
-        print(f"  F       = {appliance.state.fahrenheit}")
+        state = cast(AirConditionerAppliance, appliance.state)
+        print(f"  running = {state.running}")
+        print(f"  target  = {state.target_temperature}")
+        print(f"  indoor  = {state.indoor_temperature}")
+        print(f"  outdoor = {state.outdoor_temperature}")
+        print(f"  fan     = {state.fan_speed}")
+        print(f"  mode    = {state.mode}")
+        print(f"  purify  = {state.purifier}")
+        print(f"  eco     = {state.eco_mode}")
+        print(f"  sleep   = {state.comfort_sleep}")
+        print(f"  F       = {state.fahrenheit}")
 
     print(f"  error   = {getattr(appliance.state, 'error_code')}")
     print(f"  supports= {getattr(appliance.state, 'supports')}")

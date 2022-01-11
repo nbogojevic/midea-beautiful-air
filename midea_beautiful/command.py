@@ -10,6 +10,7 @@ from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-instance-attributes
+# pylint: disable=duplicate-code
 
 
 # Lock for command sequence increment
@@ -41,11 +42,13 @@ class MideaCommand:
 class MideaSequenceCommand(MideaCommand):
     """Base command with sequence id/unique id"""
 
-    # Each command has unique sequence id (single byte with roll-over)
+    # Each command has unique command id. We generate it as single byte
+    # sequence with roll-over
     _command_sequence = 0
 
     @staticmethod
     def reset_sequence(value: int = 0) -> None:
+        """Resets sequence generator for unique command id"""
         MideaSequenceCommand._command_sequence = value
 
     def __init__(self, sequence_idx: int = 30) -> None:
@@ -67,6 +70,7 @@ class DeviceCapabilitiesCommand(MideaCommand):
 
     def __init__(self, appliance_type: int = 0xA1) -> None:
         super().__init__()
+        # pylint: disable=duplicate-code
         self.data = bytearray(
             [
                 0xAA,
@@ -93,6 +97,7 @@ class DeviceCapabilitiesCommandMore(MideaCommand):
 
     def __init__(self, appliance_type: int = 0xA1) -> None:
         super().__init__()
+        # pylint: disable=duplicate-code
         self.data = bytearray(
             [
                 0xAA,
@@ -127,6 +132,7 @@ class DehumidifierStatusCommand(MideaSequenceCommand):
     def __init__(self) -> None:
         super().__init__()
         # Command structure
+        # pylint: disable=duplicate-code
         self.data = bytearray(
             [
                 # 0 header
@@ -197,6 +203,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
     def __init__(self) -> None:
         super().__init__()
         # Command structure
+        # pylint: disable=duplicate-code
         self.data = bytearray(
             [
                 # Sync header
@@ -254,6 +261,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def running(self) -> bool:
+        """Is appliance running"""
         return self.data[11] & 0b00000001 != 0
 
     @running.setter
@@ -263,6 +271,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def ion_mode(self) -> bool:
+        """Is anion mode active"""
         return self.data[19] & 0b01000000 != 0
 
     @ion_mode.setter
@@ -272,6 +281,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def target_humidity(self) -> int:
+        """Target humidity for dehumidifier"""
         return self.data[17] & 0b01111111
 
     @target_humidity.setter
@@ -281,6 +291,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def mode(self) -> int:
+        """Current operating mode"""
         return self.data[12] & 0b00001111
 
     @mode.setter
@@ -290,6 +301,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def fan_speed(self) -> int:
+        """Current fan speed"""
         return self.data[13] & 0b01111111
 
     @fan_speed.setter
@@ -299,6 +311,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def pump_switch(self) -> bool:
+        """Turns pump on/off"""
         return self.data[19] & 0b00001000 != 0
 
     @pump_switch.setter
@@ -308,6 +321,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def pump_switch_flag(self) -> bool:
+        """Pump switch flag - TODO used for what?"""
         return self.data[19] & 0b00010000 != 0
 
     @pump_switch_flag.setter
@@ -317,6 +331,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def sleep_switch(self) -> bool:
+        """Turn sleep mode on/off"""
         return self.data[19] & 0b00100000 != 0
 
     @sleep_switch.setter
@@ -408,6 +423,7 @@ class DehumidifierResponse:
     # Byte 4 + 6
     @property
     def on_timer(self) -> dict:
+        """Current dehumidifier turn-on timer"""
         return {
             "status": (self._on_timer_value & 0b10000000) != 0,
             "set": self._on_timer_value != 0b01111111,
@@ -431,6 +447,7 @@ class DehumidifierResponse:
     # Byte 05 + 6
     @property
     def off_timer(self) -> dict:
+        """Current dehumidifier turn-off timer"""
         return {
             "status": (self._off_timer_value & 0b10000000) != 0,
             "set": self._off_timer_value != 0b01111111,
@@ -453,6 +470,7 @@ class AirConditionerStatusCommand(MideaSequenceCommand):
     def __init__(self) -> None:
         super().__init__()
         # Command structure
+        # pylint: disable=duplicate-code
         self.data = bytearray(
             [
                 # 0 header
@@ -536,6 +554,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
     def __init__(self) -> None:
         super().__init__()
         # Command structure
+        # pylint: disable=duplicate-code
         self.data = bytearray(
             [
                 # Sync header
@@ -597,6 +616,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def running(self) -> bool:
+        """Is appliance running"""
         return self.data[11] & 0b00000001 != 0
 
     @running.setter
@@ -616,6 +636,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def mode(self) -> int:
+        """Current operating mode"""
         return (self.data[12] & 0b11100000) >> 5
 
     @mode.setter
@@ -625,6 +646,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def temperature(self) -> float:
+        """Current target A/C temperature"""
         return (self.data[12] & 0b00001111) + 16 + self.temperature_decimal
 
     @temperature.setter
@@ -639,6 +661,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def temperature_decimal(self) -> float:
+        """Current target A/C temperature (decimals)"""
         return 0.5 if (self.data[12] & 0b00010000) != 0 else 0
 
     @temperature_decimal.setter
@@ -649,6 +672,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def fan_speed(self) -> int:
+        """Current fan speed"""
         return self.data[13] & 0b01111111
 
     @fan_speed.setter
@@ -658,6 +682,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def horizontal_swing(self):
+        """Horizontal swing mode active"""
         return (self.data[17] & 0x0011) >> 2
 
     @horizontal_swing.setter
@@ -667,6 +692,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def vertical_swing(self):
+        """Vertical swing mode active"""
         return (self.data[17] & 0x1100) >> 2
 
     @vertical_swing.setter
@@ -676,6 +702,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def turbo_fan(self) -> bool:
+        """Turbo fan mode on/off"""
         return self.data[18] & 0b00100000 != 0
 
     @turbo_fan.setter
@@ -685,6 +712,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def dryer(self) -> bool:
+        """Dryer mode on/off"""
         return self.data[19] & 0b00000100 != 0
 
     @dryer.setter
@@ -694,6 +722,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def purifier(self) -> bool:
+        """Air purifier mode on/off"""
         return self.data[19] & 0b00100000 != 0
 
     @purifier.setter
@@ -703,6 +732,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def eco_mode(self) -> bool:
+        """Eco mode on/off"""
         return self.data[19] & 0b10000000 != 0
 
     @eco_mode.setter
@@ -724,6 +754,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def fahrenheit(self) -> bool:
+        """Display degrees Fahrenheit (only impacts device display)"""
         return self.data[20] & 0b00000100 != 0
 
     @fahrenheit.setter
@@ -733,6 +764,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def turbo(self) -> bool:
+        """A/C turbo mode on/off"""
         return self.data[20] & 0b00000010 != 0
 
     @turbo.setter
@@ -742,6 +774,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def screen(self) -> bool:
+        """A/C screen display on/off"""
         return self.data[20] & 0b00010000 != 0
 
     @screen.setter
