@@ -315,7 +315,7 @@ class Security:
         self._appkey = appkey
         self._signkey = signkey.encode()
         self._iv = bytes(iv)
-        self._enc_key = md5(self._signkey).digest()
+        self._enc_key = md5(self._signkey).digest()  # nosec Midea use MD5 hashing
         self._tcp_key = b""
         self._request_count = 0
         self._response_count = 0
@@ -332,7 +332,8 @@ class Security:
         Returns:
             bytes: decrypted data
         """
-        cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
+        # Midea uses ECB mode for some exchanges
+        cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())  # nosec
         decryptor = cipher.decryptor()
         decrypted = decryptor.update(raw) + decryptor.finalize()
         # Remove the padding
@@ -352,7 +353,8 @@ class Security:
         # Pad data to 128 bit
         padder = padding.PKCS7(BLOCKSIZE * 8).padder()
         raw = padder.update(raw) + padder.finalize()
-        cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())
+        # Midea uses ECB mode for some exchanges
+        cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())  # nosec
         encryptor = cipher.encryptor()
         return encryptor.update(raw) + encryptor.finalize()
 
@@ -386,7 +388,7 @@ class Security:
 
     def md5fingerprint(self, raw: bytes) -> bytes:
         """Generates Midea md5 fingerprint of the raw payload"""
-        return md5(raw + self._signkey).digest()
+        return md5(raw + self._signkey).digest()  # nosec Midea use MD5 hashing
 
     def tcp_key(self, response: bytes, key: bytes) -> bytes:
         """Retrieves key for local network communication"""
@@ -511,7 +513,8 @@ class Security:
     @property
     def md5appkey(self) -> str:
         """Special generated key from appkey"""
-        return md5(self._appkey.encode("utf-8")).hexdigest()[:16]
+        # Midea use MD5 hashing
+        return md5(self._appkey.encode("utf-8")).hexdigest()[:16]  # nosec
 
     @property
     def data_key(self) -> str | None:
@@ -527,7 +530,8 @@ class Security:
             raise MideaError("Missing data key")
         encrypted_data = unhexlify(data)
 
-        cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())
+        # Midea uses ECB mode for some exchanges
+        cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())  # nosec
         decryptor = cipher.decryptor()
         decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
         unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
@@ -547,7 +551,8 @@ class Security:
         padder = padding.PKCS7(BLOCKSIZE * 8).padder()
         raw = padder.update(raw) + padder.finalize()
 
-        cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())
+        # Midea uses ECB mode here
+        cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())  # nosec
         encryptor = cipher.encryptor()
         result = encryptor.update(raw) + encryptor.finalize()
 
