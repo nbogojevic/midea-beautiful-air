@@ -195,7 +195,7 @@ def test_create_MideaDiscovery():
     with patch("socket.socket") as mock_socket:
         mocked_socket = MagicMock()
         mock_socket.return_value = mocked_socket
-        discovery = scanner.MideaDiscovery(None)
+        discovery = scanner._MideaDiscovery(None)
         assert discovery._socket == mocked_socket
 
 
