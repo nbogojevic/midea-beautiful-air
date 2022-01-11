@@ -112,12 +112,12 @@ class Appliance:
 
     @property
     def type(self) -> str:
-        """Applice type id (e.g. a1 is dehumidifier, ac is air conditioner"""
+        """Appliance type id (e.g. a1 is dehumidifier, ac is air conditioner"""
         return self._type
 
     @property
     def model(self) -> str:
-        """Applice type id (e.g. Dehumidifier, Air conditioner"""
+        """Appliance type id (e.g. Dehumidifier, Air conditioner"""
         return self._type
 
     @property

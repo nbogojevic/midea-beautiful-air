@@ -23,43 +23,18 @@ BROADCAST_PAYLOAD: Final = (
     "123456789abc069fcd0300080103010000000000000000000000000000000000000000"
 )
 
-
-def test_get_broadcast_addresses():
-    networks = scanner._get_broadcast_addresses(["192.0.1.2"])
-    assert len(networks) == 1
-    assert networks[0] == "192.0.1.2"
-
-
-def test_get_broadcast_addresses_range():
-    networks = scanner._get_broadcast_addresses(["192.0.2.0/27"])
-    assert len(networks) == 1
-    assert networks[0] == "192.0.2.31"
+BROADCAST_PAYLOAD_NOT_SUPPORTED: Final = (
+    "020100c02c190000"
+    "3030303030305030303030303030513131323334353637383941424330303030"
+    "0b6e65745f61315f394142430000000001000000040000000000"
+    "a0"
+    "00000000000000"
+    "123456789abc069fcd0300080103010000000000000000000000000000000000000000"
+)
 
 
-def test_get_broadcast_addresses_multiple_provided():
-    networks = scanner._get_broadcast_addresses(
-        [
-            "192.0.1.0/27",
-            "127.0.0.1",
-            "192.0.2.0/26",
-        ]
-    )
-    assert len(networks) == 2
-    assert networks[0] == "192.0.1.31"
-    assert networks[1] == "192.0.2.63"
-
-
-def test_can_specify_public_address():
-    networks = scanner._get_broadcast_addresses(["8.8.8.8"])
-    assert len(networks) == 1
-    assert networks[0] == "8.8.8.8"
-
-
-def test_no_adapters():
-    with patch("midea_beautiful.scanner.get_adapters", return_value=[]):
-        with pytest.raises(MideaError) as ex:
-            scanner._get_broadcast_addresses([])
-        assert ex.value.message == "No valid networks to send broadcast to"
+class _TestException(Exception):
+    pass
 
 
 @pytest.fixture(name="adapter_10_1_2_0")
@@ -108,20 +83,77 @@ def broadcast_packet():
     return msg
 
 
+@pytest.fixture(name="broadcast_packet_not_supported")
+def broadcast_packet_not_supported():
+    payload = bytearray(unhexlify(BROADCAST_PAYLOAD_NOT_SUPPORTED))
+    encrypted = Security().aes_encrypt(payload)
+    msg = (
+        f"837000b8200f04035a5a0111a8007a80000000000000000000000000010203040506"
+        f"0000000000000000000000000000"
+        f"{encrypted.hex()}"
+        f"8c53d543ede4d8d26c2008f541b804dc5b24fc8c2735ead584edc8dda92b243d"
+    )
+    return msg
+
+
 @pytest.fixture(name="lan_device_mocking")
 def lan_device_mocking():
-    x = MagicMock()
-    x.appliance_id = "456"
-    x.serial_number = "X0456"
-    y = MagicMock()
-    y.appliance_id = "999"
-    y.serial_number = "X0999"
+    x = MagicMock(appliance_id="456", type="a1", serial_number="X0456")
+    y = MagicMock(appliance_id="999", type="a1", serial_number="X0999")
     y.__str__.return_value = "appliance-999"
-    z = MagicMock()
-    z.appliance_id = "123"
-    z.serial_number = "X0123"
+    z = MagicMock(appliance_id="123", type="a1", serial_number="X0123")
     z.__str__.return_value = "appliance-123"
     return [x, y, z]
+
+
+@pytest.fixture(name="lan_device_not_supported")
+def lan_device_not_supported():
+    x = MagicMock(appliance_id="456", type="a0", serial_number="X0456")
+    y = MagicMock(appliance_id="999", type="a1", serial_number="X0999")
+    y.__str__.return_value = "appliance-999"
+    z = MagicMock(appliance_id="123", type="a1", serial_number="X0123")
+    z.__str__.return_value = "appliance-123"
+    q = MagicMock(appliance_id="456", type="a1", serial_number="X0456")
+
+    return [x, y, z, q]
+
+
+def test_get_broadcast_addresses():
+    networks = scanner._get_broadcast_addresses(["192.0.1.2"])
+    assert len(networks) == 1
+    assert networks[0] == "192.0.1.2"
+
+
+def test_get_broadcast_addresses_range():
+    networks = scanner._get_broadcast_addresses(["192.0.2.0/27"])
+    assert len(networks) == 1
+    assert networks[0] == "192.0.2.31"
+
+
+def test_get_broadcast_addresses_multiple_provided():
+    networks = scanner._get_broadcast_addresses(
+        [
+            "192.0.1.0/27",
+            "127.0.0.1",
+            "192.0.2.0/26",
+        ]
+    )
+    assert len(networks) == 2
+    assert networks[0] == "192.0.1.31"
+    assert networks[1] == "192.0.2.63"
+
+
+def test_can_specify_public_address():
+    networks = scanner._get_broadcast_addresses(["8.8.8.8"])
+    assert len(networks) == 1
+    assert networks[0] == "8.8.8.8"
+
+
+def test_no_adapters():
+    with patch("midea_beautiful.scanner.get_adapters", return_value=[]):
+        with pytest.raises(MideaError) as ex:
+            scanner._get_broadcast_addresses([])
+        assert ex.value.message == "No valid networks to send broadcast to"
 
 
 def test_one_adapter(adapter_10_1_2_0):
@@ -157,7 +189,7 @@ def test_create_MideaDiscovery():
 def test_discover_appliances(
     mock_cloud, caplog: pytest.LogCaptureFixture, broadcast_packet, lan_device_mocking
 ):
-    # This is same as test_create_find_appliances
+    # This is same as test_scanner_find_appliances
     with (
         patch("midea_beautiful.scanner.LanDevice", side_effect=lan_device_mocking),
         patch("socket.socket") as mock_socket,
@@ -188,7 +220,7 @@ def test_discover_appliances(
         )
 
 
-def test_create_find_appliances(
+def test_scanner_find_appliances(
     mock_cloud, caplog: pytest.LogCaptureFixture, broadcast_packet, lan_device_mocking
 ):
     with (
@@ -221,7 +253,7 @@ def test_create_find_appliances(
         )
 
 
-def test_create_find_appliances_changed_id(
+def test_scanner_find_appliances_changed_id(
     mock_cloud, caplog: pytest.LogCaptureFixture, broadcast_packet, lan_device_mocking
 ):
     with (
@@ -257,7 +289,7 @@ def test_create_find_appliances_changed_id(
         )
 
 
-def test_create_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFixture):
+def test_scanner_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFixture):
     x = MagicMock()
     x.appliance_id = "456"
     y = MagicMock()
@@ -288,3 +320,53 @@ def test_create_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFix
                 str(caplog.messages[1])
                 == "Unable to discover registered appliance {'id': '456', 'name': 'name-456', 'type': '0xa1', 'sn': 'X0456'}"  # noqa: E501
             )
+
+
+def test_find_appliances_cloud(mock_cloud: MagicMock):
+    with (
+        patch("midea_beautiful.scanner.MideaCloud", return_value=mock_cloud) as mc,
+        patch.object(mock_cloud, "authenticate", side_effect=_TestException()) as auth,
+    ):
+        with pytest.raises(_TestException):
+            scanner.find_appliances(account="user@example.com", password="wordpass")
+        mc.assert_called()
+        auth.assert_called()
+
+
+def test_scanner_find_appliances_not_supported(
+    mock_cloud,
+    caplog: pytest.LogCaptureFixture,
+    broadcast_packet,
+    broadcast_packet_not_supported,
+    lan_device_not_supported,
+):
+    with (
+        patch(
+            "midea_beautiful.scanner.LanDevice", side_effect=lan_device_not_supported
+        ),
+        patch("socket.socket") as mock_socket,
+    ):
+        mocked_socket = MagicMock()
+        mock_socket.return_value = mocked_socket
+        mocked_socket.recvfrom.side_effect = [
+            (unhexlify(broadcast_packet_not_supported), ["192.0.4.5"]),
+            (unhexlify(broadcast_packet_not_supported), ["192.0.4.1"]),
+            socket.timeout("timeout"),
+            socket.timeout("timeout"),
+            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            socket.timeout("timeout"),
+        ]
+        mock_cloud.list_appliances.return_value = [
+            {"id": "456", "name": "name-456", "type": "0xa1", "sn": "X0456"},
+            {"id": "123", "name": "name-123", "type": "0xa1", "sn": "X0123"},
+        ]
+        caplog.clear()
+        res = scanner.find_appliances(cloud=mock_cloud)
+        assert len(res) == 2
+        assert res[0].appliance_id == "123"
+        assert res[1].appliance_id == "456"
+        assert len(caplog.records) == 3
+        assert (
+            str(caplog.messages[0])
+            == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
+        )

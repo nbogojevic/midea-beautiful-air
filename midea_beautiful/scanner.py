@@ -96,7 +96,7 @@ class MideaDiscovery:
                     )
                     self._known_ips.add(ip_address)
                     appliance = LanDevice(data=data)
-                    if appliance.is_supported:
+                    if Appliance.supported(appliance.type):
                         scanned_appliances.add(appliance)
                     else:
                         _LOGGER.debug("Not supported appliance %s", appliance)

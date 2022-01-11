@@ -726,7 +726,7 @@ class LanDevice:
     def identify(self, cloud: MideaCloud = None, use_cloud: bool = False) -> None:
         """Identifies appliance data on network and/or from cloud"""
 
-        if self.is_supported or use_cloud:
+        if self.is_supported_version or use_cloud:
             if _is_token_version(self.version) and not use_cloud:
                 self._valid_token(cloud)
         else:
@@ -827,9 +827,9 @@ class LanDevice:
         self.state.name = name
 
     @property
-    def is_supported(self) -> bool:
-        """Returns True if appliance protocol is supported"""
-        return self.version >= 2
+    def is_supported_version(self) -> bool:
+        """Returns True if appliance is supported"""
+        return self.version >= 2 and Appliance.supported(self.type)
 
     @property
     def online(self) -> bool:
