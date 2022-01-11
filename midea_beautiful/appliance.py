@@ -18,6 +18,10 @@ from midea_beautiful.exceptions import MideaError
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
 from midea_beautiful.util import SPAM, TRACE, strtobool
 
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-public-methods
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -34,8 +38,8 @@ def _dump_data(data: bytes):
 class Appliance:
     """Base model for any Midea appliance"""
 
-    def __init__(self, id, appliance_type: str = "") -> None:
-        self._id = str(id)
+    def __init__(self, appliance_id, appliance_type: str = "") -> None:
+        self._id = str(appliance_id)
         self._type = appliance_type
         self._online = False
 
@@ -63,7 +67,7 @@ class Appliance:
                 appliance_type,
             )
             return AirConditionerAppliance(
-                id=appliance_id, appliance_type=appliance_type
+                appliance_id=appliance_id, appliance_type=appliance_type
             )
         _LOGGER.warning(
             "Creating unsupported appliance %s %s", appliance_id, appliance_type
@@ -94,10 +98,12 @@ class Appliance:
 
     @property
     def appliance_id(self) -> str:
+        """Appliance id from Midea cloud API"""
         return self._id
 
     @property
     def name(self) -> str:
+        """Appliance name from Midea cloud API"""
         return str(getattr(self, "_name", self._id))
 
     @name.setter
@@ -106,28 +112,38 @@ class Appliance:
 
     @property
     def type(self) -> str:
+        """Applice type id (e.g. a1 is dehumidifier, ac is air conditioner"""
         return self._type
 
     @property
     def model(self) -> str:
+        """Applice type id (e.g. Dehumidifier, Air conditioner"""
         return self._type
 
     @property
     def online(self) -> bool:
+        """Is appliance online"""
         return self._online
 
-    def process_response(self, data: bytes) -> None:
+    def process_response(self, data: bytes) -> None:  # pylint: disable=unused-argument
+        """Parses response payload and updates appliance data"""
         _LOGGER.debug("Ignored process_response %r", self)
 
     def process_response_device_capabilities(
-        self, data: bytes, sequence: int = 0
+        self, data: bytes, sequence: int = 0  # pylint: disable=unused-argument
     ) -> None:
+        """
+        Parses device capabilities response payload and updates appliance
+        supports attribute
+        """
         _LOGGER.debug("Ignored process_response_device_capabilities %r", self)
 
-    def refresh_command(self) -> MideaCommand:
+    def refresh_command(self) -> MideaCommand:  # pylint: disable=no-self-use
+        """Builds refresh/status query command"""
         return MideaCommand()
 
-    def apply_command(self) -> MideaCommand:
+    def apply_command(self) -> MideaCommand:  # pylint: disable=no-self-use
+        """Builds update command"""
         return MideaCommand()
 
     def __str__(self) -> str:
@@ -247,22 +263,27 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def tank_full(self) -> bool:
+        """Is water tank full"""
         return self._tank_full
 
     @property
     def tank_level(self) -> int:
+        """Water tank level percentage"""
         return self._tank_level
 
     @property
     def current_humidity(self) -> int:
+        """Current ambient humidity"""
         return self._current_humidity
 
     @property
     def current_temperature(self) -> float:
+        """Current ambient temperature"""
         return self._current_temperature
 
     @property
     def error_code(self) -> int:
+        """Current appliance error code or zero if no errors"""
         return self._error
 
     @property
@@ -276,6 +297,7 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def fan_speed(self) -> int:
+        """Current fan speed"""
         return self._fan_speed
 
     @fan_speed.setter
@@ -307,6 +329,7 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def target_humidity(self) -> int:
+        """Target humidity"""
         return self._target_humidity
 
     @target_humidity.setter
@@ -335,7 +358,7 @@ class DehumidifierAppliance(Appliance):
     @mode.setter
     def mode(self, mode: int) -> None:
         mode = int(mode)
-        if 0 <= mode and mode <= 15:
+        if 0 <= mode <= 15:
             self._mode = mode
         else:
             raise MideaError(f"Tried to set mode to invalid value: {mode}")
@@ -346,10 +369,12 @@ class DehumidifierAppliance(Appliance):
 
     @property
     def filter_indicator(self) -> bool:
+        """Indicator if filters should be cleaned/replaced"""
         return self._filter_indicator
 
     @property
     def defrosting(self) -> bool:
+        """Indicator if dehumidifier is defrosting its circuit"""
         return self._defrosting
 
     @property
@@ -408,8 +433,10 @@ class DehumidifierAppliance(Appliance):
 
 
 class AirConditionerAppliance(Appliance):
-    def __init__(self, id, appliance_type: str = "") -> None:
-        super().__init__(id, appliance_type)
+    """Represents Midea air conditioner"""
+
+    def __init__(self, appliance_id, appliance_type: str = "") -> None:
+        super().__init__(appliance_id, appliance_type)
 
         self._running = False
         self._mode = 0
@@ -432,9 +459,14 @@ class AirConditionerAppliance(Appliance):
         self.supports = {}
 
     @staticmethod
-    def supported(type: str | int) -> bool:
-        lwr = str(type).lower()
-        return lwr == "ac" or lwr == "0xac" or type == 172 or type == -84
+    def supported(appliance_type: str | int) -> bool:
+        lwr = str(appliance_type).lower()
+        return (
+            lwr == "ac"
+            or lwr == "0xac"
+            or appliance_type == 172
+            or appliance_type == -84
+        )
 
     def process_response(self, data: bytes) -> None:
         _LOGGER.log(
@@ -490,7 +522,7 @@ class AirConditionerAppliance(Appliance):
         0x42: "prevent_direct_fan",
     }
 
-    def process_response_device_capabilities(self, data: bytes):
+    def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
         if data:
             if data[0] != 0xB5:
                 _LOGGER.debug("Not a B5 response")
@@ -538,6 +570,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def running(self) -> bool:
+        """Is air conditioner running"""
         return self._running
 
     @running.setter
@@ -546,28 +579,38 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def target_temperature(self) -> float:
+        """A/C target temperature"""
         return self._target_temperature
 
     @target_temperature.setter
     def target_temperature(self, temperature: float | str) -> None:
         temperature = float(temperature)
-        if temperature < AC_MIN_TEMPERATURE or temperature > AC_MAX_TEMPERATURE:
+        if AC_MIN_TEMPERATURE <= temperature <= AC_MAX_TEMPERATURE:
+            self._target_temperature = temperature
+        else:
             raise MideaError(
                 f"Tried to set target temperature {temperature} out of allowed range"
             )
-        else:
-            self._target_temperature = temperature
 
     @property
     def outdoor_temperature(self) -> float:
+        """
+        Current outdoor temperature. If measure not available,
+        returns sys.float_info.min
+        """
         return self._outdoor_temperature or sys.float_info.min
 
     @property
     def indoor_temperature(self) -> float:
+        """
+        Current indoor temperature. If measure not available,
+        returns sys.float_info.min
+        """
         return self._indoor_temperature or sys.float_info.min
 
     @property
     def fan_speed(self) -> int:
+        """Current fan speed"""
         return self._fan_speed
 
     @fan_speed.setter
@@ -576,6 +619,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def mode(self) -> int:
+        """Current operating mode"""
         return self._mode
 
     @mode.setter
@@ -606,17 +650,16 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def turbo_fan(self) -> bool:
+        """turbo fan mode on/off"""
         return self._turbo_fan
 
     @turbo_fan.setter
     def turbo_fan(self, value: bool | int | str) -> None:
-        """turbo fan mode on/off"""
         self._turbo_fan = _as_bool(value)
 
     @property
     def turbo(self) -> bool:
         """turbo (boost) mode on/off"""
-
         return self._turbo
 
     @turbo.setter
@@ -643,6 +686,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def beep_prompt(self) -> bool:
+        """turn beep prompt on/off"""
         return self._beep_prompt
 
     @beep_prompt.setter
@@ -692,6 +736,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def error_code(self) -> int:
+        """Current air conditioner error code"""
         return self._error
 
     def __str__(self) -> str:
