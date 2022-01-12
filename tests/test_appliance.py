@@ -19,24 +19,24 @@ from midea_beautiful.exceptions import MideaError
 
 
 def test_appliance(caplog: pytest.LogCaptureFixture):
-    s = Appliance.instance("44", "99")
-    assert s.appliance_id == "44"
-    assert s.type == "99"
-    assert not isinstance(s, DehumidifierAppliance)
-    assert not isinstance(s, AirConditionerAppliance)
-    assert isinstance(s, Appliance)
-    assert str(s) == "[UnknownAppliance]{id=44 type=99}"
-    assert s.model == s.type
-    assert not s.online
-    assert isinstance(s.refresh_command(), MideaCommand)
-    assert isinstance(s.apply_command(), MideaCommand)
+    appliance = Appliance.instance("44", "99")
+    assert appliance.appliance_id == "44"
+    assert appliance.type == "99"
+    assert not isinstance(appliance, DehumidifierAppliance)
+    assert not isinstance(appliance, AirConditionerAppliance)
+    assert isinstance(appliance, Appliance)
+    assert str(appliance) == "[UnknownAppliance]{id=44 type=99}"
+    assert appliance.model == appliance.type
+    assert not appliance.online
+    assert isinstance(appliance.refresh_command(), MideaCommand)
+    assert isinstance(appliance.apply_command(), MideaCommand)
     with caplog.at_level(logging.DEBUG):
         caplog.clear()
-        s.process_response(b"")
+        appliance.process_response(b"")
         assert len(caplog.records) == 1
     with caplog.at_level(logging.DEBUG):
         caplog.clear()
-        s.process_response_device_capabilities(b"")
+        appliance.process_response_device_capabilities(b"")
         assert len(caplog.records) == 1
 
 
@@ -52,28 +52,28 @@ def test_appliance_same_type():
 
 
 def test_dehumidifier():
-    s = Appliance.instance("44", "a1")
-    assert isinstance(s, DehumidifierAppliance)
+    appliance = Appliance.instance("44", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
 
-    assert "[Dehumidifier]" in str(s)
+    assert "[Dehumidifier]" in str(appliance)
 
-    assert s.appliance_id == "44"
-    assert s.type == "a1"
-    assert not s.running
-    s.running = "On"
-    assert s.running
-    s.running = "OFF"
-    assert not s.running
-    s.running = "true"
-    assert s.running
-    s.running = "0"
-    assert not s.running
-    s.running = "true"
-    assert s.running
-    s.running = "TRUE"
-    assert s.running
+    assert appliance.appliance_id == "44"
+    assert appliance.type == "a1"
+    assert not appliance.running
+    appliance.running = "On"
+    assert appliance.running
+    appliance.running = "OFF"
+    assert not appliance.running
+    appliance.running = "true"
+    assert appliance.running
+    appliance.running = "0"
+    assert not appliance.running
+    appliance.running = "true"
+    assert appliance.running
+    appliance.running = "TRUE"
+    assert appliance.running
     with pytest.raises(ValueError):
-        s.running = "TRU"
+        appliance.running = "TRU"
 
 
 def test_dehumidifier_mode():

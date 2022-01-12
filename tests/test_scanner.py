@@ -5,7 +5,7 @@ import socket
 from typing import Final
 from unittest.mock import MagicMock, patch
 import pytest
-from midea_beautiful import discover_appliances
+from midea_beautiful import find_appliances
 from midea_beautiful.crypto import Security
 import midea_beautiful.scanner as scanner
 
@@ -148,7 +148,7 @@ def test_discover_appliances(
             {"id": "123", "name": "name-123", "type": "0xa1", "sn": "X0123"},
         ]
         caplog.clear()
-        res = discover_appliances(cloud=mock_cloud)
+        res = find_appliances(cloud=mock_cloud)
         assert len(res) == 2
         assert res[0].appliance_id == "456"
         assert res[1].appliance_id == "123"
@@ -179,7 +179,7 @@ def test_discover_appliances_no_cloud(
         ]
 
         caplog.clear()
-        res = discover_appliances()
+        res = find_appliances()
         assert len(res) == 3
         assert res[0].appliance_id == "456"
         assert res[1].appliance_id == "999"
@@ -209,7 +209,7 @@ def test_scanner_find_appliances(
             {"id": "123", "name": "name-123", "type": "0xa1", "sn": "X0123"},
         ]
         caplog.clear()
-        res = scanner.find_appliances(cloud=mock_cloud)
+        res = find_appliances(cloud=mock_cloud)
         assert len(res) == 2
         assert res[0].appliance_id == "456"
         assert res[1].appliance_id == "123"
@@ -243,7 +243,7 @@ def test_scanner_find_appliances_changed_id(
             {"id": "124", "name": "name-124", "type": "0xa1", "sn": "X0123"},
         ]
         caplog.clear()
-        res = scanner.find_appliances(cloud=mock_cloud)
+        res = find_appliances(cloud=mock_cloud)
         assert len(res) == 2
         assert res[0].appliance_id == "456"
         assert res[1].appliance_id == "123"
@@ -275,7 +275,7 @@ def test_scanner_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFi
                 {"id": "456", "name": "name-456", "type": "0xa1", "sn": "X0456"}
             ]
             caplog.clear()
-            res = scanner.find_appliances(cloud=mock_cloud)
+            res = find_appliances(cloud=mock_cloud)
             assert len(res) == 1
             assert res[0].appliance_id == "456"
             assert len(caplog.records) == 2
@@ -290,12 +290,13 @@ def test_scanner_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFi
 
 
 def test_find_appliances_cloud(mock_cloud: MagicMock):
+    """This tests function from main module"""
     with (
-        patch("midea_beautiful.scanner.MideaCloud", return_value=mock_cloud) as mc,
+        patch("midea_beautiful.MideaCloud", return_value=mock_cloud) as mc,
         patch.object(mock_cloud, "authenticate", side_effect=_TestException()) as auth,
     ):
         with pytest.raises(_TestException):
-            scanner.find_appliances(account="user@example.com", password="wordpass")
+            find_appliances(account="user@example.com", password="wordpass")
         mc.assert_called()
         auth.assert_called()
 
@@ -328,7 +329,7 @@ def test_scanner_find_appliances_not_supported(
             {"id": "123", "name": "name-123", "type": "0xa1", "sn": "X0123"},
         ]
         caplog.clear()
-        res = scanner.find_appliances(cloud=mock_cloud)
+        res = find_appliances(cloud=mock_cloud)
         assert len(res) == 2
         assert res[0].appliance_id == "123"
         assert res[1].appliance_id == "456"
@@ -366,7 +367,7 @@ def test_scanner_find_appliances_with_update(
             {"id": "123", "name": "name-123", "type": "0xa1", "sn": "X0123"},
         ]
         caplog.clear()
-        res = scanner.find_appliances(cloud=mock_cloud)
+        res = find_appliances(cloud=mock_cloud)
         assert len(res) == 2
         print(res)
         assert res[0].appliance_id == "123"
