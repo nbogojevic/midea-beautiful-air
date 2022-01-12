@@ -4,7 +4,7 @@ from __future__ import annotations
 from ipaddress import IPv4Network
 import logging
 import socket
-from typing import Final, ValuesView
+from typing import Final
 
 from ifaddr import IP, Adapter, get_adapters
 
@@ -41,7 +41,7 @@ def _get_broadcast_addresses(addresses: list[str] = None) -> list[str]:
             nets.append(local_net)
 
     if not addresses:
-        adapters: ValuesView[Adapter] = get_adapters()
+        adapters: list[Adapter] = get_adapters()
         for adapter in adapters:
             ip_address: IP
             for ip_address in adapter.ips:
