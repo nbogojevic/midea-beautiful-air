@@ -68,7 +68,7 @@ def _output(appliance: LanDevice, show_credentials: bool = False) -> None:
 
     if show_credentials:
         print(f"  token   = {appliance.token}")
-        print(f"  key      = {appliance.key}")
+        print(f"  key     = {appliance.key}")
 
 
 def _run_discover_command(args: Namespace) -> int:
@@ -77,7 +77,7 @@ def _run_discover_command(args: Namespace) -> int:
         account=args.account,
         password=args.password,
         appid=args.appid,
-        networks=args.network,
+        addresses=args.address,
     )
     for appliance in appliances:
         _output(appliance, args.credentials)
@@ -278,7 +278,7 @@ def _configure_argparser():
         prog="midea-beautiful-air-cli",
         description=(
             "Discovers and manages Midea air conditioners"
-            " and dehumidifiers on local network(s)."
+            " and dehumidifiers on local network."
         ),
     )
 
@@ -292,14 +292,14 @@ def _configure_argparser():
 
     parser_discover = subparsers.add_parser(
         "discover",
-        help="discovers appliances on local network(s)",
-        description="Discovers appliances on local network(s)",
+        help="discovers appliances on local network",
+        description="Discovers appliances on local network",
     )
     _add_standard_options(parser_discover)
     parser_discover.add_argument(
-        "--network",
+        "--address",
         nargs="+",
-        help="network addresses or range(s) for discovery (e.g. 192.0.0.0/24).",
+        help="network addresses for discovery (e.g. 192.0.1.2 or 192.0.1.255).",
     )
 
     parser_status = subparsers.add_parser(

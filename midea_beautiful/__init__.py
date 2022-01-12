@@ -52,7 +52,7 @@ def discover_appliances(
         account=account,
         password=password,
         appid=str(appid),
-        networks=networks,
+        addresses=networks,
     )
 
 

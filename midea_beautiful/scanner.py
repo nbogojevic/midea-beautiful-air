@@ -1,16 +1,12 @@
-"""Scans local network for Midea appliances."""
+"""Scans network for Midea appliances."""
 from __future__ import annotations
 
-from ipaddress import IPv4Network
 import logging
 import socket
 from typing import Final
 
-from ifaddr import IP, Adapter, get_adapters
-
 from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
-from midea_beautiful.exceptions import MideaError
 from midea_beautiful.lan import DISCOVERY_MSG, LanDevice, matches_lan_cloud
 from midea_beautiful.midea import DISCOVERY_PORT
 from midea_beautiful.util import SPAM, TRACE
@@ -23,49 +19,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _BROADCAST_TIMEOUT: Final = 3
 _BROADCAST_RETRIES: Final = 3
-
-
-def _get_broadcast_addresses(addresses: list[str] = None) -> list[str]:
-    """Retrieves local networks by iterating local network adapters
-
-    Returns:
-        list[str]: list of local network broadcast addresses
-    """
-    # If addresses were provided, then we will send discovery to them
-    # even if they are not in private ip range
-    addresses = addresses or []
-    nets: list[IPv4Network] = []
-    for addr in addresses:
-        local_net = IPv4Network(addr, strict=False)
-        if not local_net.is_loopback and not local_net.is_link_local:
-            nets.append(local_net)
-
-    if not addresses:
-        adapters: list[Adapter] = get_adapters()
-        for adapter in adapters:
-            ip_address: IP
-            for ip_address in adapter.ips:
-
-                if ip_address.is_IPv4:
-                    addr = f"{ip_address.ip}/{ip_address.network_prefix}"
-                    local_net = IPv4Network(addr, strict=False)
-                    if (
-                        local_net.is_private
-                        and not local_net.is_loopback
-                        and not local_net.is_link_local
-                    ):
-                        nets.append(local_net)
-    networks = list()
-    if not nets:
-        raise MideaError("No valid networks to send broadcast to")
-    for net in nets:
-        _LOGGER.debug(
-            "Network %s, broadcast address %s",
-            net.network_address,
-            net.broadcast_address,
-        )
-        networks.append(str(net.broadcast_address))
-    return networks
 
 
 class _MideaDiscovery:
@@ -232,7 +185,7 @@ def find_appliances(
     account: str = None,
     password: str = None,
     appid: str = None,
-    networks: list[str] = None,
+    addresses: list[str] = None,
     appliances: list[LanDevice] = None,
 ) -> list[LanDevice]:
     """Finds appliances on local network(s)
@@ -243,15 +196,15 @@ def find_appliances(
         account (str, optional): User account. Defaults to None.
         password (str, optional): Account password. Defaults to None.
         appid (str, optional): Midea mobile application key. Defaults to None.
-        networks (list[str], optional): List of networks to search.
-        If omitted, search local networks. Defaults to None.
+        addresses (list[str], optional): List of addresses to search.
+        If omitted, search all addresses (255.255.255.255). Defaults to None.
         appliances (list[LanDevice], optional): List of known appliances.
         Defaults to None.
 
     Returns:
         list[LanDevice]: [description]
     """
-    networks = networks or []
+    addresses = addresses or ["255.255.255.255"]
     _LOGGER.debug("Library version=%s", __version__)
     if not cloud and account and password:
         cloud = MideaCloud(
@@ -259,6 +212,5 @@ def find_appliances(
         )
         cloud.authenticate()
 
-    addresses = _get_broadcast_addresses(networks or [])
     _LOGGER.debug("Scanning for midea dehumidifier appliances via %s", addresses)
     return _find_appliances_on_lan(cloud, addresses, appliances)

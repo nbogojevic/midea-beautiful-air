@@ -166,7 +166,7 @@ def test_run_discover_command(capsys: pytest.CaptureFixture):
             password="test",
             appkey="876",
             appid="1000",
-            network=None,
+            address=None,
             credentials=False,
         )
         res = _run_discover_command(namespace)

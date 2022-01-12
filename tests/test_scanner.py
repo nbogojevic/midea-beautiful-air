@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from midea_beautiful import discover_appliances
 from midea_beautiful.crypto import Security
-from midea_beautiful.exceptions import MideaError
 import midea_beautiful.scanner as scanner
 
 # pylint: disable=protected-access
@@ -35,39 +34,6 @@ BROADCAST_PAYLOAD_NOT_SUPPORTED: Final = (
 
 class _TestException(Exception):
     pass
-
-
-@pytest.fixture(name="adapter_10_1_2_0")
-def adapter_10_1_2_0():
-    ip1 = MagicMock()
-    ip1.is_IPv4 = True
-    ip1.ip = "10.1.2.0"
-    ip1.network_prefix = 25
-    adapter = MagicMock()
-    adapter.ips = [ip1]
-    return adapter
-
-
-@pytest.fixture(name="adapter_192_0_2_0")
-def adapter_192_0_2_0():
-    ip1 = MagicMock()
-    ip1.is_IPv4 = True
-    ip1.ip = "192.0.2.0"
-    ip1.network_prefix = 25
-    adapter = MagicMock()
-    adapter.ips = [ip1]
-    return adapter
-
-
-@pytest.fixture(name="adapter_8_8_8_0")
-def adapter_8_8_8_0():
-    ip1 = MagicMock()
-    ip1.is_IPv4 = True
-    ip1.ip = "8.8.8.0"
-    ip1.network_prefix = 25
-    adapter = MagicMock()
-    adapter.ips = [ip1]
-    return adapter
 
 
 @pytest.fixture(name="broadcast_packet")
@@ -129,66 +95,6 @@ def lan_device_with_update():
     q = MagicMock(appliance_id="123", type="a1", serial_number="X0123")
     q.__str__.return_value = "appliance-123-2"
     return [x, y, z, q, x]
-
-
-def test_get_broadcast_addresses():
-    networks = scanner._get_broadcast_addresses(["192.0.1.2"])
-    assert len(networks) == 1
-    assert networks[0] == "192.0.1.2"
-
-
-def test_get_broadcast_addresses_range():
-    networks = scanner._get_broadcast_addresses(["192.0.2.0/27"])
-    assert len(networks) == 1
-    assert networks[0] == "192.0.2.31"
-
-
-def test_get_broadcast_addresses_multiple_provided():
-    networks = scanner._get_broadcast_addresses(
-        [
-            "192.0.1.0/27",
-            "127.0.0.1",
-            "192.0.2.0/26",
-        ]
-    )
-    assert len(networks) == 2
-    assert networks[0] == "192.0.1.31"
-    assert networks[1] == "192.0.2.63"
-
-
-def test_can_specify_public_address():
-    networks = scanner._get_broadcast_addresses(["8.8.8.8"])
-    assert len(networks) == 1
-    assert networks[0] == "8.8.8.8"
-
-
-def test_no_adapters():
-    with patch("midea_beautiful.scanner.get_adapters", return_value=[]):
-        with pytest.raises(MideaError) as ex:
-            scanner._get_broadcast_addresses([])
-        assert ex.value.message == "No valid networks to send broadcast to"
-
-
-def test_one_adapter(adapter_10_1_2_0):
-    with patch("midea_beautiful.scanner.get_adapters", return_value=[adapter_10_1_2_0]):
-        networks = scanner._get_broadcast_addresses([])
-        assert len(networks) == 1
-
-
-def test_two_adapters(adapter_10_1_2_0, adapter_192_0_2_0, adapter_8_8_8_0):
-    with patch(
-        "midea_beautiful.scanner.get_adapters",
-        return_value=[adapter_10_1_2_0, adapter_192_0_2_0, adapter_8_8_8_0],
-    ):
-        networks = scanner._get_broadcast_addresses([])
-        assert len(networks) == 2
-
-
-def test_get_broadcast_addresses_raise_on_local_only():
-    with pytest.raises(MideaError) as ex:
-        scanner._get_broadcast_addresses(["127.0.0.2", "127.0.0.1"])
-
-    assert ex.value.message == "No valid networks to send broadcast to"
 
 
 def test_create_MideaDiscovery():

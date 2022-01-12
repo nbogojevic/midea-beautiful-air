@@ -76,7 +76,7 @@ The following air conditioner data is accessible through this library:
 
 ## Discovery
 
-This library is able to discover appliances on local network. This is done by broadcasting UDP packets on all local networks interfaces to ports 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key (K1) combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key (K1) pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
+This library is able to discover appliances on local network. This is done by broadcasting UDP packets to port 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key (K1) combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key (K1) pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
 
 Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful/midea.py](midea_beautiful/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
@@ -86,7 +86,7 @@ If this discovery mechanism doesn't work on particular set-up, it is still possi
 
 ### Network considerations
 
-Discovery requires that both appliance and the machine performing discovery are present on the same subnet. Discovery process will issue UDP broadcast request on the local private networks discovered from host's network adapters. The library only scans private network ranges using this method (e.g. 10.0.0.0 – 10.255.255.255, 	172.16.0.0 – 172.31.255.255 and 192.168.0.0 – 192.168.255.255) It is also possible to explicitly provide networks or even single addresses to scan and in this case there is no limitation on address ranges, however, beware of sending broadcast requests to public ip networks.
+Discovery requires that both appliance and the machine performing discovery are present on the same broadcast subnet. By default library issues broadcast to all network, i.e. address `255.255.255.255`, but it is possible to restrict broadcast subnet (e.g. 192.0.5.255)
 
 ## Local protocol support
 
@@ -134,13 +134,13 @@ midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --c
 Search for devices by providing explicit network address
 
 ```shell
-midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.3 --credentials
+midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --address 192.0.1.3 --credentials
 ```
 
-Search for devices by providing explicit network range
+Search for devices by providing broadcast address
 
 ```shell
-midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --network 192.0.1.2/24 --credentials
+midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --address 192.0.1.255 --credentials
 ```
 
 ### Appliance status
