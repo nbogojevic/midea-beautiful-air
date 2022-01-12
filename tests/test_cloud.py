@@ -180,7 +180,10 @@ def test_request_too_many_retries(
     )
     with pytest.raises(CloudRequestError) as ex:
         cloud_client.api_request("too-many-retries", DUMMY_RQ, authenticate=False)
-    assert ex.value.message == "Too many retries while calling too-many-retries"
+    assert (
+        ex.value.message
+        == "Too many retries while calling too-many-retries, last error internal error - ignore (9999)"  # noqa: E501
+    )
 
 
 def test_request_exception(
@@ -192,7 +195,10 @@ def test_request_exception(
     )
     with pytest.raises(CloudRequestError) as ex:
         cloud_client.api_request("exception", DUMMY_RQ, authenticate=False)
-    assert ex.value.message == "Request error simulated while calling exception"
+    assert (
+        ex.value.message
+        == "Too many retries while calling exception, last error simulated"
+    )
 
 
 def test_session_restart(cloud_client: MideaCloud, requests_mock: requests_mock.Mocker):
@@ -270,7 +276,10 @@ def test_full_restart_retries(
     )
     with pytest.raises(CloudRequestError) as ex:
         cloud_client.api_request("full_restart", DUMMY_RQ, authenticate=False)
-    assert ex.value.message == "Too many retries while calling full_restart"
+    assert (
+        ex.value.message
+        == "Too many retries while calling full_restart, last error full restart (3144)"  # noqa: E501
+    )
 
 
 def test_list_appliance(

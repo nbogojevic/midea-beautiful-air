@@ -40,6 +40,8 @@ _LOGGER = logging.getLogger(__name__)
 
 _STATE_SOCKET_TIMEOUT: Final = 3
 
+_MAX_RETRIES: Final = 3
+
 
 def matches_lan_cloud(device: LanDevice, cloud_details: dict[str, Any]):
     """Checks if lan device and cloud details correspond to same appliance"""
@@ -176,8 +178,8 @@ class LanDevice:
         self.token = token
         self.key = key
         self._got_tcp_key = False
-        self._last_error = ""
-        self.max_retries = 3
+        self.last_error = ""
+        self.max_retries = _MAX_RETRIES
         self._no_responses = 0
         self._lock = RLock()
         self.firmware_version = None
@@ -416,7 +418,7 @@ class LanDevice:
                     _LOGGER.debug(
                         "Connection error: %s for %s", self, error, exc_info=True
                     )
-                    self._last_error = error
+                    self.last_error = error
                     self._disconnect()
 
     def _disconnect(self) -> None:
@@ -435,7 +437,7 @@ class LanDevice:
             self._connect()
             if not self._socket:
                 _LOGGER.debug("Socket not open for %s", self)
-                self._last_error = f"Socket not open for {self}"
+                self.last_error = f"Socket not open for {self}"
                 self._retries += 1
                 return b""
 
@@ -445,7 +447,7 @@ class LanDevice:
                 self._socket.sendall(message)
             except Exception as error:  # pylint: disable=broad-except
                 _LOGGER.debug("Error sending to %s: %s", self, error)
-                self._last_error = str(error)
+                self.last_error = str(error)
                 self._disconnect()
                 self._retries += 1
                 return b""
@@ -455,19 +457,19 @@ class LanDevice:
                 response = self._socket.recv(1024)
             except socket.timeout as error:
                 _LOGGER.debug("Timeout receiving from %s: %s", self, error)
-                self._last_error = str(error)
+                self.last_error = str(error)
                 self._retries += 1
                 return b""
             except OSError as error:
                 _LOGGER.debug("Error receiving from %s: %s", self, error)
-                self._last_error = str(error)
+                self.last_error = str(error)
                 self._disconnect()
                 self._retries += 1
                 return b""
             else:
                 _LOGGER.log(TRACE, "From %s, response=%s", self, response)
                 if len(response) == 0:
-                    self._last_error = f"No results from {self}"
+                    self.last_error = f"No results from {self}"
                     self._disconnect()
                     self._retries += 1
                     return b""
@@ -515,7 +517,7 @@ class LanDevice:
     def _status(self, cmd: MideaCommand, cloud: MideaCloud | None) -> list[bytes]:
         data = self._lan_packet(cmd, cloud is None)
         _LOGGER.debug("Packet for: %s data=%s", self, data)
-        if cloud is not None:
+        if use_cloud := cloud is not None:
             _LOGGER.debug("Sending request via cloud API to: %s", self)
             responses = cloud.appliance_transparent_send(self.appliance_id, data)
         else:
@@ -526,7 +528,8 @@ class LanDevice:
             self._no_responses += 1
             if self._no_responses > self.max_retries:
                 self._online = False
-            self._disconnect()
+            if not use_cloud:
+                self._disconnect()
         else:
             self._no_responses = 0
             self._online = True
@@ -569,8 +572,8 @@ class LanDevice:
         # wait few seconds before re-sending data, default is 0
         self._sleep(self._retries)
         response_buf = self._request(data)
-        packets = self._retry_send(original_data, response_buf)
-        if packets:
+
+        if packets := self._retry_send(original_data, response_buf):
             return packets
 
         responses, self._buffer = self._security.decode_8370(
@@ -596,8 +599,7 @@ class LanDevice:
         self._sleep(self._retries)
         _LOGGER.log(SPAM, "appliance_send_v2 %s data=%s", self, data)
         response_buf = self._request(data)
-        packets = self._retry_send(data, response_buf)
-        if packets:
+        if packets := self._retry_send(data, response_buf):
             return packets
         response_len = len(response_buf)
         if response_buf[:2] == b"\x5a\x5a" and response_len > 5:
@@ -633,13 +635,13 @@ class LanDevice:
                     self._retries,
                     self.max_retries,
                 )
-                self._last_error = "empty reply"
+                self.last_error = "empty reply"
                 self._retries += 1
                 packets = self._appliance_send_lan(data)
                 self._retries = 0
                 return packets
-            error = self._last_error
-            self._last_error = ""
+            error = self.last_error
+            self.last_error = ""
             raise MideaNetworkError(
                 f"Unable to send data after {self.max_retries} retries,"
                 f" last error {error} for {self}"
@@ -661,7 +663,7 @@ class LanDevice:
             data = self._lan_packet(cmd, cloud is None)
 
             _LOGGER.log(TRACE, "Packet for %s data: %s", self, data)
-            if cloud:
+            if use_cloud := cloud is not None:
                 _LOGGER.debug("Sending request via cloud to %s", self)
                 responses = cloud.appliance_transparent_send(self.appliance_id, data)
             else:
@@ -680,7 +682,8 @@ class LanDevice:
             else:
                 _LOGGER.debug("Got no responses on apply from: %s", self)
                 self._online = False
-                self._disconnect()
+                if not use_cloud:
+                    self._disconnect()
 
     def _get_valid_token(self, cloud: MideaCloud) -> bool:
         """

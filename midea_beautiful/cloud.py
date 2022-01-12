@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import logging
 from threading import RLock
+from time import sleep
 from typing import Any, Final, Tuple
 
 import requests
@@ -61,6 +62,13 @@ def _decode_from_csv(data: str) -> bytes:
 
 class MideaCloud:
     """Client API for Midea cloud"""
+
+    # Default sleep unit of time. By default 1 second.
+    _DEFAULT_SLEEP_INTERVAL: Final = 1
+    # Unit of time for sleep.
+    # Can be set to different value during tests.
+    _sleep_interval: float = _DEFAULT_SLEEP_INTERVAL
+
     def __init__(
         self,
         appkey: str | None,
@@ -161,9 +169,13 @@ class MideaCloud:
 
                 payload = json.loads(response.text)
             except RequestException as exc:
-                raise CloudRequestError(
-                    f"Request error {exc} while calling {endpoint}"
-                ) from exc
+                return self._retry_api_request(
+                    endpoint=endpoint,
+                    args=args,
+                    authenticate=authenticate,
+                    key=key,
+                    cause=exc,
+                )
 
         if endpoint not in PROTECTED_RESPONSES:
             _LOGGER.log(TRACE, "HTTP response: %s", payload)
@@ -172,22 +184,45 @@ class MideaCloud:
         if str(payload.get("errorCode", "0")) != "0":
             self.handle_api_error(int(payload["errorCode"]), payload["msg"])
             # If no exception, then retry
-            self._retries += 1
-            if self._retries >= self._max_retries:
-                raise CloudRequestError(f"Too many retries while calling {endpoint}")
-
-            _LOGGER.debug(
-                "Retrying API call %s: %d of %d",
-                endpoint,
-                self._retries,
-                self._max_retries,
-            )
-            return self.api_request(
-                endpoint, args, authenticate=authenticate, key=key
+            return self._retry_api_request(
+                endpoint=endpoint,
+                args=args,
+                authenticate=authenticate,
+                key=key,
+                cause=f"{payload['msg']} ({payload['errorCode']})",
             )
 
         self._retries = 0
         return payload.get(key) if key else payload
+
+    def _sleep(self, duration: float) -> None:
+        sleep(duration * self._sleep_interval)
+
+    def _retry_api_request(
+        self,
+        endpoint: str,
+        args: dict[str, Any] = None,
+        authenticate=True,
+        key="result",
+        cause=None,
+    ) -> Any:
+        self._retries += 1
+        if self._retries >= self._max_retries:
+            self._retries = 0
+            raise CloudRequestError(
+                f"Too many retries while calling {endpoint}, last error {cause}"
+            ) from cause if isinstance(cause, BaseException) else None
+        # wait few seconds before re-sending data, default is 0
+        self._sleep(self._retries)
+        _LOGGER.debug(
+            "Retrying API call %s: %d of %d",
+            endpoint,
+            self._retries + 1,
+            self._max_retries,
+        )
+        return self.api_request(
+            endpoint=endpoint, args=args, authenticate=authenticate, key=key
+        )
 
     def _get_login_id(self) -> None:
         """

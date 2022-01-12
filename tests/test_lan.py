@@ -324,41 +324,41 @@ def test_request():
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 1
-        assert "Socket not open for " in str(device._last_error)
-        device._last_error = ""
+        assert "Socket not open for " in str(device.last_error)
+        device.last_error = ""
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 2
-        assert "Socket not open for " in str(device._last_error)
-        device._last_error = ""
+        assert "Socket not open for " in str(device.last_error)
+        device.last_error = ""
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 3
-        assert "Socket not open for " in str(device._last_error)
+        assert "Socket not open for " in str(device.last_error)
         device._retries = 0
         device._socket = MagicMock()
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 1
-        assert "No results from id=12345 " in str(device._last_error)
+        assert "No results from id=12345 " in str(device.last_error)
         device._socket = MagicMock()
         device._socket.sendall.side_effect = Exception("test-sendall")
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 2
-        assert "test-sendall" in str(device._last_error)
+        assert "test-sendall" in str(device.last_error)
         device._socket = MagicMock()
         device._socket.recv.side_effect = socket.timeout("test-timeout")
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 3
-        assert "test-timeout" in str(device._last_error)
+        assert "test-timeout" in str(device.last_error)
         device._socket = MagicMock()
         device._socket.recv.side_effect = OSError("test-os-error")
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 4
-        assert "test-os-error" in str(device._last_error)
+        assert "test-os-error" in str(device.last_error)
 
 
 def test_authenticate():
