@@ -358,5 +358,4 @@ def _settings_arguments():
 _EXCLUDED_PROPERTIES = ["name"]
 
 if __name__ == "__main__":
-    ret = cli(sys.argv[1:])
-    sys.exit(ret)
+    sys.exit(cli(sys.argv[1:]))

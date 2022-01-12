@@ -207,7 +207,7 @@ def test_run_cli(caplog: pytest.LogCaptureFixture):
     assert ret == 7
 
 
-def test_set_command():
+def test_set_command_error():
     namespace = Namespace(ip=None, id=None)
     ret = _run_set_command(namespace)
     assert ret == 7
@@ -239,6 +239,78 @@ def test_set_command():
     )
     with pytest.raises(pytest_socket.SocketBlockedError):
         _run_set_command(namespace)
+
+
+def test_set_command(
+    mock_cloud: MideaCloud,
+):
+    namespace = Namespace(
+        ip=None,
+        id="411",
+        token=None,
+        key=None,
+        account="user@example.com",
+        password="test",
+        appkey="876",
+        appid="1000",
+        cloud=True,
+        credentials=False,
+        command="set",
+        loglevel="INFO",
+        beep_prompt=True
+    )
+    with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
+        res = _run_set_command(namespace)
+        assert res == 0
+
+
+def test_set_command_read_only(
+    mock_cloud: MideaCloud,
+):
+    namespace = Namespace(
+        ip=None,
+        id="411",
+        token=None,
+        key=None,
+        account="user@example.com",
+        password="test",
+        appkey="876",
+        appid="1000",
+        cloud=True,
+        credentials=False,
+        command="set",
+        loglevel="INFO",
+        online=True
+    )
+    with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
+        res = _run_set_command(namespace)
+        assert res == 10
+
+
+def test_set_command_not_existing(
+    mock_cloud: MideaCloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    namespace = Namespace(
+        ip=None,
+        id="411",
+        token=None,
+        key=None,
+        account="user@example.com",
+        password="test",
+        appkey="876",
+        appid="1000",
+        cloud=True,
+        credentials=False,
+        command="set",
+        loglevel="INFO",
+        something=True
+    )
+    with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
+        res = _run_set_command(namespace)
+        assert len(caplog.records) == 1
+        assert caplog.records[0].levelname == "ERROR"
+        assert res == 11
 
 
 def test_set_with_cloud(
