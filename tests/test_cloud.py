@@ -52,12 +52,14 @@ def appliance_list(requests_mock: requests_mock.Mocker):
 
 @pytest.fixture(name="cloud_client")
 def cloud_client() -> MideaCloud:
-    return MideaCloud(
+    cloud = MideaCloud(
         appkey=DEFAULT_APPKEY,
         appid=DEFAULT_APP_ID,
         account="user@example.com",
         password="pa55word",
     )
+    cloud._sleep_interval = 0.001
+    return cloud
 
 
 @pytest.fixture(name="for_login")
