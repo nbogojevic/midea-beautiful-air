@@ -58,7 +58,7 @@ def cloud_client() -> MideaCloud:
         account="user@example.com",
         password="pa55word",
     )
-    cloud._sleep_interval = 0.001
+    cloud.sleep_interval = 0.001
     return cloud
 
 

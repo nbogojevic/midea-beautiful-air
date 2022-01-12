@@ -45,11 +45,11 @@ BROADCAST_PAYLOAD: Final = (
 
 @contextmanager
 def at_sleep(sleep: float):
-    LanDevice._sleep_interval = sleep
+    LanDevice.sleep_interval = sleep
     try:
         yield
     finally:
-        LanDevice._sleep_interval = LanDevice._DEFAULT_SLEEP_INTERVAL
+        LanDevice.sleep_interval = LanDevice._DEFAULT_SLEEP_INTERVAL
 
 
 def test_lan_packet_header_ac() -> None:

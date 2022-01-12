@@ -158,7 +158,7 @@ class LanDevice:
     _DEFAULT_SLEEP_INTERVAL: Final = 1
     # Unit of time for sleep.
     # Can be set to different value during tests.
-    _sleep_interval: float = _DEFAULT_SLEEP_INTERVAL
+    sleep_interval: float = _DEFAULT_SLEEP_INTERVAL
 
     def __init__(
         self,
@@ -429,7 +429,7 @@ class LanDevice:
             self._got_tcp_key = False
 
     def _sleep(self, duration: float) -> None:
-        sleep(duration * self._sleep_interval)
+        sleep(duration * self.sleep_interval)
 
     def _request(self, message) -> bytes:
         with self._lock:

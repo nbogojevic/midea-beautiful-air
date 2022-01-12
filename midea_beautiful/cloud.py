@@ -67,7 +67,7 @@ class MideaCloud:
     _DEFAULT_SLEEP_INTERVAL: Final = 1
     # Unit of time for sleep.
     # Can be set to different value during tests.
-    _sleep_interval: float = _DEFAULT_SLEEP_INTERVAL
+    sleep_interval: float = _DEFAULT_SLEEP_INTERVAL
 
     def __init__(
         self,
@@ -99,7 +99,7 @@ class MideaCloud:
         self._api_lock = RLock()
 
         # Count the number of retries for API requests
-        self._max_retries = _MAX_RETRIES
+        self.max_retries = _MAX_RETRIES
         self._retries = 0
 
         # A list of appliances associated with the account
@@ -196,7 +196,7 @@ class MideaCloud:
         return payload.get(key) if key else payload
 
     def _sleep(self, duration: float) -> None:
-        sleep(duration * self._sleep_interval)
+        sleep(duration * self.sleep_interval)
 
     def _retry_api_request(
         self,
@@ -207,7 +207,7 @@ class MideaCloud:
         cause=None,
     ) -> Any:
         self._retries += 1
-        if self._retries >= self._max_retries:
+        if self._retries >= self.max_retries:
             self._retries = 0
             raise CloudRequestError(
                 f"Too many retries while calling {endpoint}, last error {cause}"
@@ -218,7 +218,7 @@ class MideaCloud:
             "Retrying API call %s: %d of %d",
             endpoint,
             self._retries + 1,
-            self._max_retries,
+            self.max_retries,
         )
         return self.api_request(
             endpoint=endpoint, args=args, authenticate=authenticate, key=key
