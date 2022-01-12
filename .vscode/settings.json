@@ -7,10 +7,7 @@
         "--max-line-length=88"
     ],
     "cSpell.words": [
-        "capsys",
         "Comfee",
-        "fset",
-        "levelno",
         "midea"
     ],
     "cSpell.ignoreWords": [
@@ -23,10 +20,12 @@
         "PKCS",
         "andersonshatch",
         "barban",
+        "capsys",
         "chdjx",
         "decryptor",
         "encryptor",
-        "ifaddr",
+        "fset",
+        "levelno",
         "msmart",
         "recvfrom",
         "sendto",

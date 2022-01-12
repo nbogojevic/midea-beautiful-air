@@ -42,7 +42,6 @@ setup(
     """,
     install_requires=[
         "cryptography>=3.4",
-        "ifaddr>=0.1.7",
         "requests>=2.25.1",
     ],
 )
