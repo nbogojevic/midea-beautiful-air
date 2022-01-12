@@ -1,5 +1,6 @@
 """Test local network appliance scanner class"""
 from binascii import unhexlify
+import logging
 import socket
 from typing import Final
 from unittest.mock import MagicMock, patch
@@ -105,6 +106,25 @@ def test_create_MideaDiscovery():
         assert discovery._socket == mocked_socket
 
 
+def test_MideaDiscovery_broadcast_message(caplog: pytest.LogCaptureFixture):
+    with patch("socket.socket") as mock_socket:
+        mocked_socket = MagicMock()
+        mock_socket.return_value = mocked_socket
+        mocked_socket.sendto = MagicMock()
+        discovery = scanner._MideaDiscovery(None)
+        caplog.clear()
+        with caplog.at_level(logging.DEBUG):
+            discovery._broadcast_message(["255.255.255.255", "192.0.0.1"])
+        assert len(caplog.records) == 2
+        assert mocked_socket.sendto.call_count == 2
+        mocked_socket.sendto.side_effect = ["", Exception("test")]
+        caplog.clear()
+        with caplog.at_level(logging.DEBUG):
+            discovery._broadcast_message(["255.255.255.255", "192.0.0.1"])
+        assert len(caplog.records) == 3
+        assert caplog.messages[2] == "Unable to send broadcast to: 192.0.0.1 cause test"
+
+
 def test_discover_appliances(
     mock_cloud, caplog: pytest.LogCaptureFixture, broadcast_packet, lan_device_mocking
 ):
@@ -137,6 +157,34 @@ def test_discover_appliances(
             str(caplog.messages[0])
             == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
         )
+
+
+def test_discover_appliances_no_cloud(
+    caplog: pytest.LogCaptureFixture, broadcast_packet, lan_device_mocking
+):
+    # This is same as test_scanner_find_appliances
+    with (
+        patch("midea_beautiful.scanner.LanDevice", side_effect=lan_device_mocking),
+        patch("socket.socket") as mock_socket,
+    ):
+        mocked_socket = MagicMock()
+        mock_socket.return_value = mocked_socket
+        mocked_socket.recvfrom.side_effect = [
+            (unhexlify(broadcast_packet), ["192.0.4.5"]),
+            (unhexlify(broadcast_packet), ["192.0.4.1"]),
+            socket.timeout("timeout"),
+            socket.timeout("timeout"),
+            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            socket.timeout("timeout"),
+        ]
+
+        caplog.clear()
+        res = discover_appliances()
+        assert len(res) == 3
+        assert res[0].appliance_id == "456"
+        assert res[1].appliance_id == "999"
+        assert res[2].appliance_id == "123"
+        assert len(caplog.records) == 0
 
 
 def test_scanner_find_appliances(
@@ -233,7 +281,7 @@ def test_scanner_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFi
             assert len(caplog.records) == 2
             assert (
                 str(caplog.messages[0])
-                == "Some appliance(s) where not discovered on local network(s): 0 discovered out of 1"  # noqa: E501
+                == "Some appliance(s) where not discovered on local network: 0 discovered out of 1"  # noqa: E501
             )
             assert (
                 str(caplog.messages[1])

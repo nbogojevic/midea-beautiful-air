@@ -384,7 +384,7 @@ def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
         caplog.clear()
         s.process_response_device_capabilities(capabilities_not_b5)
         assert len(caplog.records) == 1
-        assert caplog.records[0].levelno == logging.DEBUG
+        assert caplog.records[0].levelname == "DEBUG"
         assert caplog.messages[0] == "Not a B5 response"
     caplog.clear()
     s.process_response_device_capabilities(capabilities_no_auto)

@@ -18,7 +18,7 @@ def discover_appliances(
     password: str = None,
     appid: int = DEFAULT_APP_ID,
     cloud: MideaCloud | None = None,
-    networks: list[str] = None,
+    address: list[str] = None,
 ) -> list[LanDevice]:
     """
     Discovers appliances on local network
@@ -52,7 +52,7 @@ def discover_appliances(
         account=account,
         password=password,
         appid=str(appid),
-        addresses=networks,
+        addresses=address,
     )
 
 
