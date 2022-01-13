@@ -1,4 +1,5 @@
 import os
+from pkg_resources import parse_requirements
 
 from setuptools import find_packages, setup
 
@@ -40,8 +41,5 @@ setup(
         [console_scripts]
         midea-beautiful-air-cli=midea_beautiful.cli:cli
     """,
-    install_requires=[
-        "cryptography>=3.4",
-        "requests>=2.25.1",
-    ],
+    install_requires=parse_requirements("requirements.txt"),
 )
