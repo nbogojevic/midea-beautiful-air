@@ -16,6 +16,7 @@ from midea_beautiful.exceptions import (
     MideaError,
     MideaNetworkError,
     ProtocolError,
+    UnsupportedError,
 )
 from midea_beautiful.lan import LanDevice, get_appliance_state
 from midea_beautiful.midea import (
@@ -43,6 +44,10 @@ BROADCAST_PAYLOAD: Final = (
 )
 
 
+class _TestError(Exception):
+    pass
+
+
 @contextmanager
 def at_sleep(sleep: float):
     LanDevice.sleep_interval = sleep
@@ -60,13 +65,13 @@ def test_lan_packet_header_ac() -> None:
     now = datetime.now()
     res = device._lan_packet(cmd)
     assert expected_header == res[: len(expected_header)]
+    if now.minute < 59 or now.hour < 23:
+        assert now.day == res[16]
+        assert now.month == res[17]
+        assert now.year % 100 == res[18]
+        assert int(now.year / 100) == res[19]
     if now.minute < 59:
         assert now.hour == res[15]
-        if now.hour < 23:
-            assert now.day == res[16]
-            assert now.month == res[17]
-            assert now.year % 100 == res[18]
-            assert int(now.year / 100) == res[19]
 
     assert res[20] == 0x45
     assert res[21] == 0x23
@@ -84,13 +89,13 @@ def test_lan_packet_header_dehumidifier() -> None:
     now = datetime.now()
     res = device._lan_packet(cmd)
     assert expected_header == res[: len(expected_header)]
+    if now.minute < 59 or now.hour < 23:
+        assert now.day == res[16]
+        assert now.month == res[17]
+        assert now.year % 100 == res[18]
+        assert int(now.year / 100) == res[19]
     if now.minute < 59:
         assert now.hour == res[15]
-        if now.hour < 23:
-            assert now.day == res[16]
-            assert now.month == res[17]
-            assert now.year % 100 == res[18]
-            assert int(now.year / 100) == res[19]
 
     assert res[20] == 0x45
     assert res[21] == 0x23
@@ -521,7 +526,7 @@ def test_refresh_all_fail(mock_cloud, caplog: pytest.LogCaptureFixture):
     device = LanDevice(
         appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
     )
-    with patch.object(device, "_status", side_effect=[[], [], [], []]):
+    with patch.object(device, "_appliance_send_lan", side_effect=[[], [], [], []]):
         device._no_responses = 0
         device._online = True
         device.refresh(None)
@@ -536,6 +541,59 @@ def test_refresh_all_fail(mock_cloud, caplog: pytest.LogCaptureFixture):
         device.refresh(None)
         assert device._no_responses == 4
         assert not device.online
+
+
+def test_is_supported_and_valid(mock_cloud):
+    device = LanDevice(
+        appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER, version=3
+    )
+    device._check_is_supported(mock_cloud, False)
+    device._check_is_supported(mock_cloud, True)
+    device = LanDevice(
+        appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER, version=2
+    )
+    device._check_is_supported(mock_cloud, False)
+    device._check_is_supported(mock_cloud, True)
+    device = LanDevice(
+        appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER, version=1
+    )
+    with pytest.raises(UnsupportedError):
+        device._check_is_supported(mock_cloud, False)
+    device._check_is_supported(mock_cloud, True)
+    device = LanDevice(appliance_id=str(313), appliance_type="0xff", version=2)
+    with pytest.raises(UnsupportedError):
+        device._check_is_supported(mock_cloud, False)
+
+    with pytest.raises(UnsupportedError):
+        device._check_is_supported(mock_cloud, True)
+
+
+def test_connect():
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    with (
+        patch("socket.socket") as mock_socket,
+        patch.object(
+            device, "_disconnect", return_value=MagicMock()
+        ) as disconnect_mock,
+    ):
+        mock_socket.return_value.connect.side_effect = [{}]
+        device._connect()
+        assert disconnect_mock.call_count == 1
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    with (
+        patch("socket.socket") as mock_socket,
+        patch.object(
+            device, "_disconnect", return_value=MagicMock()
+        ) as disconnect_mock,
+    ):
+        mock_socket.return_value.connect.side_effect = _TestError("Test")
+        device._connect()
+        assert str(device.last_error) == "Test"
+        assert disconnect_mock.call_count == 2
 
 
 def test_appliance_send_unsupported_version():
@@ -570,3 +628,36 @@ def test_appliance_apply_on_lan_multiple_replies():
         device._online = False
         device.apply()
         assert device.online
+
+
+def test_extract_mac():
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    device.serial_number = "1234567890ABCDEFTEST1234567890ABCDEF"
+    device._extract_mac(b"", 0)
+    assert device.mac == "TEST1234567890AB"
+
+
+def test_extract_type():
+    device = LanDevice(
+        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    device.ssid = "midea_a2_test"
+    device._extract_type(b"", 0)
+    assert device.type == "a2"
+    assert device.subtype == 0
+
+
+def test_get_tcp_key():
+    device = LanDevice(
+        appliance_id=str(9999), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+    )
+    device._security = MagicMock()
+    device._security.tcp_key.side_effect = _TestError("tcp_key")
+    with pytest.raises(AuthenticationError) as ex:
+        device._get_tcp_key(b"")
+    assert (
+        ex.value.message
+        == "Failed to get TCP key for: id=9999 address=None:6444 version=3"
+    )

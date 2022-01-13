@@ -171,6 +171,7 @@ class LanDevice:
         data: bytes = None,
         serial_number: str = None,
         security: Security = None,
+        version: int = 3,
     ) -> None:
         self._security = security or Security()
         self._retries = 0
@@ -195,6 +196,7 @@ class LanDevice:
         self.serial_number = serial_number
         self.mac = None
         self.ssid = None
+        self.version = version
 
         if data:
             self._init_from_data(data)
@@ -209,8 +211,6 @@ class LanDevice:
                 appliance_id=appliance_id, appliance_type=self.type
             )
             self._online = True
-            # Default interface version is 3
-            self.version = 3
         self.unique_id = self.serial_number or appliance_id
 
     def update(self, other: LanDevice) -> None:
@@ -252,22 +252,9 @@ class LanDevice:
         ssid_len = reply[40]
         # ssid like midea_xx_xxxx net_xx_xxxx
         self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
-        if len(reply) >= (69 + ssid_len):
-            self.mac = reply[63 + ssid_len : 69 + ssid_len].hex()
-        else:
-            self.mac = self.serial_number[16:32]
+        self._extract_mac(reply, ssid_len)
 
-        if len(reply) >= (56 + ssid_len) and reply[55 + ssid_len] != 0:
-            # Get type
-            self.type = hex(reply[55 + ssid_len])
-            if len(reply) >= (59 + ssid_len):
-                self.subtype = int.from_bytes(
-                    reply[57 + ssid_len : 59 + ssid_len], "little"
-                )
-        else:
-            # Get from SSID
-            self.type = self.ssid.split("_")[1].lower()
-            self.subtype = 0
+        self._extract_type(reply, ssid_len)
 
         self._init_extra_data(reply, ssid_len)
 
@@ -277,6 +264,27 @@ class LanDevice:
         self._online = True
 
         _LOGGER.debug("Descriptor data from %s: %r", self, self)
+
+    def _extract_mac(self, reply, ssid_len):
+        if len(reply) >= (69 + ssid_len):
+            self.mac = reply[63 + ssid_len : 69 + ssid_len].hex()
+        else:
+            assert self.serial_number
+            self.mac = self.serial_number[16:32]
+
+    def _extract_type(self, reply, ssid_len):
+        if len(reply) >= (56 + ssid_len) and reply[55 + ssid_len] != 0:
+            # Get type
+            self.type = hex(reply[55 + ssid_len])
+            if len(reply) >= (59 + ssid_len):
+                self.subtype = int.from_bytes(
+                    reply[57 + ssid_len : 59 + ssid_len], "little"
+                )
+        else:
+            # Get from SSID
+            assert self.ssid
+            self.type = self.ssid.split("_")[1].lower()
+            self.subtype = 0
 
     def _init_extra_data(self, reply: bytes, ssid_len: int):
         if len(reply) >= (46 + ssid_len):
@@ -384,23 +392,18 @@ class LanDevice:
                 self._online = True
                 _LOGGER.log(TRACE, "refresh %s responses=%s", self, responses)
                 self.state.process_response(responses[-1])
-            else:
-                self._no_responses += 1
-                _LOGGER.log(
-                    SPAM,
-                    "refresh %s no response %d of max %d",
+
+    def _check_for_offline(self, cloud):
+        if self._no_responses > self.max_retries:
+            if self._online:
+                _LOGGER.debug(
+                    "No response for %s in %d retries. Considered offline",
                     self,
                     self._no_responses,
-                    self.max_retries,
                 )
-                if self._no_responses > self.max_retries:
-                    if self._online:
-                        _LOGGER.debug(
-                            "No response for %s in %d retries. Considered offline",
-                            self,
-                            self._no_responses,
-                        )
-                    self._online = False
+            self._online = False
+            if not cloud:
+                self._disconnect()
 
     def _connect(self, socket_timeout=2) -> None:
         with self._lock:
@@ -413,7 +416,6 @@ class LanDevice:
                 self._socket.settimeout(socket_timeout)
                 try:
                     self._socket.connect((self.address, self.port))
-
                 except Exception as error:  # pylint: disable=broad-except
                     _LOGGER.debug(
                         "Connection error: %s for %s", self, error, exc_info=True
@@ -502,6 +504,9 @@ class LanDevice:
         _LOGGER.log(SPAM, "handshake_response=%s for %s", response, self)
         response = response[8:72]
 
+        self._get_tcp_key(response)
+
+    def _get_tcp_key(self, response: bytes):
         try:
             tcp_key = self._security.tcp_key(response, binascii.unhexlify(self.key))
             _LOGGER.log(SPAM, "tcp_key=%s for %s", tcp_key, self)
@@ -510,14 +515,14 @@ class LanDevice:
             _LOGGER.debug("Got TCP key for: %s", self)
             # After authentication, don’t send data immediately,
             # so sleep 500ms.
-            self._sleep(0.5)
+            self._sleep(0.5 * self.sleep_interval)
         except Exception as ex:
             raise AuthenticationError(f"Failed to get TCP key for: {self}") from ex
 
     def _status(self, cmd: MideaCommand, cloud: MideaCloud | None) -> list[bytes]:
         data = self._lan_packet(cmd, cloud is None)
         _LOGGER.debug("Packet for: %s data=%s", self, data)
-        if use_cloud := cloud is not None:
+        if cloud:
             _LOGGER.debug("Sending request via cloud API to: %s", self)
             responses = cloud.appliance_transparent_send(self.appliance_id, data)
         else:
@@ -526,10 +531,7 @@ class LanDevice:
         if len(responses) == 0:
             _LOGGER.debug("Got no responses on status from: %s", self)
             self._no_responses += 1
-            if self._no_responses > self.max_retries:
-                self._online = False
-            if not use_cloud:
-                self._disconnect()
+            self._check_for_offline(cloud)
         else:
             self._no_responses = 0
             self._online = True
@@ -548,6 +550,7 @@ class LanDevice:
             for i in range(self.max_retries):
                 try:
                     self._authenticate()
+                    break
                 except MideaError as ex:
                     if i == self.max_retries - 1:
                         _LOGGER.debug("Failed to authenticate %s", self)
@@ -561,8 +564,6 @@ class LanDevice:
                     self._disconnect()
 
                     self._sleep((i + 1) * 2)
-                else:
-                    break
 
         # copy from data in order to resend data
         original_data = bytes(data)
@@ -728,17 +729,20 @@ class LanDevice:
         else:
             self._authenticate()
 
-    def identify(self, cloud: MideaCloud = None, use_cloud: bool = False) -> None:
-        """Identifies appliance data on network and/or from cloud"""
-
-        if self.is_supported_version or use_cloud:
-            if _is_token_version(self.version) and not use_cloud:
-                self._valid_token(cloud)
-        else:
+    def _check_is_supported(self, cloud: MideaCloud | None, use_cloud: bool):
+        if not self.is_supported_version and not use_cloud:
             raise UnsupportedError(f"Appliance {self} protocol is not supported.")
 
         if not Appliance.supported(self.type):
             raise UnsupportedError(f"Unsupported appliance: {self!r}")
+
+    def identify(self, cloud: MideaCloud = None, use_cloud: bool = False) -> None:
+        """Identifies appliance data on network and/or from cloud"""
+
+        self._check_is_supported(cloud, use_cloud)
+
+        if _is_token_version(self.version) and not use_cloud:
+            self._valid_token(cloud)
 
         cmd = DeviceCapabilitiesCommand()
         responses = self._status(cmd, cloud if use_cloud else None)
@@ -834,7 +838,7 @@ class LanDevice:
     @property
     def is_supported_version(self) -> bool:
         """Returns True if appliance is supported"""
-        return self.version >= 2 and Appliance.supported(self.type)
+        return self.version >= 2
 
     @property
     def online(self) -> bool:
