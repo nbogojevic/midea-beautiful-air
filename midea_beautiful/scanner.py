@@ -23,12 +23,15 @@ _BROADCAST_RETRIES: Final = 3
 class _MideaDiscovery:
     """Utility class to discover appliances on local network"""
 
-    def __init__(self, cloud: MideaCloud | None) -> None:
+    def __init__(
+        self, cloud: MideaCloud | None, max_retries: int = _BROADCAST_RETRIES
+    ) -> None:
         self._cloud = cloud
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self._socket.settimeout(_BROADCAST_TIMEOUT)
         self._known_ips = set()
+        self._max_retries = max_retries
 
     def _collect_appliances(self, addresses: list[str] = None) -> list[LanDevice]:
         """Find all appliances on the local network."""
@@ -86,7 +89,7 @@ class _MideaDiscovery:
         _LOGGER.debug(
             "Broadcast attempt %d of max %d",
             count + 1,
-            _BROADCAST_RETRIES,
+            self._max_retries,
         )
 
         scanned_appliances = list(self._collect_appliances(addresses))
@@ -116,7 +119,7 @@ class _MideaDiscovery:
             if matches_lan_cloud(scanned, details):
                 scanned.name = details["name"]
                 appliances.append(scanned)
-                _LOGGER.info("Found appliance %s %s", scanned, known_cloud_appliances)
+                _LOGGER.debug("Found appliance %s %s", scanned, known_cloud_appliances)
                 if details["id"] in known_cloud_appliances:
                     known_cloud_appliances.remove(details["id"])
                 break
@@ -168,7 +171,7 @@ def do_find_appliances(
     max_retries=_BROADCAST_RETRIES,
 ) -> list[LanDevice]:
 
-    discovery = _MideaDiscovery(cloud=cloud)
+    discovery = _MideaDiscovery(cloud=cloud, max_retries=max_retries)
     appliances = appliances or []
     _LOGGER.debug("Starting LAN discovery")
     if cloud:
@@ -193,9 +196,9 @@ def do_find_appliances(
         if cloud and len(known_cloud_appliances) == 0:
             break
     if cloud:
-        _LOGGER.info("Found %d of %d appliance(s)", len(appliances), cloud_count)
+        _LOGGER.debug("Found %d of %d appliance(s)", len(appliances), cloud_count)
     else:
-        _LOGGER.info("Found %d appliance(s)", len(appliances))
+        _LOGGER.debug("Found %d appliance(s)", len(appliances))
 
     if cloud and len(appliances) < cloud_count:
         _add_missing_appliances(cloud_appliances, appliances, cloud_count)
