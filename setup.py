@@ -1,5 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
-from pkg_resources import parse_requirements
 
 from setuptools import find_packages, setup
 
@@ -12,8 +14,11 @@ def get_version(relative_path: str) -> str:
         return version["__version__"]
 
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
+with open("requirements.txt", "r", encoding="utf-8") as requirements:
+    install_requires = requirements.readlines()
+
+with open("README.md", "r", encoding="utf-8") as readme:
+    long_description = readme.read()
 
 setup(
     name="midea-beautiful-air",
@@ -22,9 +27,7 @@ setup(
     author="Nenad Bogojević",
     author_email="nenad.bogojevic@gmail.com",
     license="MIT",
-    description=(
-        "A library to control Midea appliances via the local network"
-    ),
+    description=("A library to control Midea appliances via the local network"),
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
@@ -41,5 +44,5 @@ setup(
         [console_scripts]
         midea-beautiful-air-cli=midea_beautiful.cli:cli
     """,
-    install_requires=parse_requirements("requirements.txt"),
+    install_requires=install_requires,
 )
