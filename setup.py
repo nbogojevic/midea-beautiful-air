@@ -14,9 +14,6 @@ def get_version(relative_path: str) -> str:
         return version["__version__"]
 
 
-with open("requirements.txt", "r", encoding="utf-8") as requirements:
-    install_requires = requirements.readlines()
-
 with open("README.md", "r", encoding="utf-8") as readme:
     long_description = readme.read()
 
@@ -44,5 +41,5 @@ setup(
         [console_scripts]
         midea-beautiful-air-cli=midea_beautiful.cli:cli
     """,
-    install_requires=install_requires,
+    install_requires=["cryptography>=3.0", "requests>=2.0"],
 )
