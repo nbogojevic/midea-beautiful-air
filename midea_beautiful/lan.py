@@ -931,5 +931,6 @@ def get_appliance_state(
         for details in cloud.list_appliances():
             if matches_lan_cloud(appliance, details):
                 appliance.name = details["name"]
+                appliance.serial_number = appliance.serial_number or details["sn"]
                 break
     return appliance
