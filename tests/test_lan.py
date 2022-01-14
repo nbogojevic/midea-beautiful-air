@@ -245,7 +245,9 @@ def test_get_appliance_state_cloud(mock_cloud):
     with pytest.raises(MideaError):
         get_appliance_state(appliance_id="12345")
 
-    mock_cloud.list_appliances.return_value = [{"id": "12345", "name": "name-123", "sn": "sn-12345"}]
+    mock_cloud.list_appliances.return_value = [
+        {"id": "12345", "name": "name-123", "sn": "sn-12345"}
+    ]
     device = get_appliance_state(appliance_id="12345", cloud=mock_cloud, use_cloud=True)
     assert device is not None
     assert device.appliance_id == "12345"
