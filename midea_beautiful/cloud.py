@@ -206,14 +206,7 @@ class MideaCloud:
         key="result",
         cause=None,
     ) -> Any:
-        self._retries += 1
-        if self._retries >= self.max_retries:
-            self._retries = 0
-            raise CloudRequestError(
-                f"Too many retries while calling {endpoint}, last error {cause}"
-            ) from cause if isinstance(cause, BaseException) else None
-        # wait few seconds before re-sending data, default is 0
-        self._sleep(self._retries)
+        self._retry_check(endpoint, cause)
         _LOGGER.debug(
             "Retrying API call %s: %d of %d",
             endpoint,
@@ -223,6 +216,16 @@ class MideaCloud:
         return self.api_request(
             endpoint=endpoint, args=args, authenticate=authenticate, key=key
         )
+
+    def _retry_check(self, endpoint: str, cause):
+        self._retries += 1
+        if self._retries >= self.max_retries:
+            self._retries = 0
+            raise CloudRequestError(
+                f"Too many retries while calling {endpoint}, last error {cause}"
+            ) from cause if isinstance(cause, BaseException) else None
+        # wait few seconds before re-sending data, default is 0
+        self._sleep(self._retries)
 
     def _get_login_id(self) -> None:
         """
@@ -406,6 +409,7 @@ class MideaCloud:
                 message,
             )
             retries = self._retries
+            self._retry_check("full-restart", cause=f"{message} ({error})")
             self._session = {}
             self._get_login_id()
             self.authenticate()
@@ -415,6 +419,7 @@ class MideaCloud:
         def session_restart() -> None:
             _LOGGER.debug("Restarting session: '%s' - '%s'", error, message)
             retries = self._retries
+            self._retry_check("session-restart", cause=f"{message} ({error})")
             self._session = {}
             self.authenticate()
             self._retries = retries

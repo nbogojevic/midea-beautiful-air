@@ -240,6 +240,53 @@ def test_session_restart(cloud_client: MideaCloud, requests_mock: requests_mock.
     assert history[3].url == "https://mapp.appsmb.com/v1/dummy"
 
 
+def test_session_restart_retries(
+    cloud_client: MideaCloud, requests_mock: requests_mock.Mocker
+):
+    cloud = cloud_client
+
+    requests_mock.post(
+        "https://mapp.appsmb.com/v1/dummy",
+        [
+            {"text": '{"errorCode": "3004", "msg": "value is illegal"}'},
+            {"text": _j({"result": "response text"})},
+        ],
+    )
+    requests_mock.post(
+        "https://mapp.appsmb.com/v1/user/login/id/get",
+        [
+            {"text": '{"errorCode": "3004", "msg": "value is illegal"}'},
+            {"text": '{"errorCode": "3004", "msg": "value is illegal"}'},
+            {"text": '{"errorCode": "3004", "msg": "value is illegal"}'},
+            {"text": '{"errorCode": "3004", "msg": "value is illegal"}'},
+            {"text": '{"errorCode": "3004", "msg": "value is illegal"}'},
+        ],
+    )
+    requests_mock.post(
+        "https://mapp.appsmb.com/v1/user/login",
+        text=_j(
+            {
+                "errorCode": "0",
+                "result": {"sessionId": "session-1", "accessToken": TEST_ACCESS_TOKEN},
+            }
+        ),
+    )
+    requests_mock.post(
+        "https://mapp.appsmb.com/v1/user/login",
+        text=_j({"text": '{"errorCode": "3004", "msg": "value is illegal"}'}),
+    )
+    requests_mock.post(
+        "https://mapp.appsmb.com/v1/homegroup/list/get",
+        text=_j({"errorCode": "0", "result": {"loginId": "test-login"}}),
+    )
+    with pytest.raises(CloudRequestError) as ex:
+        cloud.api_request("dummy", DUMMY_RQ, authenticate=False)
+    assert (
+        ex.value.message
+        == "Too many retries while calling session-restart, last error value is illegal (3004)"  # noqa: E501
+    )
+
+
 def test_full_restart(
     cloud_client: MideaCloud,
     requests_mock: requests_mock.Mocker,
@@ -273,14 +320,14 @@ def test_full_restart_retries(
     appliance_list,
 ):
     requests_mock.post(
-        "https://mapp.appsmb.com/v1/full_restart",
+        "https://mapp.appsmb.com/v1/full_restart_retries",
         text=_j({"errorCode": "3144", "msg": "full restart"}),
     )
     with pytest.raises(CloudRequestError) as ex:
-        cloud_client.api_request("full_restart", DUMMY_RQ, authenticate=False)
+        cloud_client.api_request("full_restart_retries", DUMMY_RQ, authenticate=False)
     assert (
         ex.value.message
-        == "Too many retries while calling full_restart, last error full restart (3144)"  # noqa: E501
+        == "Too many retries while calling full-restart, last error full restart (3144)"  # noqa: E501
     )
 
 
