@@ -299,7 +299,7 @@ def _configure_argparser():
     parser_discover.add_argument(
         "--address",
         nargs="+",
-        help="network addresses for discovery (e.g. 192.0.1.2 or 192.0.1.255).",
+        help="network addresses for discovery (e.g. 192.0.2.2 or 192.0.2.255).",
     )
 
     parser_status = subparsers.add_parser(

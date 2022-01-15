@@ -134,13 +134,13 @@ midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --c
 Search for devices by providing explicit network address
 
 ```shell
-midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --address 192.0.1.3 --credentials
+midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --address 192.0.2.3 --credentials
 ```
 
 Search for devices by providing broadcast address
 
 ```shell
-midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --address 192.0.1.255 --credentials
+midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --address 192.0.2.255 --credentials
 ```
 
 ### Appliance status
@@ -243,7 +243,7 @@ Get appliance state:
 from midea_beautiful import appliance_state
 
 appliance = appliance_state(
-    address=192.0.1.2,  # APPLIANCE_IP_ADDRESS 
+    address=192.0.2.2,  # APPLIANCE_IP_ADDRESS 
     token="TOKEN",  # TOKEN obtained from Midea API
     key="KEY",  # Token KEY obtained from Midea API
 )
