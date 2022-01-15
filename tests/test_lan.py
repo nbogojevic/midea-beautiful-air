@@ -157,8 +157,8 @@ def test_appliance_repr():
     token = "TOKEN"
     key = "KEY"
     appliance = LanDevice(data=response, token=token, key=key)
-    assert str(appliance) == "id=6618611909121 address=192.0.1.2:6444 version=3"
-    assert repr(appliance)[:31], "{id=6618611909121 == ip=192.0.1.2"
+    assert str(appliance) == "id=6618611909121 address=192.0.2.2:6444 version=3"
+    assert repr(appliance)[:31], "{id=6618611909121 == ip=192.0.2.2"
 
 
 def test_appliance_from_broadcast_ac():
@@ -232,7 +232,7 @@ def test_update():
     device2 = LanDevice(
         appliance_id=str(0x54321), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
     )
-    device2.address = "192.0.100.0"
+    device2.address = "192.0.2.0"
     assert device1.address != device2.address
     device1.update(device2)
     assert device1.address == device2.address
@@ -296,7 +296,7 @@ def test_get_appliance_state_lan(mock_cloud):
             )
             with at_sleep(0.001):
                 device = get_appliance_state(
-                    address="192.0.13.14", cloud=mock_cloud, security=mock_security
+                    address="192.0.2.14", cloud=mock_cloud, security=mock_security
                 )
             assert device is not None
             assert device.appliance_id == "2934580344864"
@@ -308,9 +308,9 @@ def test_get_appliance_state_socket_timeout(mock_cloud):
     with patch("socket.socket") as mock_socket:
         mock_socket.return_value.connect.side_effect = socket.timeout("test")
         with pytest.raises(MideaNetworkError) as ex:
-            get_appliance_state(address="192.0.20.21", cloud=mock_cloud)
+            get_appliance_state(address="192.0.2.21", cloud=mock_cloud)
         assert (
-            ex.value.message == "Timeout while connecting to appliance 192.0.20.21:6445"
+            ex.value.message == "Timeout while connecting to appliance 192.0.2.21:6445"
         )
 
 
@@ -318,8 +318,8 @@ def test_get_appliance_state_socket_error(mock_cloud):
     with patch("socket.socket") as mock_socket:
         mock_socket.return_value.connect.side_effect = socket.error("test")
         with pytest.raises(MideaNetworkError) as ex:
-            get_appliance_state(address="192.0.20.22", cloud=mock_cloud)
-        assert ex.value.message == "Could not connect to appliance 192.0.20.22:6445"
+            get_appliance_state(address="192.0.2.22", cloud=mock_cloud)
+        assert ex.value.message == "Could not connect to appliance 192.0.2.22:6445"
 
 
 def test_request():

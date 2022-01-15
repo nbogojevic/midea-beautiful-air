@@ -211,7 +211,6 @@ class LanDevice:
                 appliance_id=appliance_id, appliance_type=self.type
             )
             self._online = True
-        self.unique_id = self.serial_number or appliance_id
 
     def update(self, other: LanDevice) -> None:
         """Updates this LanDevice with data from another one"""
@@ -814,6 +813,10 @@ class LanDevice:
             self.serial_number,
             self.state,
         )
+
+    @property
+    def unique_id(self) -> str:
+        return self.serial_number or self.appliance_id
 
     @property
     def appliance_id(self) -> str:
