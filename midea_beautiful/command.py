@@ -321,7 +321,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def pump_switch_flag(self) -> bool:
-        """Pump switch flag - TODO used for what?"""
+        """Pump switch flag - Disables pump?"""
         return self.data[19] & 0b00010000 != 0
 
     @pump_switch_flag.setter
@@ -348,6 +348,15 @@ class DehumidifierSetCommand(MideaSequenceCommand):
     def beep_prompt(self, state: bool) -> None:
         self.data[11] &= ~0b01000000  # Clear the beep prompt bit
         self.data[11] |= 0b01000000 if state else 0
+
+    @property
+    def tank_warning_level(self) -> int:
+        """Target humidity for dehumidifier"""
+        return self.data[23]
+
+    @tank_warning_level.setter
+    def tank_warning_level(self, level: int) -> None:
+        self.data[23] = level
 
 
 class DehumidifierResponse:
@@ -389,7 +398,7 @@ class DehumidifierResponse:
         self.rare_show = (data[12] & 0b00111000) >> 3
         self.dust = data[12] & 0b00000111
         self.pm25 = data[13] + (data[14] * 256)
-        self.rare_value = data[15]
+        self.tank_warning_level = data[15]
         self.current_humidity = data[16]
         self.indoor_temperature = (data[17] - 50) / 2
         if self.indoor_temperature < -19:

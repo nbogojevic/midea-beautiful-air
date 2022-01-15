@@ -107,6 +107,7 @@ def test_dehumidifier_set_various() -> None:
     assert not command.pump_switch
     assert not command.sleep_switch
     assert not command.beep_prompt
+    assert command.tank_warning_level == 0
     assert command.target_humidity == 0
     assert command.fan_speed == 50
     assert command.mode == 1
@@ -117,6 +118,19 @@ def test_dehumidifier_set_various() -> None:
     assert (
         cmd.hex()
         == "aa20a100000000000302480001320000000000100000000000000000000001e8c6"
+    )
+
+
+def test_dehumidifier_tank_warning_level() -> None:
+    command = DehumidifierSetCommand()
+    assert command.tank_warning_level == 0
+    command.tank_warning_level = 50
+    cmd = command.finalize()
+    assert command.tank_warning_level == 50
+
+    assert (
+        cmd.hex()
+        == "aa20a1000000000003024800013200000000000000000032000000000000014448"
     )
 
 
