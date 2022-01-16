@@ -815,10 +815,6 @@ class LanDevice:
         )
 
     @property
-    def unique_id(self) -> str:
-        return self.serial_number or self.appliance_id
-
-    @property
     def short_sn(self):
         if (
             self.serial_number

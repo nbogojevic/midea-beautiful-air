@@ -119,6 +119,7 @@ def test_appliance_from_broadcast():
     appliance = LanDevice(data=response, token=token, key=key)
     assert appliance.mac == "123456789abc"
     assert appliance.serial_number == "000000P0000000Q1123456789ABC0000"
+    assert appliance.short_sn == "P0000000Q1123456789ABC"
     assert appliance.ssid == "net_a1_9ABC"
     assert appliance.type == "0xa1"
 

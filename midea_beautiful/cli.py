@@ -26,7 +26,7 @@ def _logs_install(level, **kw) -> None:
 
 
 def _output(appliance: LanDevice, show_credentials: bool = False) -> None:
-    print(f"id {appliance.unique_id}")
+    print(f"id {appliance.serial_number}/{appliance.appliance_id}")
     print(f"  id      = {appliance.appliance_id}")
     print(f"  addr    = {appliance.address if appliance.address else 'Unknown'}")
     print(f"  s/n     = {appliance.serial_number}")
