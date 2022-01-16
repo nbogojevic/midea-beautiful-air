@@ -1,5 +1,6 @@
 """Utility services for Midea library."""
 from __future__ import annotations
+
 from typing import Final
 
 SPAM: Final = 1
