@@ -51,6 +51,7 @@ def find_appliances(
     addresses: list[str] = None,
     appliances: list[LanDevice] = None,
     retries: int = DEFAULT_RETRIES,
+    timeout: float = DEFAULT_RETRIES,
 ) -> list[LanDevice]:
     """Finds appliances on local network
 
@@ -64,6 +65,8 @@ def find_appliances(
         If omitted, search all addresses (255.255.255.255). Defaults to None.
         appliances (list[LanDevice], optional): List of known appliances.
         Defaults to None.
+        retries (int): Number of times library should retry discovery.
+        timeout (float): Time to wait for device reply.
 
     Returns:
         list[LanDevice]: [description]
@@ -77,7 +80,9 @@ def find_appliances(
         cloud.authenticate()
 
     _LOGGER.debug("Scanning for midea dehumidifier appliances via %s", addresses)
-    return do_find_appliances(cloud, addresses, appliances, max_retries=retries)
+    return do_find_appliances(
+        cloud, addresses, appliances, max_retries=retries, timeout=timeout
+    )
 
 
 def appliance_state(

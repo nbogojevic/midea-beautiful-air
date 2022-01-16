@@ -30,6 +30,7 @@ DEFAULT_APP_ID: Final[int] = SUPPORTED_APPS["NetHome Plus"]["appid"]
 DEFAULT_SIGNKEY: Final = "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S"
 
 DEFAULT_RETRIES: Final = 3
+DEFAULT_TIMEOUT: Final = 3
 
 ERROR_CODE_P2: Final = 38
 ERROR_CODE_BUCKET_FULL: Final = ERROR_CODE_P2

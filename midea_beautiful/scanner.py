@@ -8,7 +8,7 @@ from typing import Final
 from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import DISCOVERY_MSG, LanDevice, matches_lan_cloud
-from midea_beautiful.midea import DISCOVERY_PORT
+from midea_beautiful.midea import DEFAULT_RETRIES, DEFAULT_TIMEOUT, DISCOVERY_PORT
 from midea_beautiful.util import SPAM, TRACE
 
 # pylint: disable=too-few-public-methods
@@ -16,20 +16,23 @@ from midea_beautiful.util import SPAM, TRACE
 
 _LOGGER = logging.getLogger(__name__)
 
-_BROADCAST_TIMEOUT: Final = 3
-_BROADCAST_RETRIES: Final = 3
+_BROADCAST_RETRIES: Final = DEFAULT_RETRIES
+_BROADCAST_TIMEOUT: Final = DEFAULT_TIMEOUT
 
 
 class _MideaDiscovery:
     """Utility class to discover appliances on local network"""
 
     def __init__(
-        self, cloud: MideaCloud | None, max_retries: int = _BROADCAST_RETRIES
+        self,
+        cloud: MideaCloud | None,
+        max_retries: int = _BROADCAST_RETRIES,
+        timeout: float = _BROADCAST_TIMEOUT,
     ) -> None:
         self._cloud = cloud
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self._socket.settimeout(_BROADCAST_TIMEOUT)
+        self._socket.settimeout(timeout)
         self._known_ips = set()
         self._max_retries = max_retries
 
@@ -168,10 +171,11 @@ def do_find_appliances(
     cloud: MideaCloud | None,
     addresses: list[str],
     appliances: list[LanDevice] = None,
-    max_retries=_BROADCAST_RETRIES,
+    max_retries: int = _BROADCAST_RETRIES,
+    timeout: float = _BROADCAST_TIMEOUT,
 ) -> list[LanDevice]:
-
-    discovery = _MideaDiscovery(cloud=cloud, max_retries=max_retries)
+    """Implements discovery of appliances on local network"""
+    discovery = _MideaDiscovery(cloud=cloud, max_retries=max_retries, timeout=timeout)
     appliances = appliances or []
     _LOGGER.debug("Starting LAN discovery")
     if cloud:

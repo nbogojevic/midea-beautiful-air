@@ -819,6 +819,15 @@ class LanDevice:
         return self.serial_number or self.appliance_id
 
     @property
+    def short_sn(self):
+        if (
+            self.serial_number
+            and len(self.serial_number) == 32
+            and self.serial_number[:6] == "000000"
+        ):
+            return self.serial_number[6:-4]
+
+    @property
     def appliance_id(self) -> str:
         """Returns appliance id (from Midea app)"""
         return self.state.appliance_id
