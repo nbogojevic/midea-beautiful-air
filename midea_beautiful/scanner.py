@@ -1,7 +1,6 @@
 """Scans network for Midea appliances."""
 from __future__ import annotations
 
-import ipaddress
 import logging
 import socket
 from typing import Final
@@ -71,10 +70,6 @@ class _MideaDiscovery:
     def _broadcast_message(self, addresses: list[str]) -> None:
 
         for addr in addresses:
-            if isinstance(addr, ipaddress.IPv4Address):
-                addr = str(addr)
-            if isinstance(addr, ipaddress.IPv4Network):
-                addr = str(addr.broadcast_address)
             _LOGGER.debug("Broadcasting to %s", addr)
             try:
                 _LOGGER.log(

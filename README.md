@@ -86,7 +86,7 @@ If this discovery mechanism doesn't work on particular set-up, it is still possi
 
 ### Network considerations
 
-Discovery requires that both appliance and the machine performing discovery are present on the same broadcast subnet. By default library issues broadcast to all network, i.e. address `255.255.255.255`, but it is possible to restrict broadcast subnet (e.g. 192.0.5.255)
+Discovery requires that both appliance and the machine performing discovery are present on the same broadcast subnet. By default library issues broadcast to all network, i.e. address `255.255.255.255`, but it is possible to restrict broadcast subnet (e.g. 192.0.2.255)
 
 ## Local protocol support
 

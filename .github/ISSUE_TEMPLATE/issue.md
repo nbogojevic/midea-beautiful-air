@@ -25,7 +25,7 @@ If you are unsure about the version check the __version__.py file.
 - appliance mac address; 
 - serial number (there is mac address inside too)
 - credentials/token can be logged at log level 5 or NOTSET, so, please, double-check 
-- local network IP address (please keep first octet(s) or use documentation network: e.g. 192.0.xx.xx) 
+- local network IP address (please keep first octet(s) or use documentation network: e.g. 192.0.2.xx) 
 -->
 
 ```

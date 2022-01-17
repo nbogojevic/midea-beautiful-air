@@ -114,15 +114,15 @@ def test_MideaDiscovery_broadcast_message(caplog: pytest.LogCaptureFixture):
         discovery = scanner._MideaDiscovery(None)
         caplog.clear()
         with caplog.at_level(logging.DEBUG):
-            discovery._broadcast_message(["255.255.255.255", "192.0.0.1"])
+            discovery._broadcast_message(["255.255.255.255", "192.0.2.1"])
         assert len(caplog.records) == 2
         assert mocked_socket.sendto.call_count == 2
         mocked_socket.sendto.side_effect = ["", Exception("test")]
         caplog.clear()
         with caplog.at_level(logging.DEBUG):
-            discovery._broadcast_message(["255.255.255.255", "192.0.0.1"])
+            discovery._broadcast_message(["255.255.255.255", "192.0.2.1"])
         assert len(caplog.records) == 3
-        assert caplog.messages[2] == "Unable to send broadcast to: 192.0.0.1 cause test"
+        assert caplog.messages[2] == "Unable to send broadcast to: 192.0.2.1 cause test"
 
 
 def test_discover_appliances(
@@ -136,11 +136,11 @@ def test_discover_appliances(
         mocked_socket = MagicMock()
         mock_socket.return_value = mocked_socket
         mocked_socket.recvfrom.side_effect = [
-            (unhexlify(broadcast_packet), ["192.0.4.5"]),
-            (unhexlify(broadcast_packet), ["192.0.4.1"]),
+            (unhexlify(broadcast_packet), ["192.0.2.5"]),
+            (unhexlify(broadcast_packet), ["192.0.2.1"]),
             socket.timeout("timeout"),
             socket.timeout("timeout"),
-            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            (unhexlify(broadcast_packet), ["192.0.2.6"]),
             socket.timeout("timeout"),
         ]
         mock_cloud.list_appliances.return_value = [
@@ -170,11 +170,11 @@ def test_discover_appliances_no_cloud(
         mocked_socket = MagicMock()
         mock_socket.return_value = mocked_socket
         mocked_socket.recvfrom.side_effect = [
-            (unhexlify(broadcast_packet), ["192.0.4.5"]),
-            (unhexlify(broadcast_packet), ["192.0.4.1"]),
+            (unhexlify(broadcast_packet), ["192.0.2.5"]),
+            (unhexlify(broadcast_packet), ["192.0.2.1"]),
             socket.timeout("timeout"),
             socket.timeout("timeout"),
-            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            (unhexlify(broadcast_packet), ["192.0.2.6"]),
             socket.timeout("timeout"),
         ]
 
@@ -197,11 +197,11 @@ def test_scanner_find_appliances(
         mocked_socket = MagicMock()
         mock_socket.return_value = mocked_socket
         mocked_socket.recvfrom.side_effect = [
-            (unhexlify(broadcast_packet), ["192.0.4.5"]),
-            (unhexlify(broadcast_packet), ["192.0.4.1"]),
+            (unhexlify(broadcast_packet), ["192.0.2.5"]),
+            (unhexlify(broadcast_packet), ["192.0.2.1"]),
             socket.timeout("timeout"),
             socket.timeout("timeout"),
-            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            (unhexlify(broadcast_packet), ["192.0.2.6"]),
             socket.timeout("timeout"),
         ]
         mock_cloud.list_appliances.return_value = [
@@ -231,11 +231,11 @@ def test_scanner_find_appliances_changed_id(
         mock_socket.return_value = mocked_socket
         # mock_socket.timeout = socket.timeout
         mocked_socket.recvfrom.side_effect = [
-            (unhexlify(broadcast_packet), ["192.0.4.5"]),
-            (unhexlify(broadcast_packet), ["192.0.4.1"]),
+            (unhexlify(broadcast_packet), ["192.0.2.5"]),
+            (unhexlify(broadcast_packet), ["192.0.2.1"]),
             socket.timeout("timeout"),
             socket.timeout("timeout"),
-            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            (unhexlify(broadcast_packet), ["192.0.2.6"]),
             socket.timeout("timeout"),
         ]
         mock_cloud.list_appliances.return_value = [
@@ -317,11 +317,11 @@ def test_scanner_find_appliances_not_supported(
         mocked_socket = MagicMock()
         mock_socket.return_value = mocked_socket
         mocked_socket.recvfrom.side_effect = [
-            (unhexlify(broadcast_packet_not_supported), ["192.0.4.5"]),
-            (unhexlify(broadcast_packet_not_supported), ["192.0.4.1"]),
+            (unhexlify(broadcast_packet_not_supported), ["192.0.2.5"]),
+            (unhexlify(broadcast_packet_not_supported), ["192.0.2.1"]),
             socket.timeout("timeout"),
             socket.timeout("timeout"),
-            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            (unhexlify(broadcast_packet), ["192.0.2.6"]),
             socket.timeout("timeout"),
         ]
         mock_cloud.list_appliances.return_value = [
@@ -354,12 +354,12 @@ def test_scanner_find_appliances_with_update(
         mocked_socket = MagicMock()
         mock_socket.return_value = mocked_socket
         mocked_socket.recvfrom.side_effect = [
-            (unhexlify(broadcast_packet_not_supported), ["192.0.4.5"]),
-            (unhexlify(broadcast_packet_not_supported), ["192.0.4.1"]),
+            (unhexlify(broadcast_packet_not_supported), ["192.0.2.5"]),
+            (unhexlify(broadcast_packet_not_supported), ["192.0.2.1"]),
             socket.timeout("timeout"),
-            (unhexlify(broadcast_packet), ["192.0.4.6"]),
+            (unhexlify(broadcast_packet), ["192.0.2.6"]),
             socket.timeout("timeout"),
-            (unhexlify(broadcast_packet), ["192.0.4.7"]),
+            (unhexlify(broadcast_packet), ["192.0.2.7"]),
             socket.timeout("timeout"),
         ]
         mock_cloud.list_appliances.return_value = [
