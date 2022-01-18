@@ -158,7 +158,7 @@ def test_appliance_repr():
     token = "TOKEN"
     key = "KEY"
     appliance = LanDevice(data=response, token=token, key=key)
-    assert str(appliance) == "id=6618611909121 address=192.0.2.2:6444 version=3"
+    assert str(appliance) == "sn=000000P0000000Q1123456789ABC0000 id=6618611909121 address=192.0.2.2 version=3"  # noqa: E501
     assert repr(appliance)[:31], "{id=6618611909121 == ip=192.0.2.2"
 
 
@@ -273,7 +273,7 @@ def test_get_appliance_state_set_state_non_existing(
     assert len(caplog.records) == 1
     assert (
         caplog.messages[0]
-        == "Unknown state attribute non_existing_property for id=22222 address=None:6444 version=3"  # noqa: E501
+        == "Unknown state attribute non_existing_property for sn=None id=22222 address=None version=3"  # noqa: E501
     )
 
 
@@ -349,7 +349,7 @@ def test_request():
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 1
-        assert "No results from id=12345 " in str(device.last_error)
+        assert "No results from sn=None id=12345 " in str(device.last_error)
         device._socket = MagicMock()
         device._socket.sendall.side_effect = Exception("test-sendall")
         result = device._request(b"123")
@@ -401,7 +401,7 @@ def test_authenticate():
     with patch.object(device, "_request", return_value=b""):
         with pytest.raises(AuthenticationError) as ex, at_sleep(0.001):
             device._authenticate()
-        assert "Failed to perform handshake for id=54321" in ex.value.message
+        assert "Failed to perform handshake for sn=None id=54321" in ex.value.message
 
 
 def test_appliance_send_8370():
@@ -416,7 +416,9 @@ def test_appliance_send_8370():
 
 def test_appliance_send_v2():
     device = LanDevice(
-        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+        appliance_id=str(12345),
+        appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER,
+        serial_number="SN11",
     )
     device.version = 2
     with patch.object(device, "_request", return_value=b""):
@@ -424,7 +426,7 @@ def test_appliance_send_v2():
             device._appliance_send_lan(b"\x00")
         assert (
             ex.value.message
-            == "Unable to send data after 3 retries, last error empty reply for id=12345 address=None:6444 version=2"  # noqa: E501
+            == "Unable to send data after 3 retries, last error empty reply for sn=SN11 id=12345 address=None version=2"  # noqa: E501
         )
     device = LanDevice(
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
@@ -435,7 +437,7 @@ def test_appliance_send_v2():
             device._appliance_send_lan(b"\x00")
         assert (
             ex.value.message
-            == "Unknown response format id=12345 address=None:6444 version=2 b'\\x00'"
+            == "Unknown response format sn=None id=12345 address=None version=2 b'\\x00'"  # noqa: E501
         )
     device = LanDevice(
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
@@ -655,7 +657,9 @@ def test_extract_type():
 
 def test_get_tcp_key():
     device = LanDevice(
-        appliance_id=str(9999), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+        appliance_id=str(9999),
+        appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER,
+        serial_number="SN99",
     )
     device._security = MagicMock()
     device._security.tcp_key.side_effect = _TestError("tcp_key")
@@ -663,5 +667,5 @@ def test_get_tcp_key():
         device._get_tcp_key(b"")
     assert (
         ex.value.message
-        == "Failed to get TCP key for: id=9999 address=None:6444 version=3"
+        == "Failed to get TCP key for: sn=SN99 id=9999 address=None version=3"
     )

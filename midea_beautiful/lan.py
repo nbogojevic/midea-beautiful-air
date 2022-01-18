@@ -782,8 +782,9 @@ class LanDevice:
 
     def __str__(self) -> str:
         return (
-            f"id={self.appliance_id}"
-            f" address={self.address}:{self.port}"
+            f"sn={self.serial_number}"
+            f" id={self.appliance_id}"
+            f" address={self.address}"
             f" version={self.version}"
         )
 
