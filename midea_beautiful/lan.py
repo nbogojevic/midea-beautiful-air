@@ -27,6 +27,7 @@ from midea_beautiful.exceptions import (
 )
 from midea_beautiful.midea import (
     APPLIANCE_TYPE_DEHUMIDIFIER,
+    DEFAULT_RETRIES,
     DISCOVERY_PORT,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
@@ -38,7 +39,7 @@ from midea_beautiful.util import SPAM, TRACE
 
 _LOGGER = logging.getLogger(__name__)
 
-_STATE_SOCKET_TIMEOUT: Final = 3
+_STATE_SOCKET_TIMEOUT: Final = 2
 
 _MAX_RETRIES: Final = 3
 
@@ -176,6 +177,7 @@ class LanDevice:
         self._security = security or Security()
         self._retries = 0
         self._socket = None
+        self.socket_timeout: float = _STATE_SOCKET_TIMEOUT
         self.token = token
         self.key = key
         self._got_tcp_key = False
@@ -404,7 +406,7 @@ class LanDevice:
             if not cloud:
                 self._disconnect()
 
-    def _connect(self, socket_timeout=2) -> None:
+    def _connect(self) -> None:
         with self._lock:
             if not self._socket:
                 self._disconnect()
@@ -412,7 +414,7 @@ class LanDevice:
                 self._buffer = b""
                 self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 # set timeout
-                self._socket.settimeout(socket_timeout)
+                self._socket.settimeout(self.socket_timeout)
                 try:
                     self._socket.connect((self.address, self.port))
                 except Exception as error:  # pylint: disable=broad-except
@@ -864,6 +866,9 @@ def get_appliance_state(
     appliance_id: str | None = None,
     appliance_type: str = APPLIANCE_TYPE_DEHUMIDIFIER,
     security: Security = None,
+    retries: int = DEFAULT_RETRIES,
+    timeout: float = _STATE_SOCKET_TIMEOUT,
+    cloud_timeout: float = None
 ) -> LanDevice:
     """Gets the current state of an appliance
 
@@ -880,11 +885,13 @@ def get_appliance_state(
         Defaults to APPLIANCE_TYPE_DEHUMIDIFIER.
         security (Security, optional): Security object. If None, a new one is allocated.
         Defaults to None.
+        retries (int): Number of times library should retry retrieving data.
+        timeout (float): Time to wait for device reply.
+        cloud_timeout (float): Time to wait for cloud API reply. If omitted,
+        same as timeout.
 
     Raises:
         MideaNetworkError: [description]
-        MideaNetworkError: [description]
-        MideaError: [description]
         MideaError: [description]
 
     Returns:
@@ -895,7 +902,7 @@ def get_appliance_state(
         token = token or ""
         key = key or ""
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(_STATE_SOCKET_TIMEOUT)
+        sock.settimeout(timeout)
         port = DISCOVERY_PORT
 
         try:
@@ -912,6 +919,8 @@ def get_appliance_state(
             appliance = LanDevice(
                 data=response, token=token, key=key, security=security
             )
+            appliance.max_retries = retries
+            appliance.socket_timeout = timeout
             _LOGGER.log(TRACE, "Appliance %s", appliance)
         except socket.timeout as ex:
             raise MideaNetworkError(
@@ -935,6 +944,9 @@ def get_appliance_state(
     else:
         raise MideaError("Must provide appliance id or ip address")
 
+    if cloud:
+        cloud.max_retries = retries
+        cloud.request_timeout = cloud_timeout or timeout
     appliance.identify(cloud, use_cloud)
     if cloud:
         for details in cloud.list_appliances():

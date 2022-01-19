@@ -11,6 +11,7 @@ from midea_beautiful.midea import (
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
     DEFAULT_RETRIES,
+    DEFAULT_TIMEOUT,
 )
 from midea_beautiful.scanner import do_find_appliances
 
@@ -51,7 +52,7 @@ def find_appliances(
     addresses: list[str] = None,
     appliances: list[LanDevice] = None,
     retries: int = DEFAULT_RETRIES,
-    timeout: float = DEFAULT_RETRIES,
+    timeout: float = DEFAULT_TIMEOUT,
 ) -> list[LanDevice]:
     """Finds appliances on local network
 
@@ -94,6 +95,9 @@ def appliance_state(
     appliance_id: str | None = None,
     appliance_type: str = APPLIANCE_TYPE_DEHUMIDIFIER,
     security: Security = None,
+    retries: int = DEFAULT_RETRIES,
+    timeout: float = DEFAULT_TIMEOUT,
+    cloud_timeout: float = None,
 ) -> LanDevice:
     """Gets the current state of an appliance
 
@@ -110,11 +114,14 @@ def appliance_state(
         Defaults to APPLIANCE_TYPE_DEHUMIDIFIER.
         security (Security, optional): Security object. If None, a new one is allocated.
         Defaults to None.
+        retries (int): Number of times library should retry retrieving data.
+        timeout (float): Time to wait for device reply.
+        cloud_timeout (float): Time to wait for cloud API reply. If omitted,
+        same as timeout.
+
 
     Raises:
         MideaNetworkError: [description]
-        MideaNetworkError: [description]
-        MideaError: [description]
         MideaError: [description]
 
     Returns:
@@ -129,4 +136,7 @@ def appliance_state(
         appliance_id=appliance_id,
         appliance_type=appliance_type,
         security=security,
+        retries=retries,
+        timeout=timeout,
+        cloud_timeout=cloud_timeout,
     )

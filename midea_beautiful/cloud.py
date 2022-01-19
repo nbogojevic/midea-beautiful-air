@@ -39,6 +39,7 @@ PROTECTED_REQUESTS: Final = ["user/login/id/get", "user/login"]
 PROTECTED_RESPONSES: Final = ["iot/secure/getToken", "user/login/id/get", "user/login"]
 
 _MAX_RETRIES: Final = 3
+_DEFAULT_CLOUD_TIMEOUT: Final = 9
 
 
 def _encode_as_csv(data: bytes | bytearray) -> str:
@@ -101,6 +102,7 @@ class MideaCloud:
         # Count the number of retries for API requests
         self.max_retries = _MAX_RETRIES
         self._retries = 0
+        self.request_timeout: float = _DEFAULT_CLOUD_TIMEOUT
 
         # A list of appliances associated with the account
         self._appliance_list: list[dict[str, str]] = []
@@ -162,7 +164,9 @@ class MideaCloud:
                 if endpoint not in PROTECTED_REQUESTS:
                     _LOGGER.log(TRACE, "HTTP request %s: %s", endpoint, data)
                 # POST the endpoint with the payload
-                response = requests.post(url=url, data=data, timeout=9)
+                response = requests.post(
+                    url=url, data=data, timeout=self.request_timeout
+                )
                 response.raise_for_status()
                 if endpoint not in PROTECTED_RESPONSES:
                     _LOGGER.log(TRACE, "HTTP response text: %s", response.text)
