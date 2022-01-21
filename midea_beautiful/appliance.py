@@ -42,6 +42,9 @@ class Appliance:
         self._id = str(appliance_id)
         self._type = appliance_type
         self._online = False
+        self.latest_data: bytes = b""
+        self.capabilities = {}
+        self.capabilities_data: bytes = b""
 
     @staticmethod
     def instance(appliance_id, appliance_type: str = "") -> Appliance:
@@ -171,7 +174,6 @@ class DehumidifierAppliance(Appliance):
         self._sleep: bool = False
         self._beep_prompt: bool = False
         self._tank_level: int = 0
-        self.supports = {}
 
     @staticmethod
     def supported(appliance_type: str | int) -> bool:
@@ -190,6 +192,7 @@ class DehumidifierAppliance(Appliance):
             self._id,
             data,
         )
+        self.latest_data = data
         if len(data) > 0:
             self._online = True
             _dump_data(data)
@@ -243,6 +246,7 @@ class DehumidifierAppliance(Appliance):
 
     def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
         if data:
+            self.capabilities_data = data
             if data[0] != 0xB5:
                 _LOGGER.debug("Not a B5 response")
                 return
@@ -456,7 +460,6 @@ class AirConditionerAppliance(Appliance):
         self._horizontal_swing: bool = False
         self._show_screen: bool = True
         self._error: int = 0
-        self.supports = {}
 
     @staticmethod
     def supported(appliance_type: str | int) -> bool:
@@ -475,6 +478,7 @@ class AirConditionerAppliance(Appliance):
             self._id,
             data,
         )
+        self.latest_data = data
         if len(data) > 0:
             self._online = True
             _dump_data(data)
@@ -524,6 +528,7 @@ class AirConditionerAppliance(Appliance):
 
     def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
         if data:
+            self.capabilities_data = data
             if data[0] != 0xB5:
                 _LOGGER.debug("Not a B5 response")
                 return
