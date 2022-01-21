@@ -62,7 +62,7 @@ def _output(appliance: LanDevice, show_credentials: bool = False) -> None:
         print(f"  F       = {state.fahrenheit}")
 
     print(f"  error   = {getattr(appliance.state, 'error_code')}")
-    print(f"  supports= {getattr(appliance.state, 'supports')}")
+    print(f"  supports= {getattr(appliance.state, 'capabilities')}")
 
     print(f"  version = {appliance.version}")
 

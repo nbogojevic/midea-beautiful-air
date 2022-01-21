@@ -253,12 +253,12 @@ class DehumidifierAppliance(Appliance):
             properties_count = data[1]
             i = 2
             if sequence == 0:
-                self.supports = {}
+                self.capabilities = {}
             for _ in range(properties_count):
                 if data[i + 1] == 0x02:
                     attr = self._CAPABILITIES.get(data[i])
                     if attr:
-                        self.supports[attr] = data[i + 3]
+                        self.capabilities[attr] = data[i + 3]
                     else:
                         _LOGGER.warning("unknown property=%02X02", data[i])
                 else:
@@ -431,7 +431,7 @@ class DehumidifierAppliance(Appliance):
                 self.tank_level,
                 self.error_code,
                 self.beep_prompt,
-                self.supports,
+                self.capabilities,
             )
         )
 
@@ -534,17 +534,17 @@ class AirConditionerAppliance(Appliance):
                 return
             properties_count = data[1]
             i = 2
-            self.supports = {}
+            self.capabilities = {}
             for _ in range(properties_count):
                 if data[i + 1] == 0x02:
                     if data[i] == 0x25:
                         for j in range(7):
-                            self.supports[f"temperature{j}"] = data[i + 3 + j]
+                            self.capabilities[f"temperature{j}"] = data[i + 3 + j]
                         i += 6
                     else:
                         attr = self._CAPABILITIES.get(data[i])
                         if attr:
-                            self.supports[attr] = data[i + 3]
+                            self.capabilities[attr] = data[i + 3]
                         else:
                             _LOGGER.warning("unknown property=%02X02", data[i])
                 else:
@@ -780,6 +780,6 @@ class AirConditionerAppliance(Appliance):
                 self.comfort_sleep,
                 self.error_code,
                 self.beep_prompt,
-                self.supports,
+                self.capabilities,
             )
         )
