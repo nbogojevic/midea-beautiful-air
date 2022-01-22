@@ -3,7 +3,11 @@ from binascii import unhexlify
 from typing import Final
 
 import pytest
-from midea_beautiful.appliance import AirConditionerAppliance, DehumidifierAppliance
+from midea_beautiful.appliance import (
+    AirConditionerAppliance,
+    Appliance,
+    DehumidifierAppliance,
+)
 
 from midea_beautiful.command import (
     AirConditionerResponse,
@@ -222,12 +226,70 @@ def test_dehumidifier_response():
     assert response.current_humidity == 63
     assert not response.tank_full
     assert response.target_humidity == 60
-    assert not response.off_timer["status"]
-    assert response.off_timer["hour"] == 31
-    assert not response.on_timer["status"]
-    assert response.on_timer["hour"] == 0
+    assert not response.off_timer_set
+    assert response.off_timer_hour == 31
+    assert not response.on_timer_set
+    assert response.on_timer_hour == 31
     assert "'fault': False" in str(response)
     assert "'current_humidity': 63" in str(response)
+
+
+def test_dehumidifier_response_cube20():
+    cube20_data = unhexlify("c80101507f7f0023000000000000004b1e580000000000080a28")
+    cube20 = DehumidifierResponse(cube20_data)
+    assert cube20.current_humidity == 30
+    assert not cube20.tank_full
+    assert cube20.target_humidity == 35
+    assert cube20.tank_warning_level == 75
+
+    assert not cube20.off_timer_set
+    assert cube20.off_timer_hour == 31
+    assert not cube20.on_timer_set
+    assert cube20.on_timer_hour == 31
+    assert "'fault': False" in str(cube20)
+    assert "'current_humidity': 30" in str(cube20)
+    cube20_data = unhexlify("c80101507f7f003c00000000000000641e440000000000098370")
+    cube20 = DehumidifierResponse(cube20_data)
+    assert cube20.current_humidity == 30
+    assert cube20.target_humidity == 60
+    assert cube20.tank_warning_level == 100
+
+
+def test_dehumidifier_response_cube50():
+    cube50pump_data = unhexlify("c80101507f7f00280010000000000064255000000000000716f0")
+    cube50 = DehumidifierResponse(cube50pump_data)
+    assert cube50.current_humidity == 37
+    assert cube50.tank_warning_level == 100
+    assert not cube50.tank_full
+    assert cube50.target_humidity == 40
+    assert not cube50.off_timer_set
+    assert cube50.off_timer_hour == 31
+    assert not cube50.on_timer_set
+    assert cube50.on_timer_hour == 31
+    assert "'fault': False" in str(cube50)
+    assert "'current_humidity': 37" in str(cube50)
+
+
+def test_capabilities_cube():
+    cube50 = Appliance.instance("99", APPLIANCE_TYPE_DEHUMIDIFIER)
+    b5 = unhexlify("b50510020103170201021d020101200201012d020104c40f")
+    cube50.process_response_device_capabilities(b5)
+    assert cube50.capabilities == {
+        "fan_speed": 3,
+        "filter": 2,
+        "pump": 1,
+        "dry_clothes": 1,
+        "water_level": 4,
+    }
+    cube20 = Appliance.instance("99", APPLIANCE_TYPE_DEHUMIDIFIER)
+    b5 = unhexlify("b5041002010317020102200201012d02010457a2")
+    cube20.process_response_device_capabilities(b5)
+    assert cube20.capabilities == {
+        "dry_clothes": 1,
+        "fan_speed": 3,
+        "filter": 2,
+        "water_level": 4,
+    }
 
 
 def test_dehumidifier_response_big_values():

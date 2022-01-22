@@ -174,6 +174,8 @@ class DehumidifierAppliance(Appliance):
         self._sleep: bool = False
         self._beep_prompt: bool = False
         self._tank_level: int = 0
+        self._vertical_swing: bool = False
+        self._pump_switch_flag: bool = False
 
     @staticmethod
     def supported(appliance_type: str | int) -> bool:
@@ -210,6 +212,8 @@ class DehumidifierAppliance(Appliance):
             self._error = response.err_code
             self._filter_indicator = response.filter_indicator
             self.pump = response.pump_switch
+            self.pump_switch_flag = response.pump_switch_flag
+            self.vertical_swing = response.vertical_swing
             self.sleep_mode = response.sleep_switch
             self._tank_full = response.tank_full
             self._tank_level = response.tank_level
@@ -227,9 +231,12 @@ class DehumidifierAppliance(Appliance):
         cmd.ion_mode = self.ion_mode
         cmd.mode = self.mode
         cmd.pump_switch = self.pump
+        cmd.pump_switch_flag = self.pump_switch_flag
         cmd.running = self.running
         cmd.sleep_switch = self.sleep_mode
         cmd.target_humidity = self.target_humidity
+        cmd.vertical_swing = self.vertical_swing
+
         return cmd
 
     _CAPABILITIES = {
@@ -330,6 +337,24 @@ class DehumidifierAppliance(Appliance):
     @ion_mode.setter
     def ion_mode(self, value: bool | int | str) -> None:
         self._ion_mode = _as_bool(value)
+
+    @property
+    def pump_switch_flag(self) -> bool:
+        """Pump switch flag - Disables pump"""
+        return self._pump_switch_flag
+
+    @pump_switch_flag.setter
+    def pump_switch_flag(self, value: bool | int | str) -> None:
+        self._pump_switch_flag = _as_bool(value)
+
+    @property
+    def vertical_swing(self) -> bool:
+        """vertical swing mode on/off"""
+        return self._vertical_swing
+
+    @vertical_swing.setter
+    def vertical_swing(self, value: bool | int | str) -> None:
+        self._vertical_swing = _as_bool(value)
 
     @property
     def target_humidity(self) -> int:

@@ -321,7 +321,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def pump_switch_flag(self) -> bool:
-        """Pump switch flag - Disables pump?"""
+        """Pump switch flag - Disables pump"""
         return self.data[19] & 0b00010000 != 0
 
     @pump_switch_flag.setter
@@ -338,6 +338,16 @@ class DehumidifierSetCommand(MideaSequenceCommand):
     def sleep_switch(self, on_off: bool) -> None:
         self.data[19] &= ~0b00100000  # Clear the sleep switch bit
         self.data[19] |= 0b00100000 if on_off else 0
+
+    @property
+    def vertical_swing(self) -> bool:
+        """Turn vertical swing on/off"""
+        return self.data[20] & 0b00100000 != 0
+
+    @vertical_swing.setter
+    def vertical_swing(self, on_off: bool) -> None:
+        self.data[20] &= ~0b00100000  # Clear the sleep switch bit
+        self.data[20] |= 0b00100000 if on_off else 0
 
     @property
     def beep_prompt(self) -> bool:
@@ -372,11 +382,14 @@ class DehumidifierResponse:
         self.mode = data[2] & 0b00001111
         self.mode_fc = (data[2] & 0b11110000) >> 4
         self.fan_speed = data[3] & 0b01111111
-
-        self._on_timer_value = data[4]
-        self._on_timer_minutes = data[6] & 0b11110000
-        self._off_timer_value = data[5]
-        self._off_timer_minutes = data[6] & 0b00001111
+        self.on_timer_set = (data[4] & 0b10000000) != 0
+        self.on_timer_hour = (data[4] & 0b01111100) >> 2
+        self.on_timer_minutes = (data[4] & 0b00000011) * 15 + (
+            (data[6] & 0b11110000) >> 4
+        )
+        self.off_timer_set = (data[5] & 0b10000000) != 0
+        self.off_timer_hour = (data[5] & 0b01111100) >> 2
+        self.off_timer_minutes = (data[5] & 0b00000011) * 15 + (data[6] & 0b00001111)
 
         self.target_humidity = data[7]
         if self.target_humidity > 100:
@@ -428,46 +441,6 @@ class DehumidifierResponse:
             self.err_code = data[21]
         else:
             self.err_code = 0
-
-    # Byte 4 + 6
-    @property
-    def on_timer(self) -> dict:
-        """Current dehumidifier turn-on timer"""
-        return {
-            "status": (self._on_timer_value & 0b10000000) != 0,
-            "set": self._on_timer_value != 0b01111111,
-            "hour": (
-                (self._on_timer_value & 0b11111100) >> 2
-                if self._on_timer_value != 0b01111111
-                else 0
-            ),
-            "minutes": (
-                (self._on_timer_value & 0b00000011)
-                | (
-                    ((self._on_timer_minutes & 0b11110000) >> 4)
-                    if self._on_timer_value != 0b01111111
-                    else 0
-                )
-            ),
-            "on_timer_value": self._on_timer_value,
-            "on_timer_minutes": self._on_timer_minutes,
-        }
-
-    # Byte 05 + 6
-    @property
-    def off_timer(self) -> dict:
-        """Current dehumidifier turn-off timer"""
-        return {
-            "status": (self._off_timer_value & 0b10000000) != 0,
-            "set": self._off_timer_value != 0b01111111,
-            "hour": (self._off_timer_value & 0b11111100) >> 2,
-            "minutes": (
-                (self._off_timer_value & 0b00000011)
-                | (self._off_timer_minutes & 0b00001111)
-            ),
-            "off_timer_value": self._off_timer_value,
-            "off_timer_minutes": self._off_timer_minutes,
-        }
 
     def __str__(self) -> str:
         return str(self.__dict__)
@@ -812,10 +785,14 @@ class AirConditionerResponse:
 
         self.fan_speed = data[3] & 0b01111111
 
-        self._on_timer_value = data[4]
-        self._on_timer_minutes = data[6] & 0b11110000
-        self._off_timer_value = data[5]
-        self._off_timer_minutes = data[6] & 0b00001111
+        self.on_timer_set = (data[4] & 0b10000000) != 0
+        self.on_timer_hours = (data[4] & 0b01111100) >> 2
+        self.on_timer_minutes = (data[4] & 0b00000011) * 15 + (
+            (data[6] & 0b11110000) >> 4
+        )
+        self.off_timer_set = (data[5] & 0b10000000) != 0
+        self.off_timer_hours = (data[5] & 0b01111100) >> 2
+        self.off_timer_minutes = (data[5] & 0b00000011) * 15 + (data[6] & 0b00001111)
 
         self.vertical_swing = (data[7] & 0b00001100) >> 2
         self.horizontal_swing = data[7] & 0b00000011

@@ -77,61 +77,85 @@ def test_dehumidifier():
 
 
 def test_dehumidifier_mode():
-    s = Appliance.instance("44", "a1")
-    assert isinstance(s, DehumidifierAppliance)
-    assert s.mode == 0
-    s.mode = 4
-    assert s.mode == 4
+    appliance = Appliance.instance("44", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
+    assert appliance.mode == 0
+    appliance.mode = 4
+    assert appliance.mode == 4
     with pytest.raises(MideaError) as ex:
-        s.mode = 16
+        appliance.mode = 16
     assert ex.value.message == "Tried to set mode to invalid value: 16"
-    # Let's test __str__ method
+    # Let'appliance test __str__ method
     assert str(ex.value) == "Tried to set mode to invalid value: 16"
 
 
 def test_dehumidifier_target_humidity():
-    s = Appliance.instance("44", "a1")
-    assert isinstance(s, DehumidifierAppliance)
-    assert s.target_humidity == 50
-    s.target_humidity = 4
-    assert s.target_humidity == 4
-    s.target_humidity = 5.2
-    assert s.target_humidity == 5
-    s.target_humidity = -4
-    assert s.target_humidity == 0
-    s.target_humidity = 100
-    assert s.target_humidity == 100
-    s.target_humidity = 101
-    assert s.target_humidity == 100
+    appliance = Appliance.instance("44", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
+    assert appliance.target_humidity == 50
+    appliance.target_humidity = 4
+    assert appliance.target_humidity == 4
+    appliance.target_humidity = 5.2
+    assert appliance.target_humidity == 5
+    appliance.target_humidity = -4
+    assert appliance.target_humidity == 0
+    appliance.target_humidity = 100
+    assert appliance.target_humidity == 100
+    appliance.target_humidity = 101
+    assert appliance.target_humidity == 100
 
 
 def test_dehumidifier_fan():
-    s = Appliance.instance("44", "a1")
-    assert isinstance(s, DehumidifierAppliance)
-    assert s.fan_speed == 40
-    s.fan_speed = 4
-    assert s.fan_speed == 4
-    s.fan_speed = -4
-    assert s.fan_speed == 0
-    s.fan_speed = 100
-    assert s.fan_speed == 100
-    s.fan_speed = 128
-    assert s.fan_speed == 127
+    appliance = Appliance.instance("44", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
+    assert appliance.fan_speed == 40
+    appliance.fan_speed = 4
+    assert appliance.fan_speed == 4
+    appliance.fan_speed = -4
+    assert appliance.fan_speed == 0
+    appliance.fan_speed = 100
+    assert appliance.fan_speed == 100
+    appliance.fan_speed = 128
+    assert appliance.fan_speed == 127
 
 
 def test_dehumidifier_beep():
-    s = Appliance.instance("44", "a1")
-    assert isinstance(s, DehumidifierAppliance)
-    assert not s.beep_prompt
-    s.beep_prompt = "on"
-    assert s.beep_prompt
-    s.beep_prompt = "off"
-    assert not s.beep_prompt
+    appliance = Appliance.instance("44", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
+    assert not appliance.beep_prompt
+    appliance.beep_prompt = "on"
+    assert appliance.beep_prompt
+    appliance.beep_prompt = "off"
+    assert not appliance.beep_prompt
+
+
+def test_dehumidifier_pump_switch():
+    appliance = Appliance.instance("44", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
+    assert not appliance.pump_switch_flag
+    appliance.pump_switch_flag = "on"
+    assert appliance.pump_switch_flag
+    cmd = appliance.apply_command()
+    assert cmd.pump_switch_flag
+
+
+def test_dehumidifier_swinger():
+    appliance = Appliance.instance("44", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
+    assert not appliance.vertical_swing
+    appliance.vertical_swing = "on"
+    assert appliance.vertical_swing
+    cmd = appliance.apply_command()
+    assert cmd.vertical_swing
+    appliance.vertical_swing = 0
+    assert not appliance.vertical_swing
+    cmd = appliance.apply_command()
+    assert not cmd.vertical_swing
 
 
 def test_dehumidifier_device_capabilities(caplog: pytest.LogCaptureFixture):
-    s = Appliance.instance("44", "a1")
-    assert isinstance(s, DehumidifierAppliance)
+    appliance = Appliance.instance("44", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
     capabilities_no_ion: Final = (
         b"\xb5\x03\x10\x02\x01\x07\x1f\x02\x01\x01 \x02\x01\x01\xcb\\"
     )
@@ -159,144 +183,144 @@ def test_dehumidifier_device_capabilities(caplog: pytest.LogCaptureFixture):
     capabilities_mode_pump: Final = (
         b"\xb5\x03\x10\x02\x01\x03\x1d\x02\x01\x01\x14\x02\x01\x04\xcb\\"
     )
-    s.process_response_device_capabilities(capabilities_ion)
-    assert s.capabilities == {"fan_speed": 7, "auto": 1, "dry_clothes": 1, "ion": 1}
-    s.process_response_device_capabilities(capabilities_no_ion)
-    assert s.capabilities == {"fan_speed": 7, "auto": 1, "dry_clothes": 1}
-    s.process_response_device_capabilities(capabilities_filter)
-    assert s.capabilities == {"fan_speed": 7, "filter": 1, "light": 1}
-    s.process_response_device_capabilities(capabilities_filter_pump)
-    assert s.capabilities == {"fan_speed": 7, "filter": 1, "pump": 1}
-    s.process_response_device_capabilities(capabilities_level_pump)
-    assert s.capabilities == {"fan_speed": 3, "water_level": 1, "pump": 1}
-    s.process_response_device_capabilities(capabilities_mode_pump)
-    assert s.capabilities == {"fan_speed": 3, "mode": 4, "pump": 1}
+    appliance.process_response_device_capabilities(capabilities_ion)
+    assert appliance.capabilities == {"fan_speed": 7, "auto": 1, "dry_clothes": 1, "ion": 1}  # noqa: E501
+    appliance.process_response_device_capabilities(capabilities_no_ion)
+    assert appliance.capabilities == {"fan_speed": 7, "auto": 1, "dry_clothes": 1}
+    appliance.process_response_device_capabilities(capabilities_filter)
+    assert appliance.capabilities == {"fan_speed": 7, "filter": 1, "light": 1}
+    appliance.process_response_device_capabilities(capabilities_filter_pump)
+    assert appliance.capabilities == {"fan_speed": 7, "filter": 1, "pump": 1}
+    appliance.process_response_device_capabilities(capabilities_level_pump)
+    assert appliance.capabilities == {"fan_speed": 3, "water_level": 1, "pump": 1}
+    appliance.process_response_device_capabilities(capabilities_mode_pump)
+    assert appliance.capabilities == {"fan_speed": 3, "mode": 4, "pump": 1}
     caplog.clear()
-    s.process_response_device_capabilities(capabilities_no_auto)
-    assert s.capabilities == {"fan_speed": 7, "light": 1, "dry_clothes": 1}
+    appliance.process_response_device_capabilities(capabilities_no_auto)
+    assert appliance.capabilities == {"fan_speed": 7, "light": 1, "dry_clothes": 1}
     assert len(caplog.records) == 0
     caplog.clear()
-    s.process_response_device_capabilities(capabilities_unknown)
+    appliance.process_response_device_capabilities(capabilities_unknown)
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "unknown property=FF02"
-    assert s.capabilities == {"fan_speed": 7, "light": 1}
+    assert appliance.capabilities == {"fan_speed": 7, "light": 1}
     caplog.clear()
-    s.process_response_device_capabilities(capabilities_unknown_extra)
+    appliance.process_response_device_capabilities(capabilities_unknown_extra)
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "unknown property=FF01"
-    assert s.capabilities == {"fan_speed": 7, "light": 1}
+    assert appliance.capabilities == {"fan_speed": 7, "light": 1}
 
 
 def test_dehumidifier_empty_response():
-    s = Appliance.instance("43", "a1")
-    assert isinstance(s, DehumidifierAppliance)
-    s._online = True
-    assert s.online
-    s.process_response(b"")
-    assert not s.online
-    s.process_response(
+    appliance = Appliance.instance("43", "a1")
+    assert isinstance(appliance, DehumidifierAppliance)
+    appliance._online = True
+    assert appliance.online
+    appliance.process_response(b"")
+    assert not appliance.online
+    appliance.process_response(
         b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
     )
-    assert s.online
+    assert appliance.online
 
 
 def test_aircon():
-    s = Appliance.instance("45", "ac")
-    assert isinstance(s, AirConditionerAppliance)
+    appliance = Appliance.instance("45", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
 
 
 def test_aircon_modes():
-    s = Appliance.instance("45", "ac")
-    assert isinstance(s, AirConditionerAppliance)
-    assert s.mode == 0
-    s.mode = 4
-    assert s.mode == 4
+    appliance = Appliance.instance("45", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
+    assert appliance.mode == 0
+    appliance.mode = 4
+    assert appliance.mode == 4
     with pytest.raises(MideaError) as ex:
-        s.mode = 24
+        appliance.mode = 24
     assert ex.value.message == "Tried to set mode to invalid value: 24"
 
 
 def test_aircon_temperature():
-    s = Appliance.instance("45", "ac")
-    assert isinstance(s, AirConditionerAppliance)
-    assert s.target_temperature == 0
-    s.target_temperature = 24
-    assert s.target_temperature == 24
+    appliance = Appliance.instance("45", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
+    assert appliance.target_temperature == 0
+    appliance.target_temperature = 24
+    assert appliance.target_temperature == 24
     with pytest.raises(MideaError) as ex:
-        s.target_temperature = 44
+        appliance.target_temperature = 44
     assert (
         ex.value.message == "Tried to set target temperature 44.0 out of allowed range"
     )
 
 
 def test_aircon_booleans():
-    s = Appliance.instance("45", "ac")
-    assert isinstance(s, AirConditionerAppliance)
+    appliance = Appliance.instance("45", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
 
-    assert s.appliance_id == "45"
-    assert s.type == "ac"
-    s.running = "TRUE"
-    assert s.running
+    assert appliance.appliance_id == "45"
+    assert appliance.type == "ac"
+    appliance.running = "TRUE"
+    assert appliance.running
 
-    assert not s.eco_mode
-    s.eco_mode = "1"
-    assert s.eco_mode
-    s.eco_mode = "oFf"
-    assert not s.eco_mode
+    assert not appliance.eco_mode
+    appliance.eco_mode = "1"
+    assert appliance.eco_mode
+    appliance.eco_mode = "oFf"
+    assert not appliance.eco_mode
 
-    assert not s.turbo_fan
-    s.turbo_fan = "1"
-    assert s.turbo_fan
-    s.turbo_fan = "0"
-    assert not s.turbo_fan
+    assert not appliance.turbo_fan
+    appliance.turbo_fan = "1"
+    assert appliance.turbo_fan
+    appliance.turbo_fan = "0"
+    assert not appliance.turbo_fan
 
-    assert not s.comfort_sleep
-    s.comfort_sleep = "oN"
-    assert s.comfort_sleep
-    s.comfort_sleep = "ofF"
-    assert not s.comfort_sleep
+    assert not appliance.comfort_sleep
+    appliance.comfort_sleep = "oN"
+    assert appliance.comfort_sleep
+    appliance.comfort_sleep = "ofF"
+    assert not appliance.comfort_sleep
 
-    assert not s.purifier
-    s.purifier = 1
-    assert s.purifier
-    s.purifier = "off"
-    assert not s.purifier
+    assert not appliance.purifier
+    appliance.purifier = 1
+    assert appliance.purifier
+    appliance.purifier = "off"
+    assert not appliance.purifier
 
-    assert not s.dryer
-    s.dryer = "on"
-    assert s.dryer
-    s.dryer = 0
-    assert not s.dryer
+    assert not appliance.dryer
+    appliance.dryer = "on"
+    assert appliance.dryer
+    appliance.dryer = 0
+    assert not appliance.dryer
 
-    assert not s.fahrenheit
-    s.fahrenheit = "t"
-    assert s.fahrenheit
-    s.fahrenheit = 0
-    assert not s.fahrenheit
+    assert not appliance.fahrenheit
+    appliance.fahrenheit = "t"
+    assert appliance.fahrenheit
+    appliance.fahrenheit = 0
+    assert not appliance.fahrenheit
 
     # By default show screen
-    assert s.show_screen
-    s.show_screen = "f"
-    assert not s.show_screen
-    s.show_screen = "y"
-    assert s.show_screen
+    assert appliance.show_screen
+    appliance.show_screen = "f"
+    assert not appliance.show_screen
+    appliance.show_screen = "y"
+    assert appliance.show_screen
 
 
 def test_aircon_swing():
-    s = Appliance.instance("45", "ac")
-    assert isinstance(s, AirConditionerAppliance)
+    appliance = Appliance.instance("45", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
 
-    assert not s.vertical_swing
-    s.vertical_swing = 1
-    assert s.vertical_swing
-    s.vertical_swing = 0
-    assert not s.vertical_swing
+    assert not appliance.vertical_swing
+    appliance.vertical_swing = 1
+    assert appliance.vertical_swing
+    appliance.vertical_swing = 0
+    assert not appliance.vertical_swing
 
-    assert not s.horizontal_swing
-    s.horizontal_swing = True
-    assert s.horizontal_swing
-    s.horizontal_swing = 0
-    assert not s.horizontal_swing
+    assert not appliance.horizontal_swing
+    appliance.horizontal_swing = True
+    assert appliance.horizontal_swing
+    appliance.horizontal_swing = 0
+    assert not appliance.horizontal_swing
 
 
 capabilities_ion: Final = (
@@ -341,31 +365,31 @@ capabilities_not_b5: Final = (
 
 
 def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
-    s = Appliance.instance("34", "ac")
-    assert isinstance(s, AirConditionerAppliance)
+    appliance = Appliance.instance("34", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
 
-    s.process_response_device_capabilities(capabilities_ion)
-    assert s.capabilities == {"anion": 1, "fan_speed": 7, "humidity": 1, "strong_fan": 1}
-    s.process_response_device_capabilities(capabilities_fan)
-    assert s.capabilities == {"anion": 1, "fan_speed": 3, "humidity": 1, "filter_check": 1}
-    s.process_response_device_capabilities(capabilities_fahrenheit_filter_check)
-    assert s.capabilities == {"anion": 1, "fan_speed": 7, "fahrenheit": 1, "heat_8": 1}
-    s.process_response_device_capabilities(capabilities_fan_avoid_ptc_fan_straight)
-    assert s.capabilities == {"ptc": 1, "fan_speed": 7, "fan_straight": 1, "fan_avoid": 1}
-    s.process_response_device_capabilities(capabilities_self_clean_fan_swing)
-    assert s.capabilities == {"fan_speed": 7, "self_clean": 1, "fan_swing": 1}
-    s.process_response_device_capabilities(capabilities_electricity)
-    assert s.capabilities == {"electricity": 1, "no_fan_sense": 1, "filter_reminder": 1}
-    s.process_response_device_capabilities(capabilities_several_options)
-    assert s.capabilities == {
+    appliance.process_response_device_capabilities(capabilities_ion)
+    assert appliance.capabilities == {"anion": 1, "fan_speed": 7, "humidity": 1, "strong_fan": 1}  # noqa: E501
+    appliance.process_response_device_capabilities(capabilities_fan)
+    assert appliance.capabilities == {"anion": 1, "fan_speed": 3, "humidity": 1, "filter_check": 1}  # noqa: E501
+    appliance.process_response_device_capabilities(capabilities_fahrenheit_filter_check)
+    assert appliance.capabilities == {"anion": 1, "fan_speed": 7, "fahrenheit": 1, "heat_8": 1}  # noqa: E501
+    appliance.process_response_device_capabilities(capabilities_fan_avoid_ptc_fan_straight)  # noqa: E501
+    assert appliance.capabilities == {"ptc": 1, "fan_speed": 7, "fan_straight": 1, "fan_avoid": 1}  # noqa: E501
+    appliance.process_response_device_capabilities(capabilities_self_clean_fan_swing)
+    assert appliance.capabilities == {"fan_speed": 7, "self_clean": 1, "fan_swing": 1}
+    appliance.process_response_device_capabilities(capabilities_electricity)
+    assert appliance.capabilities == {"electricity": 1, "no_fan_sense": 1, "filter_reminder": 1}  # noqa: E501
+    appliance.process_response_device_capabilities(capabilities_several_options)
+    assert appliance.capabilities == {
         "energy_save_on_absence": 1,
         "mode": 6,
         "fa_no_fan_sense": 1,
         "prevent_direct_fan": 1,
         "no_fan_sense": 1,
     }
-    s.process_response_device_capabilities(capabilities_several_options_speed)
-    assert s.capabilities == {
+    appliance.process_response_device_capabilities(capabilities_several_options_speed)
+    assert appliance.capabilities == {
         "energy_save_on_absence": 1,
         "mode": 6,
         "no_fan_sense": 1,
@@ -378,51 +402,51 @@ def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
         "temperature5": 34,
         "temperature6": 49,
     }
-    s.process_response_device_capabilities(capabilities_none)
-    assert s.capabilities == {}
+    appliance.process_response_device_capabilities(capabilities_none)
+    assert appliance.capabilities == {}
     with caplog.at_level(logging.DEBUG):
         caplog.clear()
-        s.process_response_device_capabilities(capabilities_not_b5)
+        appliance.process_response_device_capabilities(capabilities_not_b5)
         assert len(caplog.records) == 1
         assert caplog.records[0].levelname == "DEBUG"
         assert caplog.messages[0] == "Not a B5 response"
     caplog.clear()
-    s.process_response_device_capabilities(capabilities_no_auto)
-    assert s.capabilities == {"eco": 1, "screen_display": 1, "fan_speed": 7}
+    appliance.process_response_device_capabilities(capabilities_no_auto)
+    assert appliance.capabilities == {"eco": 1, "screen_display": 1, "fan_speed": 7}
     assert len(caplog.records) == 0
     caplog.clear()
-    s.process_response_device_capabilities(capabilities_unknown)
-    assert s.capabilities == {"fan_speed": 7, "screen_display": 1}
+    appliance.process_response_device_capabilities(capabilities_unknown)
+    assert appliance.capabilities == {"fan_speed": 7, "screen_display": 1}
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "unknown property=FF02"
     caplog.clear()
-    s.process_response_device_capabilities(capabilities_unknown_extra)
+    appliance.process_response_device_capabilities(capabilities_unknown_extra)
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "unknown property=FF01"
-    assert s.capabilities == {"fan_speed": 7, "screen_display": 1}
+    assert appliance.capabilities == {"fan_speed": 7, "screen_display": 1}
 
 
 def test_aircon_empty_response(caplog: pytest.LogCaptureFixture):
-    s = Appliance.instance("34", "ac")
-    assert isinstance(s, AirConditionerAppliance)
-    s._online = True
-    assert s.online
-    s.process_response(b"")
-    assert not s.online
-    s.process_response(
+    appliance = Appliance.instance("34", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
+    appliance._online = True
+    assert appliance.online
+    appliance.process_response(b"")
+    assert not appliance.online
+    appliance.process_response(
         b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
     )
 
 
 def test_dump_data(caplog: pytest.LogCaptureFixture):
-    s = Appliance.instance("34", "ac")
-    assert isinstance(s, AirConditionerAppliance)
+    appliance = Appliance.instance("34", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
     with caplog.at_level(logging.NOTSET):
         caplog.clear()
         sample_buf: Final = b"\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
-        s.process_response(sample_buf)
+        appliance.process_response(sample_buf)
         assert len(caplog.records) > len(sample_buf)
         assert any(r.levelno < logging.DEBUG for r in caplog.records)
         assert any(" 0  19 13" in m for m in caplog.messages)
         assert any("12   0 00" in m for m in caplog.messages)
-    assert s.online
+    assert appliance.online
