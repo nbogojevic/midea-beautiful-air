@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser, Namespace
+from binascii import unhexlify
 import importlib
 import logging
+import pprint
 import sys
 from typing import Any, cast
 
 from midea_beautiful import appliance_state, connect_to_cloud, find_appliances
 from midea_beautiful.appliance import AirConditionerAppliance, DehumidifierAppliance
 from midea_beautiful.cloud import MideaCloud
+from midea_beautiful.command import AirConditionerResponse, DehumidifierResponse
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
 from midea_beautiful.util import SPAM, TRACE
@@ -92,6 +95,20 @@ def _check_ip_id(args: Namespace) -> bool:
         _LOGGER.error("Missing ip address or appliance id")
         return False
     return True
+
+
+def _run_dump_command(args: Namespace) -> int:
+    data = unhexlify(args.payload)
+    appliance: DehumidifierResponse | AirConditionerResponse
+    if args.dehumidifier:
+        appliance = DehumidifierResponse(data)
+    elif args.airconditioner:
+        appliance = AirConditionerResponse(data)
+    else:
+        return 21
+    for i, byt in enumerate(data):
+        print(f"{i:2d} {byt:3d} {byt:2x}")
+    pprint.pprint(appliance.__dict__)
 
 
 def _run_status_command(args: Namespace) -> int:
@@ -266,6 +283,7 @@ def cli(argv) -> int:
         "discover": _run_discover_command,
         "status": _run_status_command,
         "set": _run_set_command,
+        "dump": _run_dump_command,
     }
 
     function = commands.get(args.command, lambda _: 1)
@@ -326,6 +344,17 @@ def _configure_argparser():
         group.add_argument(
             f"--{attr}", help=f"{item['desc']})", metavar=item["metavar"], default=None
         )
+
+    parser_dump = subparsers.add_parser(
+        "dump",
+        help="dumps parsed status payload",
+        description="Processes status payload and displays result",
+    )
+    parser_dump.add_argument("--dehumidifier", action="store_true")
+    parser_dump.add_argument("--airconditioner", action="store_true")
+    parser_dump.add_argument(
+        "--payload", help="status payload in hexadecimal form", required=True
+    )
 
     return parser
 
