@@ -69,5 +69,5 @@ class CloudAuthenticationError(MideaError):
     def __str__(self) -> str:
         return (
             f"Authentication error for account"
-            f"'{self.account}': {self.error_code} {self.message}"
+            f" '{self.account}': {self.error_code} {self.message}"
         )
