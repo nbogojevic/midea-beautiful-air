@@ -430,7 +430,7 @@ class MideaCloud:
 
         def authentication_error() -> None:
             _LOGGER.warning("Authentication error: '%s' - '%s'", error, message)
-            raise CloudAuthenticationError(error, message)
+            raise CloudAuthenticationError(error, message, self._account)
 
         def retry_later() -> None:
             _LOGGER.debug("Retry later: '%s' - '%s'", error, message)

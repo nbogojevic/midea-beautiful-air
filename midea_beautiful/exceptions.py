@@ -4,6 +4,7 @@ from __future__ import annotations
 
 class MideaError(Exception):
     """Base exception for all library specific exceptions"""
+
     def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
@@ -37,7 +38,7 @@ class CloudError(MideaError):
         self.message = message
 
     def __str__(self) -> str:
-        return f"Midea cloud API error {self.error_code} {self.message}"
+        return f"Midea cloud API error: {self.error_code} {self.message}"
 
 
 class CloudRequestError(MideaError):
@@ -53,16 +54,20 @@ class RetryLaterError(MideaError):
         self.message = message
 
     def __str__(self) -> str:
-        return f"Retry later {self.error_code} {self.message}"
+        return f"Retry later: {self.error_code} {self.message}"
 
 
 class CloudAuthenticationError(MideaError):
     """Problem while authenticating with cloud API"""
 
-    def __init__(self, error_code, message: str) -> None:
+    def __init__(self, error_code, message: str, account: str) -> None:
         super().__init__(message)
         self.error_code = error_code
         self.message = message
+        self.account = account
 
     def __str__(self) -> str:
-        return f"Authentication {self.error_code} {self.message}"
+        return (
+            f"Authentication error for account"
+            f"'{self.account}': {self.error_code} {self.message}"
+        )
