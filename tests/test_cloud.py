@@ -140,7 +140,7 @@ def test_request_authentication_error(
         cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
     assert ex.value.message == "authentication error"
     assert ex.value.error_code == 3102
-    assert str(ex.value) == "Authentication error for account'user@example.com': 3102 authentication error"  # noqa: E501
+    assert str(ex.value) == "Authentication error for account 'user@example.com': 3102 authentication error"  # noqa: E501
 
 
 def test_bad_authentication_reply(
