@@ -115,7 +115,7 @@ def test_request_error(cloud_client: MideaCloud, requests_mock: requests_mock.Mo
         cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
     assert ex.value.message == "error message"
     assert ex.value.error_code == 2
-    assert str(ex.value) == "Midea cloud API error 2 error message"
+    assert str(ex.value) == "Midea cloud API error: 2 error message"
 
 
 def test_request_retry(cloud_client: MideaCloud, requests_mock: requests_mock.Mocker):
@@ -126,7 +126,7 @@ def test_request_retry(cloud_client: MideaCloud, requests_mock: requests_mock.Mo
     with pytest.raises(RetryLaterError) as ex:
         cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
     assert ex.value.message == "retry error message"
-    assert str(ex.value) == "Retry later 7610 retry error message"
+    assert str(ex.value) == "Retry later: 7610 retry error message"
 
 
 def test_request_authentication_error(
@@ -140,7 +140,7 @@ def test_request_authentication_error(
         cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
     assert ex.value.message == "authentication error"
     assert ex.value.error_code == 3102
-    assert str(ex.value) == "Authentication 3102 authentication error"
+    assert str(ex.value) == "Authentication error for account'user@example.com': 3102 authentication error"  # noqa: E501
 
 
 def test_bad_authentication_reply(
