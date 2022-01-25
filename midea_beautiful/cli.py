@@ -109,6 +109,7 @@ def _run_dump_command(args: Namespace) -> int:
     for i, byt in enumerate(data):
         print(f"{i:2d} {byt:3d} {byt:2x}")
     pprint.pprint(appliance.__dict__)
+    return 0
 
 
 def _run_status_command(args: Namespace) -> int:

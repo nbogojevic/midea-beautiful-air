@@ -6,18 +6,17 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 import pytest_socket
 
-from midea_beautiful import connect_to_cloud
+from midea_beautiful import connect_to_cloud, LanDevice, MideaCloud
 from midea_beautiful.cli import (
     _configure_argparser,
     _logs_install,
     _output,
     _run_discover_command,
+    _run_dump_command,
     _run_set_command,
     _run_status_command,
     cli,
 )
-from midea_beautiful.cloud import MideaCloud
-from midea_beautiful.lan import LanDevice
 
 # pylint: disable=protected-access
 # pylint: disable=missing-function-docstring
@@ -386,3 +385,39 @@ def test_coloredlogs():
     with patch("midea_beautiful.cli.logging", return_value=MagicMock()) as log:
         _logs_install(logging.DEBUG)
         assert log.mock_calls == []
+
+
+def test_run_dump(capsys: pytest.CaptureFixture):
+    namespace = Namespace(
+        dehumidifier=True,
+        payload="c80101507f7f0023000000000000004b1e580000000000080a28",
+        airconditioner=False,
+    )
+    res = _run_dump_command(namespace)
+    assert res == 0
+    captured = capsys.readouterr()
+    assert "'indoor_temperature': 19.0" in captured.out
+    assert "15  75 4b" in captured.out
+
+
+def test_run_dump_fail(capsys: pytest.CaptureFixture):
+    namespace = Namespace(
+        dehumidifier=False,
+        payload="c80101507f7f0023000000000000004b1e580000000000080a28",
+        airconditioner=False,
+    )
+    res = _run_dump_command(namespace)
+    assert res == 21
+
+
+def test_run_dump_ac(capsys: pytest.CaptureFixture):
+    namespace = Namespace(
+        dehumidifier=False,
+        payload="c80101507f7f0023000000000000004b1e580000000000080a28",
+        airconditioner=True,
+    )
+    res = _run_dump_command(namespace)
+    assert res == 0
+    captured = capsys.readouterr()
+    assert "'target_temperature': 17.0" in captured.out
+    assert "15  75 4b" in captured.out
