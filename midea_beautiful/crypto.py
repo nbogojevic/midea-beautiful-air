@@ -17,6 +17,7 @@ from midea_beautiful.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_ENCRYPTED_RESPONSE,
 )
+from midea_beautiful.util import HDR_8370
 
 ENCRYPTED_MESSAGE_TYPES: Final = (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST)
 
@@ -410,7 +411,7 @@ class Security:
 
     def encode_8370(self, data: bytes, msgtype: int) -> bytes:
         """Encodes message in v3 (8370) protocol"""
-        header = bytearray(b"\x83\x70")
+        header = bytearray(HDR_8370)
         size, pad = len(data), 0
         if msgtype in ENCRYPTED_MESSAGE_TYPES:
             if (size + 2) % 16 != 0:

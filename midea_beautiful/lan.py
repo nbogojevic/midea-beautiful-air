@@ -32,7 +32,7 @@ from midea_beautiful.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
 )
-from midea_beautiful.util import SPAM, TRACE
+from midea_beautiful.util import HDR_8370, HDR_ZZ, SPAM, TRACE
 
 # pylint: disable=too-many-arguments
 # pylint: disable=duplicate-code
@@ -233,15 +233,15 @@ class LanDevice:
 
     def _init_from_data(self, data: bytes):
         data = bytes(data)
-        if data[:2] == b"\x5a\x5a":  # 5a5a
+        if data[:2] == HDR_ZZ:
             self.version = 2
-        elif data[:2] == b"\x83\x70":  # 8370
+        elif data[:2] == HDR_8370:
             self.version = 3
         else:
             self.version = 0
             return
 
-        if data[8:10] == b"\x5a\x5a":  # 5a5a
+        if data[8:10] == HDR_ZZ:
             data = data[8:-16]
         appliance_id = str(int.from_bytes(data[20:26], "little"))
         encrypted_data = data[40:-16]
@@ -440,7 +440,7 @@ class LanDevice:
             self._connect()
             if not self._socket:
                 _LOGGER.debug("Socket not open for %s", self)
-                self.last_error = f"Socket not open for {self}"
+                self.last_error = f"Socket not open for {self.address}"
                 self._retries += 1
                 return b""
 
@@ -472,7 +472,7 @@ class LanDevice:
             else:
                 _LOGGER.log(TRACE, "From %s, response=%s", self, response)
                 if len(response) == 0:
-                    self.last_error = f"No results from {self}"
+                    self.last_error = f"No results from {self.address}"
                     self._disconnect()
                     self._retries += 1
                     return b""
@@ -604,7 +604,7 @@ class LanDevice:
         if packets := self._retry_send(data, response_buf):
             return packets
         response_len = len(response_buf)
-        if response_buf[:2] == b"\x5a\x5a" and response_len > 5:
+        if response_buf[:2] == HDR_ZZ and response_len > 5:
             i = 0
             # maybe multiple response
             while i < response_len:
@@ -857,7 +857,7 @@ class LanDevice:
         return self._online
 
 
-def get_appliance_state(
+def appliance_state(
     address: str | None = None,
     token: str = None,
     key: str = None,
@@ -942,7 +942,7 @@ def get_appliance_state(
         else:
             raise MideaError("Missing cloud credentials")
     else:
-        raise MideaError("Must provide appliance id or ip address")
+        raise MideaError("Must provide either appliance id or network address")
 
     if cloud:
         cloud.max_retries = retries

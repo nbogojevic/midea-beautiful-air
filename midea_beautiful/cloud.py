@@ -330,7 +330,7 @@ class MideaCloud:
         _LOGGER.debug("Received from id=%s data=%s", appliance_id, reply)
         if len(reply) < 50:
             raise ProtocolError(
-                f"Invalid size of cloud reply expected 50+, was {len(reply)}"
+                f"Invalid payload size, was {len(reply)} expected 50 bytes"
             )
         reply = reply[50:]
 

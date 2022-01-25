@@ -18,7 +18,7 @@ from midea_beautiful.exceptions import (
     ProtocolError,
     UnsupportedError,
 )
-from midea_beautiful.lan import LanDevice, get_appliance_state
+from midea_beautiful.lan import LanDevice, appliance_state
 from midea_beautiful.midea import (
     APPLIANCE_TYPE_AIRCON,
     APPLIANCE_TYPE_DEHUMIDIFIER,
@@ -158,7 +158,10 @@ def test_appliance_repr():
     token = "TOKEN"
     key = "KEY"
     appliance = LanDevice(data=response, token=token, key=key)
-    assert str(appliance) == "sn=000000P0000000Q1123456789ABC0000 id=6618611909121 address=192.0.2.2 version=3"  # noqa: E501
+    assert (
+        str(appliance)
+        == "sn=000000P0000000Q1123456789ABC0000 id=6618611909121 address=192.0.2.2 version=3"  # noqa: E501
+    )  # noqa: E501
     assert repr(appliance)[:31], "{id=6618611909121 == ip=192.0.2.2"
 
 
@@ -242,14 +245,14 @@ def test_update():
 def test_get_appliance_state_cloud(mock_cloud):
     # caplog.set_level(logging.INFO)
     with pytest.raises(MideaError):
-        get_appliance_state()
+        appliance_state()
     with pytest.raises(MideaError):
-        get_appliance_state(appliance_id="12345")
+        appliance_state(appliance_id="12345")
 
     mock_cloud.list_appliances.return_value = [
         {"id": "12345", "name": "name-123", "sn": "sn-12345"}
     ]
-    device = get_appliance_state(appliance_id="12345", cloud=mock_cloud, use_cloud=True)
+    device = appliance_state(appliance_id="12345", cloud=mock_cloud, use_cloud=True)
     assert device is not None
     assert device.appliance_id == "12345"
     assert device.name == "name-123"
@@ -296,7 +299,7 @@ def test_get_appliance_state_lan(mock_cloud):
                 b"",
             )
             with at_sleep(0.001):
-                device = get_appliance_state(
+                device = appliance_state(
                     address="192.0.2.14", cloud=mock_cloud, security=mock_security
                 )
             assert device is not None
@@ -309,7 +312,7 @@ def test_get_appliance_state_socket_timeout(mock_cloud):
     with patch("socket.socket") as mock_socket:
         mock_socket.return_value.connect.side_effect = socket.timeout("test")
         with pytest.raises(MideaNetworkError) as ex:
-            get_appliance_state(address="192.0.2.21", cloud=mock_cloud)
+            appliance_state(address="192.0.2.21", cloud=mock_cloud)
         assert (
             ex.value.message == "Timeout while connecting to appliance 192.0.2.21:6445"
         )
@@ -319,13 +322,15 @@ def test_get_appliance_state_socket_error(mock_cloud):
     with patch("socket.socket") as mock_socket:
         mock_socket.return_value.connect.side_effect = socket.error("test")
         with pytest.raises(MideaNetworkError) as ex:
-            get_appliance_state(address="192.0.2.22", cloud=mock_cloud)
+            appliance_state(address="192.0.2.22", cloud=mock_cloud)
         assert ex.value.message == "Could not connect to appliance 192.0.2.22:6445"
 
 
 def test_request():
     device = LanDevice(
-        appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
+        appliance_id=str(12345),
+        appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER,
+        address="192.0.2.9",
     )
     with patch.object(device, "_connect", return_value="1"):
         device._connect()
@@ -349,7 +354,7 @@ def test_request():
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 1
-        assert "No results from sn=None id=12345 " in str(device.last_error)
+        assert "No results from 192.0.2.9" == str(device.last_error)
         device._socket = MagicMock()
         device._socket.sendall.side_effect = Exception("test-sendall")
         result = device._request(b"123")

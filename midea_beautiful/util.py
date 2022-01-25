@@ -7,6 +7,10 @@ SPAM: Final = 1
 TRACE: Final = 5
 
 
+HDR_8370: Final = b"\x83\x70"
+HDR_ZZ: Final = b"\x5a\x5a"
+
+
 def strtobool(val) -> bool:
     """Convert a string representation of truth to true (1) or false (0).
 

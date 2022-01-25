@@ -38,7 +38,7 @@ class CloudError(MideaError):
         self.message = message
 
     def __str__(self) -> str:
-        return f"Midea cloud API error: {self.error_code} {self.message}"
+        return f"Midea cloud API error: {self.message} ({self.error_code})"
 
 
 class CloudRequestError(MideaError):
@@ -54,7 +54,7 @@ class RetryLaterError(MideaError):
         self.message = message
 
     def __str__(self) -> str:
-        return f"Retry later: {self.error_code} {self.message}"
+        return f"Retry later: {self.message} ({self.error_code})"
 
 
 class CloudAuthenticationError(MideaError):
@@ -69,5 +69,5 @@ class CloudAuthenticationError(MideaError):
     def __str__(self) -> str:
         return (
             f"Authentication error for account"
-            f" '{self.account}': {self.error_code} {self.message}"
+            f" '{self.account}': {self.message} ({self.error_code})"
         )

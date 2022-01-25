@@ -1,21 +1,26 @@
 """ Library for local network access to Midea dehumidifier appliances """
 from __future__ import annotations
-import logging
-from midea_beautiful.crypto import Security
 
-import midea_beautiful.version as version
+import logging
+
 from midea_beautiful.cloud import MideaCloud
-from midea_beautiful.lan import LanDevice, get_appliance_state
+from midea_beautiful.lan import LanDevice, appliance_state
 from midea_beautiful.midea import (
-    APPLIANCE_TYPE_DEHUMIDIFIER,
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
     DEFAULT_RETRIES,
     DEFAULT_TIMEOUT,
 )
 from midea_beautiful.scanner import do_find_appliances
+import midea_beautiful.version as version
 
-# pylint: disable=too-many-arguments
+__all__ = (
+    "appliance_state",
+    "connect_to_cloud",
+    "find_appliances",
+    "LanDevice",
+    "MideaCloud",
+)
 
 __version__ = version.__version__
 
@@ -43,7 +48,7 @@ def connect_to_cloud(
     return cloud
 
 
-def find_appliances(
+def find_appliances(  # pylint: disable=too-many-arguments
     cloud: MideaCloud | None = None,
     appkey: str | None = None,
     account: str = None,
@@ -73,70 +78,11 @@ def find_appliances(
         list[LanDevice]: [description]
     """
     _LOGGER.debug("Library version=%s", __version__)
-    addresses = addresses or ["255.255.255.255"]
     if not cloud and account and password:
-        cloud = MideaCloud(
-            appkey=appkey, account=account, password=password, appid=appid
-        )
-        cloud.authenticate()
+        cloud = connect_to_cloud(account, password, appkey, appid)
 
+    addresses = addresses or ["255.255.255.255"]
     _LOGGER.debug("Scanning for midea dehumidifier appliances via %s", addresses)
     return do_find_appliances(
         cloud, addresses, appliances, max_retries=retries, timeout=timeout
-    )
-
-
-def appliance_state(
-    address: str | None = None,
-    token: str = None,
-    key: str = None,
-    cloud: MideaCloud = None,
-    use_cloud: bool = False,
-    appliance_id: str | None = None,
-    appliance_type: str = APPLIANCE_TYPE_DEHUMIDIFIER,
-    security: Security = None,
-    retries: int = DEFAULT_RETRIES,
-    timeout: float = DEFAULT_TIMEOUT,
-    cloud_timeout: float = None,
-) -> LanDevice:
-    """Gets the current state of an appliance
-
-    Args:
-        address (str, optional): IPv4 address of the appliance. Defaults to None.
-        token (str, optional): Token used for appliance. Defaults to None.
-        key (str, optional): Key used for appliance. Defaults to None.
-        cloud (MideaCloud, optional): An instance of cloud client. Defaults to None.
-        use_cloud (bool, optional): True if state should be retrieved from cloud.
-        Defaults to False.
-        appliance_id (str, optional): Id of the appliance as stored in Midea API.
-        Defaults to None.
-        appliance_type (str, optional): Type of the appliance.
-        Defaults to APPLIANCE_TYPE_DEHUMIDIFIER.
-        security (Security, optional): Security object. If None, a new one is allocated.
-        Defaults to None.
-        retries (int): Number of times library should retry retrieving data.
-        timeout (float): Time to wait for device reply.
-        cloud_timeout (float): Time to wait for cloud API reply. If omitted,
-        same as timeout.
-
-
-    Raises:
-        MideaNetworkError: [description]
-        MideaError: [description]
-
-    Returns:
-        LanDevice: [description]
-    """
-    return get_appliance_state(
-        address=address,
-        token=token,
-        key=key,
-        cloud=cloud,
-        use_cloud=use_cloud,
-        appliance_id=appliance_id,
-        appliance_type=appliance_type,
-        security=security,
-        retries=retries,
-        timeout=timeout,
-        cloud_timeout=cloud_timeout,
     )
