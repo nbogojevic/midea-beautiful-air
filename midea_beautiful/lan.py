@@ -212,7 +212,7 @@ class LanDevice:
             self.state = Appliance.instance(
                 appliance_id=appliance_id, appliance_type=self.type
             )
-            self._online = True
+            self._online = False
 
     def update(self, other: LanDevice) -> None:
         """Updates this LanDevice with data from another one"""
@@ -605,28 +605,37 @@ class LanDevice:
             return packets
         response_len = len(response_buf)
         if response_buf[:2] == HDR_ZZ and response_len > 5:
-            i = 0
-            # maybe multiple response
-            while i < response_len:
-                size = response_buf[i + 4]
-                data = self._security.aes_decrypt(response_buf[i : i + size][40:-16])
-                # header length is 10 bytes
-                if len(data) > 10:
-                    packets.append(data[10:])
-                i += size
+            self._zz_packets(response_buf, packets)
         elif response_buf[0] == 0xAA and response_len > 2:
-            # B5 response
-            i = 0
-            while i < response_len:
-                size = response_buf[i + 1]
-                data = response_buf[i : i + size + 1]
-                # header length is 10 bytes
-                if len(data) > 10:
-                    packets.append(data[10:])
-                i += size + 1
+            self._b5_packets(response_buf, packets)
         else:
             raise ProtocolError(f"Unknown response format {self} {response_buf}")
         return packets
+
+    def _zz_packets(self, response_buf: bytes, packets: list[bytes]) -> None:
+        # ZZ response
+        response_len = len(response_buf)
+        i = 0
+        # maybe multiple response
+        while i < response_len:
+            size = response_buf[i + 4]
+            data = self._security.aes_decrypt(response_buf[i : i + size][40:-16])
+            # header length is 10 bytes
+            if len(data) > 10:
+                packets.append(data[10:])
+            i += size
+
+    def _b5_packets(self, response_buf: bytes, packets: list[bytes]) -> None:
+        # B5 response
+        response_len = len(response_buf)
+        i = 0
+        while i < response_len:
+            size = response_buf[i + 1]
+            data = response_buf[i : i + size + 1]
+            # header length is 10 bytes
+            if len(data) > 10:
+                packets.append(data[10:])
+            i += size + 1
 
     def _retry_send(self, data: bytes, response_buf: bytes) -> list[bytes]:
         if not response_buf:
