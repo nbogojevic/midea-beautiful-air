@@ -37,6 +37,9 @@ def test_appliance(caplog: pytest.LogCaptureFixture):
     with caplog.at_level(logging.DEBUG):
         caplog.clear()
         appliance.process_response_device_capabilities(b"")
+        assert len(caplog.records) == 0
+        caplog.clear()
+        appliance.process_response_device_capabilities(b"\xff")
         assert len(caplog.records) == 1
 
 
@@ -202,12 +205,12 @@ def test_dehumidifier_device_capabilities(caplog: pytest.LogCaptureFixture):
     caplog.clear()
     appliance.process_response_device_capabilities(capabilities_unknown)
     assert len(caplog.records) == 1
-    assert caplog.messages[0] == "unknown property=FF02"
+    assert caplog.messages[0] == "Midea B5 unknown property=b'\\xff\\x02'"
     assert appliance.capabilities == {"fan_speed": 7, "light": 1}
     caplog.clear()
     appliance.process_response_device_capabilities(capabilities_unknown_extra)
     assert len(caplog.records) == 1
-    assert caplog.messages[0] == "unknown property=FF01"
+    assert caplog.messages[0] == "Midea B5 unknown property=b'\\xff\\x01'"
     assert appliance.capabilities == {"fan_speed": 7, "light": 1}
 
 
@@ -418,11 +421,11 @@ def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
     appliance.process_response_device_capabilities(capabilities_unknown)
     assert appliance.capabilities == {"fan_speed": 7, "screen_display": 1}
     assert len(caplog.records) == 1
-    assert caplog.messages[0] == "unknown property=FF02"
+    assert caplog.messages[0] == "Midea B5 unknown property=b'\\xff\\x02'"
     caplog.clear()
     appliance.process_response_device_capabilities(capabilities_unknown_extra)
     assert len(caplog.records) == 1
-    assert caplog.messages[0] == "unknown property=FF01"
+    assert caplog.messages[0] == "Midea B5 unknown property=b'\\xff\\x01'"
     assert appliance.capabilities == {"fan_speed": 7, "screen_display": 1}
 
 

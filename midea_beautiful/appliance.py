@@ -37,14 +37,20 @@ def _dump_data(data: bytes):
 
 class Appliance:
     """Base model for any Midea appliance"""
+    B5_CAPABILITIES = {
+    }
 
     def __init__(self, appliance_id, appliance_type: str = "") -> None:
         self._id = str(appliance_id)
         self._type = appliance_type
         self._online = False
+        self._error_code: int = 0
         self.latest_data: bytes = b""
+        """Last received status packet"""
         self.capabilities = {}
+        """Capabilities map of the appliance"""
         self.capabilities_data: bytes = b""
+        """Last received capabilities (B5) packet"""
 
     @staticmethod
     def instance(appliance_id, appliance_type: str = "") -> Appliance:
@@ -128,18 +134,42 @@ class Appliance:
         """Is appliance online"""
         return self._online
 
+    @property
+    def error_code(self) -> int:
+        """Current appliance error code or zero if no errors"""
+        return self._error
+
     def process_response(self, data: bytes) -> None:  # pylint: disable=unused-argument
         """Parses response payload and updates appliance data"""
         _LOGGER.debug("Ignored process_response %r", self)
 
-    def process_response_device_capabilities(
-        self, data: bytes, sequence: int = 0  # pylint: disable=unused-argument
-    ) -> None:
-        """
-        Parses device capabilities response payload and updates appliance
+    def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
+        """Parses device capabilities response payload and updates appliance
         supports attribute
         """
-        _LOGGER.debug("Ignored process_response_device_capabilities %r", self)
+        if data:
+            self.capabilities_data = data
+            if data[0] != 0xB5:
+                _LOGGER.debug("Not a B5 response")
+                return
+            properties_count = data[1]
+            i = 2
+            if sequence == 0:
+                self.capabilities = {}
+            for _ in range(properties_count):
+                if (step := self.intercept_B5_property(data, i)) >= 0:
+                    i += step
+                elif attr := self.B5_CAPABILITIES.get(data[i : i + 2]):
+                    self.capabilities[attr] = data[i + 3]
+                else:
+                    _LOGGER.warning("Midea B5 unknown property=%s", data[i : i + 2])
+                i += 4
+
+    def intercept_B5_property(self, data: bytes, index: int) -> int:
+        """Returns positive integer if properties was processed by implementation,
+        otherwise returns number of excess bytes processed on top of minimal
+        4 for each property."""
+        return -1
 
     def refresh_command(self) -> MideaCommand:  # pylint: disable=no-self-use
         """Builds refresh/status query command"""
@@ -155,6 +185,18 @@ class Appliance:
 
 class DehumidifierAppliance(Appliance):
     """Midea Dehumidifier Appliance model"""
+
+    B5_CAPABILITIES = {
+        b"\x10\x02": "fan_speed",
+        b"\x14\x02": "mode",
+        b"\x17\x02": "filter",
+        b"\x1D\x02": "pump",
+        b"\x1E\x02": "ion",
+        b"\x1F\x02": "auto",
+        b"\x20\x02": "dry_clothes",
+        b"\x24\x02": "light",
+        b"\x2D\x02": "water_level",
+    }
 
     def __init__(self, appliance_id, appliance_type: str = "") -> None:
         super().__init__(appliance_id, appliance_type)
@@ -239,39 +281,6 @@ class DehumidifierAppliance(Appliance):
 
         return cmd
 
-    _CAPABILITIES = {
-        0x10: "fan_speed",
-        0x14: "mode",
-        0x17: "filter",
-        0x1D: "pump",
-        0x1E: "ion",
-        0x1F: "auto",
-        0x20: "dry_clothes",
-        0x24: "light",
-        0x2D: "water_level",
-    }
-
-    def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
-        if data:
-            self.capabilities_data = data
-            if data[0] != 0xB5:
-                _LOGGER.debug("Not a B5 response")
-                return
-            properties_count = data[1]
-            i = 2
-            if sequence == 0:
-                self.capabilities = {}
-            for _ in range(properties_count):
-                if data[i + 1] == 0x02:
-                    attr = self._CAPABILITIES.get(data[i])
-                    if attr:
-                        self.capabilities[attr] = data[i + 3]
-                    else:
-                        _LOGGER.warning("unknown property=%02X02", data[i])
-                else:
-                    _LOGGER.warning("unknown property=%02X%02X", data[i], data[i + 1])
-                i += 4
-
     @property
     def tank_full(self) -> bool:
         """Is water tank full"""
@@ -291,11 +300,6 @@ class DehumidifierAppliance(Appliance):
     def current_temperature(self) -> float:
         """Current ambient temperature"""
         return self._current_temperature
-
-    @property
-    def error_code(self) -> int:
-        """Current appliance error code or zero if no errors"""
-        return self._error
 
     @property
     def running(self) -> bool:
@@ -464,6 +468,30 @@ class DehumidifierAppliance(Appliance):
 class AirConditionerAppliance(Appliance):
     """Represents Midea air conditioner"""
 
+    B5_CAPABILITIES = {
+        b"\x10\x02": "fan_speed",
+        b"\x12\x02": "eco",
+        b"\x13\x02": "heat_8",
+        b"\x14\x02": "mode",
+        b"\x15\x02": "fan_swing",
+        b"\x16\x02": "electricity",
+        b"\x17\x02": "filter_reminder",
+        b"\x18\x02": "no_fan_sense",
+        b"\x19\x02": "ptc",
+        b"\x1E\x02": "anion",
+        b"\x1F\x02": "humidity",
+        b"\x21\x02": "filter_check",
+        b"\x22\x02": "fahrenheit",
+        b"\x24\x02": "screen_display",
+        b"\x2A\x02": "strong_fan",
+        b"\x30\x02": "energy_save_on_absence",
+        b"\x32\x02": "fan_straight",
+        b"\x33\x02": "fan_avoid",
+        b"\x39\x02": "self_clean",
+        b"\x42\x02": "prevent_direct_fan",
+        b"\x43\x02": "fa_no_fan_sense",
+    }
+
     def __init__(self, appliance_id, appliance_type: str = "") -> None:
         super().__init__(appliance_id, appliance_type)
 
@@ -527,54 +555,12 @@ class AirConditionerAppliance(Appliance):
         else:
             self._online = False
 
-    _CAPABILITIES = {
-        0x14: "mode",
-        0x2A: "strong_fan",
-        0x1F: "humidity",
-        0x10: "fan_speed",
-        0x12: "eco",
-        0x17: "filter_reminder",
-        0x21: "filter_check",
-        0x22: "fahrenheit",
-        0x13: "heat_8",
-        0x16: "electricity",
-        0x19: "ptc",
-        0x32: "fan_straight",
-        0x33: "fan_avoid",
-        0x15: "fan_swing",
-        0x18: "no_fan_sense",
-        0x24: "screen_display",
-        0x1E: "anion",
-        0x39: "self_clean",
-        0x43: "fa_no_fan_sense",
-        0x30: "energy_save_on_absence",
-        0x42: "prevent_direct_fan",
-    }
-
-    def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
-        if data:
-            self.capabilities_data = data
-            if data[0] != 0xB5:
-                _LOGGER.debug("Not a B5 response")
-                return
-            properties_count = data[1]
-            i = 2
-            self.capabilities = {}
-            for _ in range(properties_count):
-                if data[i + 1] == 0x02:
-                    if data[i] == 0x25:
-                        for j in range(7):
-                            self.capabilities[f"temperature{j}"] = data[i + 3 + j]
-                        i += 6
-                    else:
-                        attr = self._CAPABILITIES.get(data[i])
-                        if attr:
-                            self.capabilities[attr] = data[i + 3]
-                        else:
-                            _LOGGER.warning("unknown property=%02X02", data[i])
-                else:
-                    _LOGGER.warning("unknown property=%02X%02X", data[i], data[i + 1])
-                i += 4
+    def intercept_B5_property(self, data: bytes, index: int) -> int:
+        if data[index : index + 2] == b"\x25\x02":
+            for j in range(7):
+                self.capabilities[f"temperature{j}"] = data[index + 3 + j]
+            return 6
+        return -1
 
     def refresh_command(self) -> AirConditionerStatusCommand:
         return AirConditionerStatusCommand()
@@ -763,11 +749,6 @@ class AirConditionerAppliance(Appliance):
     @property
     def model(self) -> str:
         return "Air conditioner"
-
-    @property
-    def error_code(self) -> int:
-        """Current air conditioner error code"""
-        return self._error
 
     def __str__(self) -> str:
         return (
