@@ -31,8 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 def connect_to_cloud(
     account: str, password: str, appkey=DEFAULT_APPKEY, appid=DEFAULT_APP_ID
 ) -> MideaCloud:
-    """
-    Connects to Midea cloud API
+    """Connects to Midea cloud API
 
     Args:
         appkey (str): Midea app key
