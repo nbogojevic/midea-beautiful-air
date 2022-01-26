@@ -428,7 +428,7 @@ def test_appliance_send_v2():
     device.version = 2
     with patch.object(device, "_request", return_value=b""):
         with pytest.raises(MideaError) as ex, at_sleep(0.001):
-            device._appliance_send_lan(b"\x00")
+            device.appliance_send(b"\x00")
         assert (
             ex.value.message
             == "Unable to send data after 3 retries, last error empty reply for sn=SN11 id=12345 address=None version=2"  # noqa: E501
@@ -439,7 +439,7 @@ def test_appliance_send_v2():
     device.version = 2
     with patch.object(device, "_request", side_effect=[b"", b"", b"\x00"]):
         with pytest.raises(MideaError) as ex, at_sleep(0.001):
-            device._appliance_send_lan(b"\x00")
+            device.appliance_send(b"\x00")
         assert (
             ex.value.message
             == "Unknown response format sn=None id=12345 address=None version=2 b'\\x00'"  # noqa: E501
@@ -450,7 +450,7 @@ def test_appliance_send_v2():
     device.version = 2
     reply_5a5a: Final = b"ZZ\x01\x11X\x00 \x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xe2\xc2\x03\x00\x00\x1d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x8b\x0c\x05\x8f=\xcbml\xff\x95\x16\xd1c\x9e\xc2\xcf\xa1\xdd\xe0\x82\\\xdc\x94\x1aR\x0eFV\xecq7\xff\x96\x0c{Vdt\xde\xe0\xd2}r\xb7>B\xde\xce"  # noqa: E501
     with patch.object(device, "_request", side_effect=[reply_5a5a]):
-        packets = device._appliance_send_lan(b"\x00")
+        packets = device.appliance_send(b"\x00")
         assert len(packets) == 1
     device = LanDevice(
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
@@ -460,7 +460,7 @@ def test_appliance_send_v2():
         "aa20a100000000000302480000280000003200000000000000000000000001395e"
     )
     with patch.object(device, "_request", side_effect=[reply_aa]):
-        packets = device._appliance_send_lan(b"\x00")
+        packets = device.appliance_send(b"\x00")
         assert len(packets) == 1
     device = LanDevice(
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
@@ -471,7 +471,7 @@ def test_appliance_send_v2():
         "_request",
         side_effect=[b"", b"", reply_aa],
     ), at_sleep(0.001):
-        packets = device._appliance_send_lan(b"\x00")
+        packets = device.appliance_send(b"\x00")
         assert len(packets) == 1
 
 
@@ -537,7 +537,7 @@ def test_refresh_all_fail(mock_cloud, caplog: pytest.LogCaptureFixture):
     device = LanDevice(
         appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
     )
-    with patch.object(device, "_appliance_send_lan", side_effect=[[], [], [], []]):
+    with patch.object(device, "appliance_send", side_effect=[[], [], [], []]):
         device._no_responses = 0
         device._online = True
         device.refresh(None)
@@ -613,7 +613,7 @@ def test_appliance_send_unsupported_version():
     )
     device.version = 1
     with pytest.raises(ProtocolError) as ex:
-        device._appliance_send_lan(b"\x00")
+        device.appliance_send(b"\x00")
     assert ex.value.message == "Unsupported protocol 1"
 
 
@@ -621,7 +621,7 @@ def test_appliance_apply_on_lan_offline():
     device = LanDevice(
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
     )
-    with patch.object(device, "_appliance_send_lan", side_effect=[[]]):
+    with patch.object(device, "appliance_send", side_effect=[[]]):
         device._online = True
         device.apply()
         assert not device.online
@@ -634,7 +634,7 @@ def test_appliance_apply_on_lan_multiple_replies():
     reply_5a5a: Final = b"ZZ\x01\x11X\x00 \x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xe2\xc2\x03\x00\x00\x1d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x8b\x0c\x05\x8f=\xcbml\xff\x95\x16\xd1c\x9e\xc2\xcf\xa1\xdd\xe0\x82\\\xdc\x94\x1aR\x0eFV\xecq7\xff\x96\x0c{Vdt\xde\xe0\xd2}r\xb7>B\xde\xce"  # noqa: E501
 
     with patch.object(
-        device, "_appliance_send_lan", side_effect=[[reply_5a5a, reply_5a5a]]
+        device, "appliance_send", side_effect=[[reply_5a5a, reply_5a5a]]
     ):
         device._online = False
         device.apply()

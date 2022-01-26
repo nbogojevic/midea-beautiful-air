@@ -244,8 +244,7 @@ class LanDevice:
         if data[8:10] == HDR_ZZ:
             data = data[8:-16]
         appliance_id = str(int.from_bytes(data[20:26], "little"))
-        encrypted_data = data[40:-16]
-        reply = self._security.aes_decrypt(encrypted_data)
+        reply = self._security.aes_decrypt(data[40:-16])
         self.address = ".".join([str(i) for i in reply[3::-1]])
         _LOGGER.log(TRACE, "From %s decrypted reply=%s", self.address, reply)
         self.port = int.from_bytes(reply[4:8], "little")
@@ -253,15 +252,12 @@ class LanDevice:
         ssid_len = reply[40]
         # ssid like midea_xx_xxxx net_xx_xxxx
         self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
+
         self._extract_mac(reply, ssid_len)
-
         self._extract_type(reply, ssid_len)
-
         self._init_extra_data(reply, ssid_len)
 
-        self.state = Appliance.instance(
-            appliance_id=appliance_id, appliance_type=self.type
-        )
+        self.state = Appliance.instance(appliance_id, self.type)
         self._online = True
 
         _LOGGER.debug("Descriptor data from %s: %r", self, self)
@@ -298,14 +294,14 @@ class LanDevice:
                 )
             if len(reply) >= (72 + ssid_len):
                 self.protocol_version = reply[69 + ssid_len : 72 + ssid_len].hex()
-            if len(reply) >= (75 + ssid_len):
-                self.firmware_version = (
-                    f"{reply[72 + ssid_len]}."
-                    f"{reply[73 + ssid_len]}."
-                    f"{reply[74 + ssid_len]}"
-                )
-            if len(reply) >= (94 + ssid_len):
-                self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
+                if len(reply) >= (75 + ssid_len):
+                    self.firmware_version = (
+                        f"{reply[72 + ssid_len]}."
+                        f"{reply[73 + ssid_len]}."
+                        f"{reply[74 + ssid_len]}"
+                    )
+                if len(reply) >= (94 + ssid_len):
+                    self.randomkey = reply[78 + ssid_len : 94 + ssid_len]
 
     def _lan_packet(self, command: MideaCommand, local_packet: bool = True) -> bytes:
         id_bytes = int(self.appliance_id).to_bytes(8, "little")
@@ -527,7 +523,7 @@ class LanDevice:
             _LOGGER.debug("Sending request via cloud API to: %s", self)
             responses = cloud.appliance_transparent_send(self.appliance_id, data)
         else:
-            responses = self._appliance_send_lan(data)
+            responses = self.appliance_send(data)
 
         if len(responses) == 0:
             _LOGGER.debug("Got no responses on status from: %s", self)
@@ -648,7 +644,7 @@ class LanDevice:
                 )
                 self.last_error = "empty reply"
                 self._retries += 1
-                packets = self._appliance_send_lan(data)
+                packets = self.appliance_send(data)
                 self._retries = 0
                 return packets
             error = self.last_error
@@ -659,7 +655,8 @@ class LanDevice:
             )
         return []
 
-    def _appliance_send_lan(self, data: bytes) -> list[bytes]:
+    def appliance_send(self, data: bytes) -> list[bytes]:
+        """Sends data packet to the appliance"""
         if _is_token_version(self.version):
             return self._appliance_send_8370(data)
         if _is_no_token_version(self.version):
@@ -678,7 +675,7 @@ class LanDevice:
                 _LOGGER.debug("Sending request via cloud to %s", self)
                 responses = cloud.appliance_transparent_send(self.appliance_id, data)
             else:
-                responses = self._appliance_send_lan(data)
+                responses = self.appliance_send(data)
             _LOGGER.debug("Got response(s) from: %s", self)
 
             if responses:
@@ -875,7 +872,7 @@ def appliance_state(
     security: Security = None,
     retries: int = DEFAULT_RETRIES,
     timeout: float = _STATE_SOCKET_TIMEOUT,
-    cloud_timeout: float = None
+    cloud_timeout: float = None,
 ) -> LanDevice:
     """Gets the current state of an appliance
 
