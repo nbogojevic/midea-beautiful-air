@@ -44,7 +44,7 @@ class Appliance:
         self._id = str(appliance_id)
         self._type = appliance_type
         self._online = False
-        self._error_code: int = 0
+        self._error: int = 0
         self.latest_data: bytes = b""
         """Last received status packet"""
         self.capabilities = {}
@@ -95,12 +95,10 @@ class Appliance:
         """Returns True if two types represent same appliance type"""
         if type1 == type2:
             return True
-        if isinstance(type1, int):
-            if Appliance.same_types(hex(type1), type2):
-                return True
-        if isinstance(type2, int):
-            if Appliance.same_types(type1, hex(type2)):
-                return True
+        if isinstance(type1, int) and Appliance.same_types(hex(type1), type2):
+            return True
+        if isinstance(type2, int) and Appliance.same_types(type1, hex(type2)):
+            return True
         type1 = str(type1).lower()
         type2 = str(type2).lower()
         return type1 == type2 or ("0x" + type1) == type2 or ("0x" + type2) == type1
