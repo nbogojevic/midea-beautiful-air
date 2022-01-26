@@ -21,13 +21,13 @@ SUPPORTED_APPS: Final = {
 # spell-checker: disable
 # pylint: disable=unsubscriptable-object
 # spell-checker: enable
-DEFAULT_APPKEY: Final[str] = SUPPORTED_APPS["NetHome Plus"]["appkey"]
-DEFAULT_APP_ID: Final[int] = SUPPORTED_APPS["NetHome Plus"]["appid"]
+DEFAULT_APP = "NetHome Plus"
+DEFAULT_APPKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP]["appkey"]
+DEFAULT_APP_ID: Final[int] = SUPPORTED_APPS[DEFAULT_APP]["appid"]
 # spell-checker: disable
 # pylint: enable=unsubscriptable-object
 # spell-checker: enable
 
-DEFAULT_SIGNKEY: Final = "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S"
 
 DEFAULT_RETRIES: Final = 3
 DEFAULT_TIMEOUT: Final = 3

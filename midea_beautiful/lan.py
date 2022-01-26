@@ -697,8 +697,7 @@ class LanDevice:
                     self._disconnect()
 
     def _get_valid_token(self, cloud: MideaCloud) -> bool:
-        """
-        Retrieves token and authenticates connection to appliance.
+        """Retrieves token and authenticates connection to appliance.
         Works only with v3 appliances.
 
         Args:
@@ -775,8 +774,7 @@ class LanDevice:
         _LOGGER.debug("Identified appliance: %r", self)
 
     def set_state(self, **kwargs) -> None:
-        """
-        Sets state attributes of the appliance. Attribute cloud has special meaning
+        """Sets state attributes of the appliance. Attribute cloud has special meaning
         and is used to pass MideaCloud object.
         """
         cloud = None

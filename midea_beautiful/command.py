@@ -24,6 +24,7 @@ class MideaCommand:
 
     def __init__(self) -> None:
         self.data = bytearray()
+        """Command payload"""
 
     def finalize(self) -> bytes:
         """Creates bytes sequence that represents a command to send.
@@ -44,24 +45,24 @@ class MideaSequenceCommand(MideaCommand):
 
     # Each command has unique command id. We generate it as single byte
     # sequence with roll-over
-    _command_sequence = 0
+    _sequence = 0
 
     @staticmethod
     def reset_sequence(value: int = 0) -> None:
         """Resets sequence generator for unique command id"""
-        MideaSequenceCommand._command_sequence = value
+        MideaSequenceCommand._sequence = value
 
     def __init__(self, sequence_idx: int = 30) -> None:
         super().__init__()
-        self.sequence_idx = sequence_idx
+        self._sequence_idx = sequence_idx
 
     def finalize(self) -> bytes:
         with _order_lock:
-            MideaSequenceCommand._command_sequence = (
-                MideaSequenceCommand._command_sequence + 1
+            MideaSequenceCommand._sequence = (
+                MideaSequenceCommand._sequence + 1
             ) & 0b11111111
         # Add the sequence
-        self.data[self.sequence_idx] = MideaSequenceCommand._command_sequence
+        self.data[self._sequence_idx] = MideaSequenceCommand._sequence
         return super().finalize()
 
 

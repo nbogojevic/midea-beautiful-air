@@ -13,7 +13,6 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from midea_beautiful.exceptions import AuthenticationError, MideaError, ProtocolError
 from midea_beautiful.midea import (
     DEFAULT_APPKEY,
-    DEFAULT_SIGNKEY,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_ENCRYPTED_RESPONSE,
 )
@@ -300,7 +299,8 @@ def crc8(data: bytes) -> int:
     return crc_value
 
 
-BLOCKSIZE: Final = 16
+_BLOCKSIZE: Final = 16
+_DEFAULT_SIGNKEY: Final = "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S"
 
 
 class Security:
@@ -310,8 +310,8 @@ class Security:
     def __init__(
         self,
         appkey: str = DEFAULT_APPKEY,
-        signkey: str = DEFAULT_SIGNKEY,
-        iv: bytes = b"\x00" * BLOCKSIZE,
+        signkey: str = _DEFAULT_SIGNKEY,
+        iv: bytes = b"\x00" * _BLOCKSIZE,
     ) -> None:
         self._appkey = appkey
         self._signkey = signkey.encode()
@@ -338,7 +338,7 @@ class Security:
         decryptor = cipher.decryptor()
         decrypted = decryptor.update(raw) + decryptor.finalize()
         # Remove the padding
-        unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
+        unpadder = padding.PKCS7(_BLOCKSIZE * 8).unpadder()
         return unpadder.update(decrypted) + unpadder.finalize()
 
     def aes_encrypt(self, raw: bytes) -> bytes:
@@ -352,7 +352,7 @@ class Security:
             bytes: encrypted array of bytes
         """
         # Pad data to 128 bit
-        padder = padding.PKCS7(BLOCKSIZE * 8).padder()
+        padder = padding.PKCS7(_BLOCKSIZE * 8).padder()
         raw = padder.update(raw) + padder.finalize()
         # Midea uses ECB mode for some exchanges
         cipher = Cipher(algorithms.AES(self._enc_key), modes.ECB())  # nosec
@@ -535,7 +535,7 @@ class Security:
         cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())  # nosec
         decryptor = cipher.decryptor()
         decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
-        unpadder = padding.PKCS7(BLOCKSIZE * 8).unpadder()
+        unpadder = padding.PKCS7(_BLOCKSIZE * 8).unpadder()
         result = unpadder.update(decrypted) + unpadder.finalize()
         return result.decode("utf-8")
 
@@ -549,7 +549,7 @@ class Security:
 
         raw = data.encode("utf-8")
 
-        padder = padding.PKCS7(BLOCKSIZE * 8).padder()
+        padder = padding.PKCS7(_BLOCKSIZE * 8).padder()
         raw = padder.update(raw) + padder.finalize()
 
         # Midea uses ECB mode here
