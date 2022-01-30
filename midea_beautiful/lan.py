@@ -32,7 +32,7 @@ from midea_beautiful.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
 )
-from midea_beautiful.util import HDR_8370, HDR_ZZ, SPAM, TRACE
+from midea_beautiful.util import HDR_8370, HDR_ZZ, SPAM, TRACE, init_logging, sensitive
 
 # pylint: disable=too-many-arguments
 # pylint: disable=duplicate-code
@@ -244,11 +244,14 @@ class LanDevice:
         if data[8:10] == HDR_ZZ:
             data = data[8:-16]
         appliance_id = str(int.from_bytes(data[20:26], "little"))
+        sensitive(appliance_id, length=4)
         reply = self._security.aes_decrypt(data[40:-16])
         self.address = ".".join([str(i) for i in reply[3::-1]])
+        sensitive(self.address, length=4)
         _LOGGER.log(TRACE, "From %s decrypted reply=%s", self.address, reply)
         self.port = int.from_bytes(reply[4:8], "little")
         self.serial_number = reply[8:40].decode("ascii")
+        sensitive(self.serial_number, length=8)
         ssid_len = reply[40]
         # ssid like midea_xx_xxxx net_xx_xxxx
         self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
@@ -268,6 +271,7 @@ class LanDevice:
         else:
             assert self.serial_number
             self.mac = self.serial_number[16:32]
+        sensitive(self.mac, length=4)
 
     def _extract_type(self, reply, ssid_len):
         if len(reply) >= (56 + ssid_len) and reply[55 + ssid_len] != 0:
@@ -513,8 +517,11 @@ class LanDevice:
             # After authentication, don’t send data immediately,
             # so sleep 500ms.
             self._sleep(0.5 * self.sleep_interval)
+
         except Exception as ex:
-            raise AuthenticationError(f"Failed to get TCP key for: {self}") from ex
+            raise AuthenticationError(
+                f"Failed to get TCP key for: {self}, cause {ex}"
+            ) from ex
 
     def _status(self, cmd: MideaCommand, cloud: MideaCloud | None) -> list[bytes]:
         data = self._lan_packet(cmd, cloud is None)
@@ -712,9 +719,11 @@ class LanDevice:
                 self._authenticate()
                 _LOGGER.debug("Token valid for %s udp_id=%s", self, udp_id)
                 return True
-            except MideaError:
+            except MideaError as ex:
+                _LOGGER.debug("Token check failed for udp_id=%s, %s", udp_id, ex)
                 # token/key were not valid, forget them
                 self.token, self.key = "", ""
+
         return False
 
     def is_identified(self, cloud: MideaCloud = None) -> bool:
@@ -735,7 +744,7 @@ class LanDevice:
         else:
             self._authenticate()
 
-    def _check_is_supported(self, cloud: MideaCloud | None, use_cloud: bool):
+    def _check_is_supported(self, use_cloud: bool):
         if not self.is_supported_version and not use_cloud:
             raise UnsupportedError(f"Appliance {self} protocol is not supported.")
 
@@ -745,7 +754,7 @@ class LanDevice:
     def identify(self, cloud: MideaCloud = None, use_cloud: bool = False) -> None:
         """Identifies appliance data on network and/or from cloud"""
 
-        self._check_is_supported(cloud, use_cloud)
+        self._check_is_supported(use_cloud)
 
         if _is_token_version(self.version) and not use_cloud:
             self._valid_token(cloud)
@@ -901,10 +910,13 @@ def appliance_state(
     Returns:
         LanDevice: [description]
     """
+    init_logging()
     # Create a TCP/IP socket
     if address:
         token = token or ""
         key = key or ""
+        sensitive(token, length=-2)
+        sensitive(key, length=-2)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(timeout)
         port = DISCOVERY_PORT
@@ -937,6 +949,7 @@ def appliance_state(
         finally:
             sock.close()
     elif appliance_id is not None:
+        sensitive(appliance_id, length=4)
         if use_cloud and cloud:
             appliance = LanDevice(
                 appliance_id=appliance_id,

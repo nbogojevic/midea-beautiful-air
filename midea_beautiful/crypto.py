@@ -415,11 +415,13 @@ class Security:
         size, pad = len(data), 0
         if msgtype in ENCRYPTED_MESSAGE_TYPES:
             if (size + 2) % 16 != 0:
-                pad = 16 - (size + 2 & 0xF)
+                pad = 16 - (size + 2 & 0b1111)
                 size += pad + 32
                 data += urandom(pad)
         header.extend(size.to_bytes(2, "big"))
         header.extend([0x20, pad << 4 | msgtype])
+        if self._request_count >= 0xFFF:
+            self._request_count = 0
         data = self._request_count.to_bytes(2, "big") + data
         self._request_count += 1
         if msgtype in ENCRYPTED_MESSAGE_TYPES:

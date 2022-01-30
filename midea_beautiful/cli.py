@@ -15,7 +15,7 @@ from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.command import AirConditionerResponse, DehumidifierResponse
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful.util import SPAM, TRACE
+from midea_beautiful.util import SPAM, TRACE, init_logging, sensitive
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +26,8 @@ def _logs_install(level, **kw) -> None:
         module.install(level=level, **kw)
     except Exception:  # pylint: disable=broad-except
         logging.basicConfig(level=level)
+
+    init_logging()
 
 
 def _output(appliance: LanDevice, show_credentials: bool = False) -> None:
@@ -287,6 +289,14 @@ def cli(argv) -> int:
         "dump": _run_dump_command,
     }
 
+    if "account" in args:
+        sensitive(args.account)
+    if "password" in args:
+        sensitive(args.password)
+    if "token" in args:
+        sensitive(args.token, length=-2)
+    if "key" in args:
+        sensitive(args.key, length=-2)
     function = commands.get(args.command, lambda _: 1)
 
     return function(args)

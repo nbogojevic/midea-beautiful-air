@@ -61,9 +61,8 @@ class Appliance:
         if DehumidifierAppliance.supported(appliance_type):
             _LOGGER.log(
                 TRACE,
-                "Creating DehumidifierAppliance %s %s",
+                "Creating DehumidifierAppliance %s",
                 appliance_id,
-                appliance_type,
             )
             return DehumidifierAppliance(
                 appliance_id=appliance_id, appliance_type=appliance_type

@@ -554,29 +554,29 @@ def test_refresh_all_fail(mock_cloud, caplog: pytest.LogCaptureFixture):
         assert not device.online
 
 
-def test_is_supported_and_valid(mock_cloud):
+def test_is_supported_and_valid():
     device = LanDevice(
         appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER, version=3
     )
-    device._check_is_supported(mock_cloud, False)
-    device._check_is_supported(mock_cloud, True)
+    device._check_is_supported(False)
+    device._check_is_supported(True)
     device = LanDevice(
         appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER, version=2
     )
-    device._check_is_supported(mock_cloud, False)
-    device._check_is_supported(mock_cloud, True)
+    device._check_is_supported(False)
+    device._check_is_supported(True)
     device = LanDevice(
         appliance_id=str(313), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER, version=1
     )
     with pytest.raises(UnsupportedError):
-        device._check_is_supported(mock_cloud, False)
-    device._check_is_supported(mock_cloud, True)
+        device._check_is_supported(False)
+    device._check_is_supported(True)
     device = LanDevice(appliance_id=str(313), appliance_type="0xff", version=2)
     with pytest.raises(UnsupportedError):
-        device._check_is_supported(mock_cloud, False)
+        device._check_is_supported(False)
 
     with pytest.raises(UnsupportedError):
-        device._check_is_supported(mock_cloud, True)
+        device._check_is_supported(True)
 
 
 def test_connect():
@@ -672,5 +672,5 @@ def test_get_tcp_key():
         device._get_tcp_key(b"")
     assert (
         ex.value.message
-        == "Failed to get TCP key for: sn=SN99 id=9999 address=None version=3"
+        == "Failed to get TCP key for: sn=SN99 id=9999 address=None version=3, cause tcp_key"  # noqa: E501
     )

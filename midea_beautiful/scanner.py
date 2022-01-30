@@ -9,7 +9,7 @@ from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import DISCOVERY_MSG, LanDevice, matches_lan_cloud
 from midea_beautiful.midea import DEFAULT_RETRIES, DEFAULT_TIMEOUT, DISCOVERY_PORT
-from midea_beautiful.util import SPAM, TRACE
+from midea_beautiful.util import SPAM, TRACE, sensitive
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-arguments
@@ -122,7 +122,7 @@ class _MideaDiscovery:
             if matches_lan_cloud(scanned, details):
                 scanned.name = details["name"]
                 appliances.append(scanned)
-                _LOGGER.debug("Found appliance %s %s", scanned, known_cloud_appliances)
+                _LOGGER.debug("Found appliance %s", scanned)
                 if details["id"] in known_cloud_appliances:
                     known_cloud_appliances.remove(details["id"])
                 break
@@ -154,6 +154,8 @@ def _add_missing_appliances(
                 if matches_lan_cloud(local, known):
                     break
             else:
+                sensitive(known["id"], length=4)
+                sensitive(known["sn"], length=8)
                 local = LanDevice(
                     appliance_id=known["id"],
                     appliance_type=known["type"],

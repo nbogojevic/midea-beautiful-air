@@ -22,7 +22,7 @@ from midea_beautiful.exceptions import (
     RetryLaterError,
 )
 from midea_beautiful.midea import CLOUD_API_SERVER_URL, DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful.util import TRACE
+from midea_beautiful.util import TRACE, sensitive
 
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
@@ -268,6 +268,7 @@ class MideaCloud:
         if not self._session.get("sessionId"):
             raise AuthenticationError("Unable to retrieve session id from Midea API")
         self._security.access_token = str(self._session.get("accessToken"))
+        sensitive(self._security.access_token, length=4)
 
     def get_lua_script(
         self,
@@ -394,6 +395,8 @@ class MideaCloud:
         response = self.api_request("iot/secure/getToken", {"udpid": udp_id})
         for token in response["tokenlist"]:
             if token["udpId"] == udp_id:
+                sensitive(str(token["token"]), length=-2)
+                sensitive(str(token["key"]), length=-2)
                 return str(token["token"]), str(token["key"])
         return "", ""
 
