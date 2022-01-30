@@ -9,7 +9,7 @@ from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import DISCOVERY_MSG, LanDevice, matches_lan_cloud
 from midea_beautiful.midea import DEFAULT_RETRIES, DEFAULT_TIMEOUT, DISCOVERY_PORT
-from midea_beautiful.util import SPAM, TRACE, Redacted
+from midea_beautiful.util import midea_debug_log, Redacted
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-arguments
@@ -50,9 +50,7 @@ class _MideaDiscovery:
                 data, addr = self._socket.recvfrom(512)
                 ip_address = addr[0]
                 if ip_address not in self._known_ips:
-                    _LOGGER.log(
-                        TRACE, "Reply from address=%s payload=%s", ip_address, data
-                    )
+                    _LOGGER.debug("Reply from address=%s payload=%s", ip_address, data)
                     self._known_ips.add(ip_address)
                     appliance = LanDevice(data=data)
                     if Appliance.supported(appliance.type):
@@ -74,9 +72,10 @@ class _MideaDiscovery:
         for addr in addresses:
             _LOGGER.debug("Broadcasting to %s", addr)
             try:
-                _LOGGER.log(
-                    SPAM, "UDP broadcast %s:%d %s", addr, DISCOVERY_PORT, DISCOVERY_MSG
-                )
+                if midea_debug_log:
+                    _LOGGER.debug(
+                        "UDP broadcast %s:%d %s", addr, DISCOVERY_PORT, DISCOVERY_MSG
+                    )
                 self._socket.sendto(DISCOVERY_MSG, (addr, DISCOVERY_PORT))
             except Exception as ex:  # pylint: disable=broad-except
                 _LOGGER.debug("Unable to send broadcast to: %s cause %s", addr, ex)
@@ -164,7 +163,7 @@ def _add_missing_appliances(
                 appliances.append(local)
                 _LOGGER.warning(
                     "Unable to discover registered appliance %s",
-                    Redacted(known, keys=_REDACTED_KEYS)
+                    Redacted(known, keys=_REDACTED_KEYS),
                 )
             local.name = known["name"]
 

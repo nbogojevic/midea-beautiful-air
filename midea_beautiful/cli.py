@@ -15,7 +15,7 @@ from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.command import AirConditionerResponse, DehumidifierResponse
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful.util import SPAM, TRACE, Redacted
+from midea_beautiful.util import very_verbose, Redacted
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -154,6 +154,7 @@ _COMMON_ARGUMENTS = [
     "key",
     "loglevel",
     "no_redact",
+    "verbose",
     "password",
     "token",
 ]
@@ -267,15 +268,11 @@ def cli(argv) -> int:
     log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
     if "no_redact" in args and args.no_redact:
         Redacted.redacting = False
-    if TRACE != logging.DEBUG:
-        logging.addLevelName(TRACE, "TRACE")
-    if SPAM != logging.DEBUG:
-        logging.addLevelName(SPAM, "SPAM")
+    if "verbose" in args and args.verbose:
+        very_verbose(False)
     _logs_install(
         level=log_level,
         level_styles=dict(
-            spam=dict(color="white", faint=True),
-            trace=dict(color="green", faint=True),
             debug=dict(color="green"),
             verbose=dict(color="blue"),
             info=dict(),
@@ -317,6 +314,12 @@ def _configure_argparser():
         help="disables redacting sensitive information in logs",
         action="store_true",
         dest="no_redact",
+    )
+    parser.add_argument(
+        "--verbose",
+        help="activates very verbose logging",
+        action="store_true",
+        dest="verbose",
     )
     subparsers = parser.add_subparsers(metavar="subcommand", help="", dest="command")
 

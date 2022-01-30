@@ -16,7 +16,7 @@ from midea_beautiful.command import (
 )
 from midea_beautiful.exceptions import MideaError
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
-from midea_beautiful.util import SPAM, TRACE, Redacted, strtobool
+from midea_beautiful.util import midea_debug_log, Redacted, strtobool
 
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-instance-attributes
@@ -30,9 +30,9 @@ def _as_bool(value: Any) -> bool:
 
 
 def _dump_data(data: bytes):
-    if _LOGGER.isEnabledFor(SPAM):
+    if midea_debug_log:
         for i, byte in enumerate(data):
-            _LOGGER.log(SPAM, "%2d %3d %02X", i, byte, byte)
+            _LOGGER.debug("%2d %3d %02X", i, byte, byte)
 
 
 class Appliance:
@@ -59,20 +59,13 @@ class Appliance:
         requested type.
         """
         if DehumidifierAppliance.supported(appliance_type):
-            _LOGGER.log(
-                TRACE,
-                "Creating DehumidifierAppliance %s",
-                appliance_id,
-            )
+            _LOGGER.debug("Creating DehumidifierAppliance %s", appliance_id)
             return DehumidifierAppliance(
                 appliance_id=appliance_id, appliance_type=appliance_type
             )
         if AirConditionerAppliance.supported(appliance_type):
-            _LOGGER.log(
-                TRACE,
-                "Creating AirConditionerAppliance %s %s",
-                appliance_id,
-                appliance_type,
+            _LOGGER.debug(
+                "Creating AirConditionerAppliance %s %s", appliance_id, appliance_type
             )
             return AirConditionerAppliance(
                 appliance_id=appliance_id, appliance_type=appliance_type
@@ -230,12 +223,12 @@ class DehumidifierAppliance(Appliance):
         )
 
     def process_response(self, data: bytes) -> None:
-        _LOGGER.log(
-            SPAM,
-            "Processing response for dehumidifier id=%s data=%s",
-            self._id,
-            data,
-        )
+        if midea_debug_log:
+            _LOGGER.debug(
+                "Processing response for dehumidifier id=%s data=%s",
+                self._id,
+                data,
+            )
         self.latest_data = data
         if len(data) > 0:
             self._online = True
@@ -525,12 +518,10 @@ class AirConditionerAppliance(Appliance):
         )
 
     def process_response(self, data: bytes) -> None:
-        _LOGGER.log(
-            SPAM,
-            "Processing response for air conditioner id=%s data=%s",
-            self._id,
-            data,
-        )
+        if midea_debug_log:
+            _LOGGER.debug(
+                "Processing response for air conditioner id=%s data=%s", self._id, data
+            )
         self.latest_data = data
         if len(data) > 0:
             self._online = True

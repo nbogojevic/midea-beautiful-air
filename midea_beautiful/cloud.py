@@ -22,7 +22,7 @@ from midea_beautiful.exceptions import (
     RetryLaterError,
 )
 from midea_beautiful.midea import CLOUD_API_SERVER_URL, DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful.util import TRACE, Redacted, sensitive
+from midea_beautiful.util import Redacted, sensitive
 
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
@@ -163,17 +163,16 @@ class MideaCloud:
 
                 data["sign"] = self._security.sign(url, data)
                 if endpoint not in PROTECTED_REQUESTS:
-                    _LOGGER.log(TRACE, "HTTP request %s: %s", endpoint, data)
+                    _LOGGER.debug("HTTP request %s: %s", endpoint, data)
                 # POST the endpoint with the payload
                 response = requests.post(
                     url=url, data=data, timeout=self.request_timeout
                 )
                 response.raise_for_status()
                 if endpoint not in PROTECTED_RESPONSES:
-                    _LOGGER.log(
-                        TRACE,
+                    _LOGGER.debug(
                         "HTTP response text: %s",
-                        Redacted(response.text, len(response.text) - 10),
+                        Redacted(response.text, len(response.text) - 10)
                     )
 
                 payload = json.loads(response.text)
@@ -187,10 +186,9 @@ class MideaCloud:
                 )
 
         if endpoint not in PROTECTED_RESPONSES:
-            _LOGGER.log(
-                TRACE,
+            _LOGGER.debug(
                 "HTTP response: %s",
-                payload if not Redacted.redacting else "*** REDACTED ***",
+                payload if not Redacted.redacting else "*** REDACTED ***"
             )
 
         # Check for errors, raise if there are any
@@ -325,7 +323,7 @@ class MideaCloud:
         """
         _LOGGER.debug("Sending to id=%s data=%s", appliance_id, data)
         encoded = _encode_as_csv(data)
-        _LOGGER.log(TRACE, "Encoded id=%s data=%s", appliance_id, encoded)
+        _LOGGER.debug("Encoded id=%s data=%s", appliance_id, encoded)
 
         order = self._security.aes_encrypt_string(encoded)
         response = self.api_request(
@@ -334,7 +332,7 @@ class MideaCloud:
         )
 
         decrypted = self._security.aes_decrypt_string(response["reply"])
-        _LOGGER.log(TRACE, "decrypted reply %s", decrypted)
+        _LOGGER.debug("decrypted reply %s", decrypted)
         reply = _decode_from_csv(decrypted)
         _LOGGER.debug("Received from id=%s data=%s", appliance_id, reply)
         if len(reply) < 50:

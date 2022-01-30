@@ -3,13 +3,17 @@ from __future__ import annotations
 
 from typing import Any, Final, Mapping
 
-SPAM = 1
-TRACE = 5
-
-
 HDR_8370: Final = b"\x83\x70"
 HDR_ZZ: Final = b"\x5a\x5a"
 _MAX_LEN: Final = 1024
+
+
+midea_debug_log: bool = False
+
+
+def very_verbose(verbose: bool) -> None:
+    global midea_debug_log
+    midea_debug_log = verbose
 
 
 def strtobool(val) -> bool:
@@ -37,6 +41,8 @@ def redact(to_redact: str, length: int = _MAX_LEN, char: str = "*") -> str:
         length = int(len(to_redact) / (-length))
     if length >= len(to_redact):
         return char * len(to_redact)
+    if length == 0:
+        return _SensitiveStrings.clean(to_redact)
     else:
         return _SensitiveStrings.clean(to_redact[:-length] + char * length)
 

@@ -35,8 +35,7 @@ from midea_beautiful.midea import (
 from midea_beautiful.util import (
     HDR_8370,
     HDR_ZZ,
-    SPAM,
-    TRACE,
+    midea_debug_log,
     Redacted,
 )
 
@@ -252,7 +251,7 @@ class LanDevice:
         appliance_id = str(int.from_bytes(data[20:26], "little"))
         reply = self._security.aes_decrypt(data[40:-16])
         self.address = ".".join([str(i) for i in reply[3::-1]])
-        _LOGGER.log(TRACE, "From %s decrypted reply=%s", self.address, Redacted(reply))
+        _LOGGER.debug("From %s decrypted reply=%s", self.address, Redacted(reply))
         self.port = int.from_bytes(reply[4:8], "little")
         self.serial_number = reply[8:40].decode("ascii")
         ssid_len = reply[40]
@@ -393,7 +392,7 @@ class LanDevice:
                         len(responses),
                     )
                 self._online = True
-                _LOGGER.log(TRACE, "refresh %s responses=%s", self, responses)
+                _LOGGER.debug("refresh %s responses=%s", self, responses)
                 self.state.process_response(responses[-1])
 
     def _check_for_offline(self, cloud):
@@ -448,7 +447,7 @@ class LanDevice:
 
             # Send data
             try:
-                _LOGGER.log(TRACE, "Sending to %s, message=%s", self, Redacted(message))
+                _LOGGER.debug("Sending to %s, message=%s", self, Redacted(message))
                 self._socket.sendall(message)
             except Exception as error:  # pylint: disable=broad-except
                 _LOGGER.debug("Error sending to %s: %s", self, error)
@@ -472,7 +471,7 @@ class LanDevice:
                 self._retries += 1
                 return b""
             else:
-                _LOGGER.log(TRACE, "From %s, message=%s", self, Redacted(response))
+                _LOGGER.debug("From %s, message=%s", self, Redacted(response))
                 if len(response) == 0:
                     self.last_error = f"No results from {self.address}"
                     self._disconnect()
@@ -488,13 +487,13 @@ class LanDevice:
             byte_token = binascii.unhexlify(self.token)
         except binascii.Error as ex:
             raise AuthenticationError(f"Invalid token {ex}") from ex
-        _LOGGER.log(
-            SPAM,
-            "token='%s' key='%s' for %s",
-            Redacted(self.token, -2),
-            Redacted(self.key, -2),
-            self,
-        )
+        if midea_debug_log:
+            _LOGGER.debug(
+                "token='%s' key='%s' for %s",
+                Redacted(self.token, -2),
+                Redacted(self.key, -2),
+                self,
+            )
         response = b""
         for i in range(self.max_retries):
             request = self._security.encode_8370(byte_token, MSGTYPE_HANDSHAKE_REQUEST)
@@ -512,7 +511,8 @@ class LanDevice:
                 f"Failed to perform handshake for {self.serial_number}"
             )
 
-        _LOGGER.log(SPAM, "handshake_response=%s for %s", response, self)
+        if midea_debug_log:
+            _LOGGER.debug("handshake_response=%s for %s", response, self)
         response = response[8:72]
 
         self._get_tcp_key(response)
@@ -520,7 +520,8 @@ class LanDevice:
     def _get_tcp_key(self, response: bytes):
         try:
             tcp_key = self._security.tcp_key(response, binascii.unhexlify(self.key))
-            _LOGGER.log(SPAM, "tcp_key=%s for %s", tcp_key, self)
+            if midea_debug_log:
+                _LOGGER.debug("tcp_key=%s for %s", tcp_key, self)
 
             self._got_tcp_key = True
             _LOGGER.debug("Got TCP key for: %s", self)
@@ -556,10 +557,11 @@ class LanDevice:
 
     def _appliance_send_8370(self, data: bytes) -> list[bytes]:
         """Sends data using v3 (8370) protocol"""
-        _LOGGER.log(SPAM, "appliance_send_8370 %s data=%s", self, data)
+        if midea_debug_log:
+            _LOGGER.debug("appliance_send_8370 %s data=%s", self, data)
 
         if not self._socket or not self._got_tcp_key:
-            _LOGGER.log(TRACE, "Socket %s closed, creating new socket", self)
+            _LOGGER.debug("Socket %s closed, creating new socket", self)
             self._disconnect()
 
             for i in range(self.max_retries):
@@ -583,7 +585,8 @@ class LanDevice:
         # copy from data in order to resend data
         original_data = bytes(data)
         data = self._security.encode_8370(data, MSGTYPE_ENCRYPTED_REQUEST)
-        _LOGGER.log(SPAM, "encode_8370 %s data=%s", self, data)
+        if midea_debug_log:
+            _LOGGER.debug("encode_8370 %s data=%s", self, data)
 
         # wait few seconds before re-sending data, default is 0
         self._sleep(self._retries)
@@ -595,13 +598,13 @@ class LanDevice:
         responses, self._buffer = self._security.decode_8370(
             self._buffer + response_buf
         )
-        _LOGGER.log(
-            SPAM,
-            "decode_8370 responses=%s overflow=%s for %s",
-            responses,
-            self._buffer,
-            self,
-        )
+        if midea_debug_log:
+            _LOGGER.debug(
+                "decode_8370 responses=%s overflow=%s for %s",
+                responses,
+                self._buffer,
+                self,
+            )
         for response in responses:
             if len(response) > 40 + 16:
                 response = self._security.aes_decrypt(response[40:-16])
@@ -613,7 +616,8 @@ class LanDevice:
     def _appliance_send_v2(self, data: bytes) -> list[bytes]:
         # wait few seconds before re-sending data, default is 0
         self._sleep(self._retries)
-        _LOGGER.log(SPAM, "appliance_send_v2 %s data=%s", self, data)
+        if midea_debug_log:
+            _LOGGER.debug("appliance_send_v2 %s data=%s", self, data)
         response_buf = self._request(data)
         if packets := self._retry_send(data, response_buf):
             return packets
@@ -654,12 +658,12 @@ class LanDevice:
     def _retry_send(self, data: bytes, response_buf: bytes) -> list[bytes]:
         if not response_buf:
             if self._retries < self.max_retries:
-                _LOGGER.log(
-                    SPAM,
-                    "retrying appliance_send_lan %d of %d",
-                    self._retries,
-                    self.max_retries,
-                )
+                if midea_debug_log:
+                    _LOGGER.debug(
+                        "retrying appliance_send_lan %d of %d",
+                        self._retries,
+                        self.max_retries,
+                    )
                 self.last_error = "empty reply"
                 self._retries += 1
                 packets = self.appliance_send(data)
@@ -689,7 +693,7 @@ class LanDevice:
 
             data = self._lan_packet(cmd, cloud is None)
 
-            _LOGGER.log(TRACE, "Packet for %s data: %s", self, data)
+            _LOGGER.debug("Packet for %s data: %s", self, data)
             if use_cloud := cloud is not None:
                 _LOGGER.debug("Sending request via cloud to %s", self)
                 responses = cloud.appliance_transparent_send(self.appliance_id, data)
@@ -780,16 +784,18 @@ class LanDevice:
         if len(responses) == 0:
             _LOGGER.debug("No response on device capabilities request")
         else:
-            _LOGGER.log(SPAM, "device capabilities %s response=%s", self, responses[-1])
+            if midea_debug_log:
+                _LOGGER.debug("device capabilities %s response=%s", self, responses[-1])
             self.state.process_response_device_capabilities(responses[-1], 0)
         cmd = DeviceCapabilitiesCommandMore()
         responses = self._status(cmd, cloud if use_cloud else None)
         if len(responses) == 0:
             _LOGGER.debug("No response on device capabilities request (more)")
         else:
-            _LOGGER.log(
-                SPAM, "device capabilities (more) %s response=%s", self, responses[-1]
-            )
+            if midea_debug_log:
+                _LOGGER.debug(
+                    "device capabilities (more) %s response=%s", self, responses[-1]
+                )
             self.state.process_response_device_capabilities(responses[-1], 1)
 
         self.refresh(cloud if use_cloud else None)
@@ -830,7 +836,7 @@ class LanDevice:
             Redacted(self.address, 5),
             self.port,
             self.version,
-            self.name,
+            Redacted(self.name, length=0),
             self.online,
             self.type,
             self.subtype,
@@ -966,18 +972,18 @@ def appliance_state(
             sock.connect((address, port))
 
             # Send the discovery query
-            _LOGGER.log(TRACE, "Sending to %s:%d %s", address, port, DISCOVERY_MSG)
+            _LOGGER.debug("Sending to %s:%d %s", address, port, DISCOVERY_MSG)
             sock.sendall(DISCOVERY_MSG)
 
             # Received data
             response = sock.recv(512)
-            _LOGGER.log(TRACE, "Received from %s:%d %s", address, port, response)
+            _LOGGER.debug("Received from %s:%d %s", address, port, response)
             appliance = LanDevice(
                 data=response, token=token, key=key, security=security
             )
             appliance.max_retries = retries
             appliance.socket_timeout = timeout
-            _LOGGER.log(TRACE, "Appliance %s", appliance)
+            _LOGGER.debug("Appliance %s", appliance)
         except socket.timeout as ex:
             raise MideaNetworkError(
                 f"Timeout while connecting to appliance {address}:{port}"
