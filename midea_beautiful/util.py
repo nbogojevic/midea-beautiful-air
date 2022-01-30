@@ -9,6 +9,7 @@ TRACE: Final = 5
 
 HDR_8370: Final = b"\x83\x70"
 HDR_ZZ: Final = b"\x5a\x5a"
+_MAX_LEN: Final = 1024
 
 
 def strtobool(val) -> bool:
@@ -26,7 +27,7 @@ def strtobool(val) -> bool:
     raise ValueError(f"invalid truth value ${val!r}")
 
 
-def redact(to_redact: str, length: int = 1024, char: str = "*") -> str:
+def redact(to_redact: str, length: int = _MAX_LEN, char: str = "*") -> str:
     """Redacts/obfuscates the passed string."""
     if not to_redact or not isinstance(to_redact, str):
         return _SensitiveStrings.clean(str(to_redact))
@@ -62,6 +63,11 @@ def sensitive(sensitive: str, rules: dict = {}) -> None:
     _SensitiveStrings.add(sensitive, rules)
 
 
+def clear_sensitive() -> None:
+    """Clears all sensitive rules."""
+    _SensitiveStrings.sensitives.clear()
+
+
 class Redacted:
     """Wrapper for redacted basic data."""
 
@@ -70,7 +76,7 @@ class Redacted:
     def __init__(
         self,
         to_redact: Any,
-        length: int = 0,
+        length: int = _MAX_LEN,
         char: str = "*",
         keys: dict[str, dict] = {},
     ) -> None:

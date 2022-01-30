@@ -807,7 +807,7 @@ class LanDevice:
         return (
             f"sn={Redacted(self.serial_number, 8)}"
             f" id={Redacted(self.appliance_id, 4)}"
-            f" address={Redacted(self.address)}"
+            f" address={Redacted(self.address, 5)}"
             f" version={self.version}"
         )
 
@@ -819,7 +819,7 @@ class LanDevice:
             " sn=%s, state=%s}"
         ) % (
             Redacted(self.appliance_id, 4),
-            Redacted(self.address),
+            Redacted(self.address, 5),
             self.port,
             self.version,
             self.name,

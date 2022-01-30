@@ -8,6 +8,7 @@ import pytest
 from midea_beautiful import find_appliances
 from midea_beautiful.crypto import Security
 import midea_beautiful.scanner as scanner
+from midea_beautiful.util import Redacted
 
 # pylint: disable=protected-access
 # pylint: disable=missing-function-docstring
@@ -262,6 +263,8 @@ def test_scanner_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFi
     y = MagicMock()
     y.appliance_id = "999"
     y.__str__.return_value = "appliance-999"
+    Redacted.redacting = False
+
     with patch("midea_beautiful.scanner.LanDevice", side_effect=[x, y]):
         with patch("socket.socket") as mock_socket:
             mocked_socket = MagicMock()

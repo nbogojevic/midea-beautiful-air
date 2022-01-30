@@ -256,7 +256,8 @@ def test_set_command(
         credentials=False,
         command="set",
         loglevel="INFO",
-        beep_prompt=True
+        beep_prompt=True,
+        no_redact=False,
     )
     with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
         res = _run_set_command(namespace)
@@ -277,6 +278,7 @@ def test_set_command_read_only(
         appid="1000",
         cloud=True,
         credentials=False,
+        no_redact=False,
         command="set",
         loglevel="INFO",
         online=True
@@ -303,6 +305,7 @@ def test_set_command_not_existing(
         credentials=False,
         command="set",
         loglevel="INFO",
+        no_redact=False,
         something=True
     )
     with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
@@ -327,6 +330,7 @@ def test_set_with_cloud(
         appid="1000",
         cloud=True,
         credentials=False,
+        no_redact=False,
         command="set",
         loglevel="INFO",
     )

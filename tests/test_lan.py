@@ -24,6 +24,7 @@ from midea_beautiful.midea import (
     APPLIANCE_TYPE_DEHUMIDIFIER,
     DEFAULT_APPKEY,
 )
+from midea_beautiful.util import clear_sensitive
 
 # pylint: disable=protected-access
 # pylint: disable=missing-function-docstring
@@ -144,6 +145,7 @@ def test_appliance_from_broadcast_dehumidifier():
 
 
 def test_appliance_repr():
+    clear_sensitive()
     payload = bytearray(unhexlify(BROADCAST_PAYLOAD))
     payload[46] = 0x63  # Letter c
     payload[66] = int(APPLIANCE_TYPE_AIRCON, base=16)
