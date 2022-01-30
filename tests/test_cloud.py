@@ -81,8 +81,7 @@ def for_login(requests_mock: requests_mock.Mocker):
 
 
 def test_str(cloud_client: MideaCloud):
-    assert "_appkey" in str(cloud_client)
-    assert "3742e9e5842d4ad59c2db887e12449f9" in str(cloud_client)
+    assert "MideaCloud(https://mapp.appsmb.com/v1/)" in str(cloud_client)
 
 
 def test_request_handling(
@@ -140,7 +139,7 @@ def test_request_authentication_error(
         cloud_client.api_request("dummy", DUMMY_RQ, authenticate=False)
     assert ex.value.message == "authentication error"
     assert ex.value.error_code == 3102
-    assert str(ex.value) == "Authentication error for account 'user@example.com': authentication error (3102)"  # noqa: E501
+    assert str(ex.value) == "Cloud authentication error: authentication error (3102)"
 
 
 def test_bad_authentication_reply(

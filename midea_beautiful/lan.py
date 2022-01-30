@@ -32,7 +32,13 @@ from midea_beautiful.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
 )
-from midea_beautiful.util import HDR_8370, HDR_ZZ, SPAM, TRACE, init_logging, sensitive
+from midea_beautiful.util import (
+    HDR_8370,
+    HDR_ZZ,
+    SPAM,
+    TRACE,
+    Redacted,
+)
 
 # pylint: disable=too-many-arguments
 # pylint: disable=duplicate-code
@@ -244,14 +250,11 @@ class LanDevice:
         if data[8:10] == HDR_ZZ:
             data = data[8:-16]
         appliance_id = str(int.from_bytes(data[20:26], "little"))
-        sensitive(appliance_id, length=4)
         reply = self._security.aes_decrypt(data[40:-16])
         self.address = ".".join([str(i) for i in reply[3::-1]])
-        sensitive(self.address, length=4)
         _LOGGER.log(TRACE, "From %s decrypted reply=%s", self.address, reply)
         self.port = int.from_bytes(reply[4:8], "little")
         self.serial_number = reply[8:40].decode("ascii")
-        sensitive(self.serial_number, length=8)
         ssid_len = reply[40]
         # ssid like midea_xx_xxxx net_xx_xxxx
         self.ssid = reply[41 : 41 + ssid_len].decode("ascii")
@@ -271,7 +274,6 @@ class LanDevice:
         else:
             assert self.serial_number
             self.mac = self.serial_number[16:32]
-        sensitive(self.mac, length=4)
 
     def _extract_type(self, reply, ssid_len):
         if len(reply) >= (56 + ssid_len) and reply[55 + ssid_len] != 0:
@@ -486,7 +488,13 @@ class LanDevice:
             byte_token = binascii.unhexlify(self.token)
         except binascii.Error as ex:
             raise AuthenticationError(f"Invalid token {ex}") from ex
-        _LOGGER.log(SPAM, "token='%s' key='%s' for %s", self.token, self.key, self)
+        _LOGGER.log(
+            SPAM,
+            "token='%s' key='%s' for %s",
+            Redacted(self.token),
+            Redacted(self.key),
+            self,
+        )
         response = b""
         for i in range(self.max_retries):
             request = self._security.encode_8370(byte_token, MSGTYPE_HANDSHAKE_REQUEST)
@@ -797,9 +805,9 @@ class LanDevice:
 
     def __str__(self) -> str:
         return (
-            f"sn={self.serial_number}"
-            f" id={self.appliance_id}"
-            f" address={self.address}"
+            f"sn={Redacted(self.serial_number, 8)}"
+            f" id={Redacted(self.appliance_id, 4)}"
+            f" address={Redacted(self.address, 5)}"
             f" version={self.version}"
         )
 
@@ -810,8 +818,8 @@ class LanDevice:
             " mac=%s, ssid=%s, udp_version=%x, protocol=%s, version=%s,"
             " sn=%s, state=%s}"
         ) % (
-            self.appliance_id,
-            self.address,
+            Redacted(self.appliance_id, 4),
+            Redacted(self.address, 5),
             self.port,
             self.version,
             self.name,
@@ -821,12 +829,12 @@ class LanDevice:
             self.flags,
             self.extra,
             self.reserved,
-            self.mac,
+            Redacted(self.mac, 4),
             self.ssid,
             self.udp_version,
             self.protocol_version,
             self.firmware_version,
-            self.serial_number,
+            Redacted(self.serial_number, 8),
             self.state,
         )
 
@@ -910,13 +918,10 @@ def appliance_state(
     Returns:
         LanDevice: [description]
     """
-    init_logging()
     # Create a TCP/IP socket
     if address:
         token = token or ""
         key = key or ""
-        sensitive(token, length=-2)
-        sensitive(key, length=-2)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(timeout)
         port = DISCOVERY_PORT
@@ -949,7 +954,6 @@ def appliance_state(
         finally:
             sock.close()
     elif appliance_id is not None:
-        sensitive(appliance_id, length=4)
         if use_cloud and cloud:
             appliance = LanDevice(
                 appliance_id=appliance_id,

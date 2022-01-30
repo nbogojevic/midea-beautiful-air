@@ -12,7 +12,6 @@ from midea_beautiful.midea import (
     DEFAULT_TIMEOUT,
 )
 from midea_beautiful.scanner import do_find_appliances
-from midea_beautiful.util import init_logging, sensitive
 import midea_beautiful.version as version
 
 __all__ = (
@@ -43,9 +42,6 @@ def connect_to_cloud(
     Returns:
         MideaCloud: Interface to Midea cloud API
     """
-    init_logging()
-    sensitive(account)
-    sensitive(password)
     cloud = MideaCloud(appkey=appkey, account=account, password=password, appid=appid)
     cloud.authenticate()
     return cloud
@@ -80,10 +76,7 @@ def find_appliances(  # pylint: disable=too-many-arguments
     Returns:
         list[LanDevice]: [description]
     """
-    init_logging()
     _LOGGER.debug("Library version=%s", __version__)
-    sensitive(account)
-    sensitive(password)
     if not cloud and account and password:
         cloud = connect_to_cloud(account, password, appkey, appid)
 

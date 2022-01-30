@@ -25,7 +25,7 @@ def test_appliance(caplog: pytest.LogCaptureFixture):
     assert not isinstance(appliance, DehumidifierAppliance)
     assert not isinstance(appliance, AirConditionerAppliance)
     assert isinstance(appliance, Appliance)
-    assert str(appliance) == "[UnknownAppliance]{id=44 type=99}"
+    assert str(appliance) == "[UnknownAppliance]{id=** type=99}"
     assert appliance.model == appliance.type
     assert not appliance.online
     assert isinstance(appliance.refresh_command(), MideaCommand)

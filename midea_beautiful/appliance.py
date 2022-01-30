@@ -16,7 +16,7 @@ from midea_beautiful.command import (
 )
 from midea_beautiful.exceptions import MideaError
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
-from midea_beautiful.util import SPAM, TRACE, strtobool
+from midea_beautiful.util import SPAM, TRACE, Redacted, strtobool
 
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-instance-attributes
@@ -37,8 +37,8 @@ def _dump_data(data: bytes):
 
 class Appliance:
     """Base model for any Midea appliance"""
-    B5_CAPABILITIES = {
-    }
+
+    B5_CAPABILITIES = {}
 
     def __init__(self, appliance_id, appliance_type: str = "") -> None:
         self._id = str(appliance_id)
@@ -177,7 +177,10 @@ class Appliance:
         return MideaCommand()
 
     def __str__(self) -> str:
-        return "[UnknownAppliance]{id=%s type=%s}" % (self.appliance_id, self.type)
+        return "[UnknownAppliance]{id=%s type=%s}" % (
+            Redacted(self.appliance_id, 4),
+            self.type,
+        )
 
 
 class DehumidifierAppliance(Appliance):
@@ -443,7 +446,7 @@ class DehumidifierAppliance(Appliance):
             " defrosting=%s, filter=%s, tank_level=%s, "
             " error_code=%s, prompt=%s, supports=%s}"
             % (
-                self.appliance_id,
+                Redacted(self.appliance_id, 4),
                 self.type,
                 self.mode,
                 self.running,
@@ -766,7 +769,7 @@ class AirConditionerAppliance(Appliance):
             " error_code=%d,"
             " prompt=%s, supports=%s}"
             % (
-                self.appliance_id,
+                Redacted(self.appliance_id, 4),
                 self.type,
                 self.mode,
                 self.running,

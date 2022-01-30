@@ -160,9 +160,9 @@ def test_appliance_repr():
     appliance = LanDevice(data=response, token=token, key=key)
     assert (
         str(appliance)
-        == "sn=000000P0000000Q1123456789ABC0000 id=6618611909121 address=192.0.2.2 version=3"  # noqa: E501
+        == "sn=000000P0000000Q112345678******** id=661861190**** address=192.***** version=3"  # noqa: E501
     )  # noqa: E501
-    assert repr(appliance)[:31], "{id=6618611909121 == ip=192.0.2.2"
+    assert repr(appliance)[:31], "{id=661861190**** == ip=192.*****"
 
 
 def test_appliance_from_broadcast_ac():
@@ -276,7 +276,7 @@ def test_get_appliance_state_set_state_non_existing(
     assert len(caplog.records) == 1
     assert (
         caplog.messages[0]
-        == "Unknown state attribute non_existing_property for sn=None id=22222 address=None version=3"  # noqa: E501
+        == "Unknown state attribute non_existing_property for sn=None id=2**** address=None version=3"  # noqa: E501
     )
 
 
@@ -406,7 +406,7 @@ def test_authenticate():
     with patch.object(device, "_request", return_value=b""):
         with pytest.raises(AuthenticationError) as ex, at_sleep(0.001):
             device._authenticate()
-        assert "Failed to perform handshake for sn=None id=54321" in ex.value.message
+        assert "Failed to perform handshake for sn=None id=5****" in ex.value.message
 
 
 def test_appliance_send_8370():
@@ -431,7 +431,7 @@ def test_appliance_send_v2():
             device.appliance_send(b"\x00")
         assert (
             ex.value.message
-            == "Unable to send data after 3 retries, last error empty reply for sn=SN11 id=12345 address=None version=2"  # noqa: E501
+            == "Unable to send data after 3 retries, last error empty reply for sn=**** id=1**** address=None version=2"  # noqa: E501
         )
     device = LanDevice(
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
@@ -442,7 +442,7 @@ def test_appliance_send_v2():
             device.appliance_send(b"\x00")
         assert (
             ex.value.message
-            == "Unknown response format sn=None id=12345 address=None version=2 b'\\x00'"  # noqa: E501
+            == "Unknown response format sn=None id=1**** address=None version=2 b'\\x00'"  # noqa: E501
         )
     device = LanDevice(
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
@@ -672,5 +672,5 @@ def test_get_tcp_key():
         device._get_tcp_key(b"")
     assert (
         ex.value.message
-        == "Failed to get TCP key for: sn=SN99 id=9999 address=None version=3, cause tcp_key"  # noqa: E501
+        == "Failed to get TCP key for: sn=**** id=**** address=None version=3, cause tcp_key"  # noqa: E501
     )
