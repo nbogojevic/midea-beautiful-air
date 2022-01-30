@@ -138,7 +138,7 @@ class Appliance:
 
     def process_response(self, data: bytes) -> None:  # pylint: disable=unused-argument
         """Parses response payload and updates appliance data"""
-        _LOGGER.debug("Ignored process_response %r", self)
+        _LOGGER.debug("Ignored process_response %s", self)
 
     def process_response_device_capabilities(self, data: bytes, sequence: int = 0):
         """Parses device capabilities response payload and updates appliance

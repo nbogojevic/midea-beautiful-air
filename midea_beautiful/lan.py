@@ -266,7 +266,7 @@ class LanDevice:
         self.state = Appliance.instance(appliance_id, self.type)
         self._online = True
 
-        _LOGGER.debug("Descriptor data from %s: %r", self, self)
+        _LOGGER.debug("Descriptor data %r", self.redacted())
 
     def _extract_mac(self, reply, ssid_len):
         if len(reply) >= (69 + ssid_len):
@@ -508,7 +508,9 @@ class LanDevice:
             else:
                 break
         else:
-            raise AuthenticationError(f"Failed to perform handshake for {self}")
+            raise AuthenticationError(
+                f"Failed to perform handshake for {self.serial_number}"
+            )
 
         _LOGGER.log(SPAM, "handshake_response=%s for %s", response, self)
         response = response[8:72]
@@ -528,7 +530,8 @@ class LanDevice:
 
         except Exception as ex:
             raise AuthenticationError(
-                f"Failed to get TCP key for: {self}, cause {ex}"
+                f"Failed to get TCP key for {Redacted(self.serial_number, 8)},"
+                f" cause {ex}"
             ) from ex
 
     def _status(self, cmd: MideaCommand, cloud: MideaCloud | None) -> list[bytes]:
@@ -666,7 +669,8 @@ class LanDevice:
             self.last_error = ""
             raise MideaNetworkError(
                 f"Unable to send data after {self.max_retries} retries,"
-                f" last error {error} for {self}"
+                f" last error {error} for {Redacted(self.serial_number, 8)}"
+                f" ({Redacted(self.appliance_id, 4)})"
             )
         return []
 
@@ -748,13 +752,17 @@ class LanDevice:
             if not cloud:
                 raise MideaError(f"Provide either token/key pair or cloud {self!r}")
             if not self._get_valid_token(cloud):
-                raise AuthenticationError(f"Unable to get valid token for {self}")
+                raise AuthenticationError(
+                    f"Unable to get valid token for {self.serial_number}"
+                )
         else:
             self._authenticate()
 
     def _check_is_supported(self, use_cloud: bool):
         if not self.is_supported_version and not use_cloud:
-            raise UnsupportedError(f"Appliance {self} protocol is not supported.")
+            raise UnsupportedError(
+                f"Appliance {self.serial_number} protocol is not supported."
+            )
 
         if not Appliance.supported(self.type):
             raise UnsupportedError(f"Unsupported appliance: {self!r}")
@@ -785,7 +793,7 @@ class LanDevice:
             self.state.process_response_device_capabilities(responses[-1], 1)
 
         self.refresh(cloud if use_cloud else None)
-        _LOGGER.debug("Identified appliance: %r", self)
+        _LOGGER.debug("Identified appliance: %s", self.redacted())
 
     def set_state(self, **kwargs) -> None:
         """Sets state attributes of the appliance. Attribute cloud has special meaning
@@ -811,7 +819,7 @@ class LanDevice:
             f" version={self.version}"
         )
 
-    def __repr__(self) -> str:
+    def redacted(self) -> str:
         return (
             "{id=%s, address=%s, port=%d, version=%d, name=%s, online=%s,"
             " type=%s, subtype=%x, flags=%x, extra=%x, reserved=%x,"
@@ -829,12 +837,39 @@ class LanDevice:
             self.flags,
             self.extra,
             self.reserved,
-            Redacted(self.mac, 4),
+            Redacted(self.mac, 5),
             self.ssid,
             self.udp_version,
             self.protocol_version,
             self.firmware_version,
             Redacted(self.serial_number, 8),
+            self.state,
+        )
+
+    def __repr__(self) -> str:
+        return (
+            "{id=%s, address=%s, port=%d, version=%d, name=%s, online=%s,"
+            " type=%s, subtype=%x, flags=%x, extra=%x, reserved=%x,"
+            " mac=%s, ssid=%s, udp_version=%x, protocol=%s, version=%s,"
+            " sn=%s, state=%s}"
+        ) % (
+            self.appliance_id,
+            self.address,
+            self.port,
+            self.version,
+            self.name,
+            self.online,
+            self.type,
+            self.subtype,
+            self.flags,
+            self.extra,
+            self.reserved,
+            self.mac,
+            self.ssid,
+            self.udp_version,
+            self.protocol_version,
+            self.firmware_version,
+            self.serial_number,
             self.state,
         )
 

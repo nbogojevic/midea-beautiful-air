@@ -408,7 +408,7 @@ def test_authenticate():
     with patch.object(device, "_request", return_value=b""):
         with pytest.raises(AuthenticationError) as ex, at_sleep(0.001):
             device._authenticate()
-        assert "Failed to perform handshake for sn=None id=5****" in ex.value.message
+        assert "Failed to perform handshake for None" in ex.value.message
 
 
 def test_appliance_send_8370():
@@ -425,7 +425,7 @@ def test_appliance_send_v2():
     device = LanDevice(
         appliance_id=str(12345),
         appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER,
-        serial_number="SN11",
+        serial_number="SN0123456789",
     )
     device.version = 2
     with patch.object(device, "_request", return_value=b""):
@@ -433,7 +433,7 @@ def test_appliance_send_v2():
             device.appliance_send(b"\x00")
         assert (
             ex.value.message
-            == "Unable to send data after 3 retries, last error empty reply for sn=**** id=1**** address=None version=2"  # noqa: E501
+            == "Unable to send data after 3 retries, last error empty reply for SN01******** (1****)"  # noqa: E501
         )
     device = LanDevice(
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
@@ -674,5 +674,5 @@ def test_get_tcp_key():
         device._get_tcp_key(b"")
     assert (
         ex.value.message
-        == "Failed to get TCP key for: sn=**** id=**** address=None version=3, cause tcp_key"  # noqa: E501
+        == "Failed to get TCP key for ****, cause tcp_key"  # noqa: E501
     )
