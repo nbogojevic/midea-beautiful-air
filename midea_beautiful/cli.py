@@ -267,8 +267,10 @@ def cli(argv) -> int:
     log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
     if "no_redact" in args and args.no_redact:
         Redacted.redacting = False
-    logging.addLevelName(TRACE, "TRACE")
-    logging.addLevelName(SPAM, "SPAM")
+    if TRACE != logging.DEBUG:
+        logging.addLevelName(TRACE, "TRACE")
+    if SPAM != logging.DEBUG:
+        logging.addLevelName(SPAM, "SPAM")
     _logs_install(
         level=log_level,
         level_styles=dict(

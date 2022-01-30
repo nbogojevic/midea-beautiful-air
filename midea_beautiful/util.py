@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Final, Mapping
 
-SPAM: Final = 1
-TRACE: Final = 5
+SPAM = 1
+TRACE = 5
 
 
 HDR_8370: Final = b"\x83\x70"
@@ -96,7 +96,6 @@ class Redacted:
                         new[key] = redact(new[key], **kwargs)
                 return str(new)
             if isinstance(self.to_redact, list):
-                print(type(self.to_redact))
                 new_list = []
                 for item in self.to_redact:
                     new = {**item}
