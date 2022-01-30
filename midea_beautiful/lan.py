@@ -252,7 +252,7 @@ class LanDevice:
         appliance_id = str(int.from_bytes(data[20:26], "little"))
         reply = self._security.aes_decrypt(data[40:-16])
         self.address = ".".join([str(i) for i in reply[3::-1]])
-        _LOGGER.log(TRACE, "From %s decrypted reply=%s", self.address, reply)
+        _LOGGER.log(TRACE, "From %s decrypted reply=%s", self.address, Redacted(reply))
         self.port = int.from_bytes(reply[4:8], "little")
         self.serial_number = reply[8:40].decode("ascii")
         ssid_len = reply[40]
@@ -448,7 +448,7 @@ class LanDevice:
 
             # Send data
             try:
-                _LOGGER.log(TRACE, "Sending to %s, message=%s", self, message)
+                _LOGGER.log(TRACE, "Sending to %s, message=%s", self, Redacted(message))
                 self._socket.sendall(message)
             except Exception as error:  # pylint: disable=broad-except
                 _LOGGER.debug("Error sending to %s: %s", self, error)
@@ -472,7 +472,7 @@ class LanDevice:
                 self._retries += 1
                 return b""
             else:
-                _LOGGER.log(TRACE, "From %s, response=%s", self, response)
+                _LOGGER.log(TRACE, "From %s, message=%s", self, Redacted(response))
                 if len(response) == 0:
                     self.last_error = f"No results from {self.address}"
                     self._disconnect()
@@ -491,8 +491,8 @@ class LanDevice:
         _LOGGER.log(
             SPAM,
             "token='%s' key='%s' for %s",
-            Redacted(self.token),
-            Redacted(self.key),
+            Redacted(self.token, -2),
+            Redacted(self.key, -2),
             self,
         )
         response = b""
@@ -807,7 +807,7 @@ class LanDevice:
         return (
             f"sn={Redacted(self.serial_number, 8)}"
             f" id={Redacted(self.appliance_id, 4)}"
-            f" address={Redacted(self.address, 5)}"
+            f" address={Redacted(self.address)}"
             f" version={self.version}"
         )
 
@@ -819,7 +819,7 @@ class LanDevice:
             " sn=%s, state=%s}"
         ) % (
             Redacted(self.appliance_id, 4),
-            Redacted(self.address, 5),
+            Redacted(self.address),
             self.port,
             self.version,
             self.name,

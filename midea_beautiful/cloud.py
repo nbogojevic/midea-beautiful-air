@@ -22,7 +22,7 @@ from midea_beautiful.exceptions import (
     RetryLaterError,
 )
 from midea_beautiful.midea import CLOUD_API_SERVER_URL, DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful.util import TRACE
+from midea_beautiful.util import TRACE, Redacted, sensitive
 
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
@@ -40,6 +40,7 @@ PROTECTED_RESPONSES: Final = ["iot/secure/getToken", "user/login/id/get", "user/
 
 _MAX_RETRIES: Final = 3
 _DEFAULT_CLOUD_TIMEOUT: Final = 9
+_REDACTED_KEYS: Final = {"id": {"length": 4}, "sn": {"length": 8}}
 
 
 def _encode_as_csv(data: bytes | bytearray) -> str:
@@ -169,7 +170,11 @@ class MideaCloud:
                 )
                 response.raise_for_status()
                 if endpoint not in PROTECTED_RESPONSES:
-                    _LOGGER.log(TRACE, "HTTP response text: %s", response.text)
+                    _LOGGER.log(
+                        TRACE,
+                        "HTTP response text: %s",
+                        Redacted(response.text, len(response.text) - 10),
+                    )
 
                 payload = json.loads(response.text)
             except RequestException as exc:
@@ -182,7 +187,11 @@ class MideaCloud:
                 )
 
         if endpoint not in PROTECTED_RESPONSES:
-            _LOGGER.log(TRACE, "HTTP response: %s", payload)
+            _LOGGER.log(
+                TRACE,
+                "HTTP response: %s",
+                payload if not Redacted.redacting else "*** REDACTED ***",
+            )
 
         # Check for errors, raise if there are any
         if str(payload.get("errorCode", "0")) != "0":
@@ -381,8 +390,13 @@ class MideaCloud:
                     "type": item.get("type"),
                     "modelNumber": item.get("modelNumber"),
                 }
+                sensitive(app["sn"], _REDACTED_KEYS["sn"])
+                sensitive(app["id"], _REDACTED_KEYS["id"])
                 self._appliance_list.append(app)
-        _LOGGER.debug("Midea appliance list results=%s", self._appliance_list)
+        _LOGGER.debug(
+            "Midea appliance list results=%s",
+            Redacted(self._appliance_list, keys=_REDACTED_KEYS),
+        )
 
         return self._appliance_list
 

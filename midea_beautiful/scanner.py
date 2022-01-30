@@ -9,7 +9,7 @@ from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import DISCOVERY_MSG, LanDevice, matches_lan_cloud
 from midea_beautiful.midea import DEFAULT_RETRIES, DEFAULT_TIMEOUT, DISCOVERY_PORT
-from midea_beautiful.util import SPAM, TRACE
+from midea_beautiful.util import SPAM, TRACE, Redacted
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-arguments
@@ -18,6 +18,8 @@ _LOGGER = logging.getLogger(__name__)
 
 _BROADCAST_RETRIES: Final = DEFAULT_RETRIES
 _BROADCAST_TIMEOUT: Final = DEFAULT_TIMEOUT
+
+_REDACTED_KEYS: Final = {"id": {"length": 4}, "sn": {"length": 8}}
 
 
 class _MideaDiscovery:
@@ -162,7 +164,7 @@ def _add_missing_appliances(
                 appliances.append(local)
                 _LOGGER.warning(
                     "Unable to discover registered appliance %s",
-                    known,
+                    Redacted(known, keys=_REDACTED_KEYS)
                 )
             local.name = known["name"]
 

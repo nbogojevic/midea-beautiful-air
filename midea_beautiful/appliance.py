@@ -443,7 +443,7 @@ class DehumidifierAppliance(Appliance):
             " running=%s,"
             " target_humidity=%d, fan_speed=%d, tank_full=%s"
             " current_humidity=%s, current_temperature=%s"
-            " defrosting=%s, filter=%s, tank_level=%s, "
+            " defrosting=%s, filter=%s, tank_level=%s,"
             " error_code=%s, prompt=%s, supports=%s}"
             % (
                 Redacted(self.appliance_id, 4),
@@ -752,11 +752,12 @@ class AirConditionerAppliance(Appliance):
 
     def __str__(self) -> str:
         return (
-            "[Air conditioner]{id=%s, type=%s, "
+            "[Air conditioner]{id=%s,"
+            " type=%s"
             " mode=%d,"
             " running=%s,"
             " turbo=%s,"
-            " fan_speed=%d, "
+            " fan_speed=%d,"
             " turbo_fan=%s,"
             " purifier=%s,"
             " dryer=%s,"
@@ -767,7 +768,8 @@ class AirConditionerAppliance(Appliance):
             " horizontal_swing=%s"
             " comfort_sleep=%s,"
             " error_code=%d,"
-            " prompt=%s, supports=%s}"
+            " prompt=%s,"
+            " supports=%s}"
             % (
                 Redacted(self.appliance_id, 4),
                 self.type,

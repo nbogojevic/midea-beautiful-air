@@ -1,7 +1,7 @@
 """Utility services for Midea library."""
 from __future__ import annotations
 
-from typing import Final
+from typing import Any, Final, Mapping
 
 SPAM: Final = 1
 TRACE: Final = 5
@@ -26,30 +26,80 @@ def strtobool(val) -> bool:
     raise ValueError(f"invalid truth value ${val!r}")
 
 
-def redact(to_redact: str, length: int = 0, char: str = "*") -> str:
+def redact(to_redact: str, length: int = 1024, char: str = "*") -> str:
     """Redacts/obfuscates the passed string."""
     if not to_redact or not isinstance(to_redact, str):
-        return str(to_redact)
+        return _SensitiveStrings.clean(str(to_redact))
 
     to_redact = str(to_redact)
     if length < 0:
         length = int(len(to_redact) / (-length))
-    if length == 0 or length >= len(to_redact):
+    if length >= len(to_redact):
         return char * len(to_redact)
     else:
-        return to_redact[:-length] + char * length
+        return _SensitiveStrings.clean(to_redact[:-length] + char * length)
+
+
+class _SensitiveStrings:
+    """Collection of strings that should be removed from logs."""
+
+    sensitives: dict[str, dict] = {}
+
+    @staticmethod
+    def add(sensitive: str, rules: dict) -> None:
+        _SensitiveStrings.sensitives[sensitive] = redact(sensitive, **rules)
+
+    @staticmethod
+    def clean(value: str) -> None:
+        cleaned = str(value)
+        for sensitive, replace in _SensitiveStrings.sensitives.items():
+            cleaned = cleaned.replace(sensitive, replace)
+        return cleaned
+
+
+def sensitive(sensitive: str, rules: dict = {}) -> None:
+    """Add sensitive string to the list. Apply passed rules to redaction method."""
+    _SensitiveStrings.add(sensitive, rules)
 
 
 class Redacted:
+    """Wrapper for redacted basic data."""
+
     redacting: bool = True
 
-    def __init__(self, to_redact: str, length: int = 0, char: str = "*") -> None:
+    def __init__(
+        self,
+        to_redact: Any,
+        length: int = 0,
+        char: str = "*",
+        keys: dict[str, dict] = {},
+    ) -> None:
         self.to_redact = to_redact
         self.length = length
         self.char = char
+        self.keys = keys
 
     def __str__(self) -> str:
         if Redacted.redacting:
-            return redact(self.to_redact, self.length, self.char)
+            if isinstance(self.to_redact, str):
+                return redact(self.to_redact, self.length, self.char)
+            if isinstance(self.to_redact, Mapping):
+                new = {**self.to_redact}
+                for key, kwargs in self.keys.items():
+                    if key in new:
+                        new[key] = redact(new[key], **kwargs)
+                return str(new)
+            if isinstance(self.to_redact, list):
+                print(type(self.to_redact))
+                new_list = []
+                for item in self.to_redact:
+                    new = {**item}
+                    new_list.append(new)
+                    for key, kwargs in self.keys.items():
+                        if key in new:
+                            new[key] = redact(new[key], **kwargs)
+                return str(new_list)
+            converted = str(self.to_redact)
+            return _SensitiveStrings.clean(converted)
 
         return str(self.to_redact)

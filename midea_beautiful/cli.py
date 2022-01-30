@@ -15,7 +15,7 @@ from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.command import AirConditionerResponse, DehumidifierResponse
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful.util import SPAM, TRACE
+from midea_beautiful.util import SPAM, TRACE, Redacted
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -153,6 +153,7 @@ _COMMON_ARGUMENTS = [
     "ip",
     "key",
     "loglevel",
+    "no_redact",
     "password",
     "token",
 ]
@@ -264,6 +265,8 @@ def cli(argv) -> int:
     args = parser.parse_args(argv)
 
     log_level = int(args.loglevel) if args.loglevel.isdigit() else args.loglevel
+    if "no_redact" in args and args.no_redact:
+        Redacted.redacting = False
     logging.addLevelName(TRACE, "TRACE")
     logging.addLevelName(SPAM, "SPAM")
     _logs_install(
@@ -306,6 +309,12 @@ def _configure_argparser():
         help="sets the logging level (DEBUG, INFO, WARNING, ERROR or numeric 0-50) ",
         default="WARNING",
         dest="loglevel",
+    )
+    parser.add_argument(
+        "--no-redact",
+        help="disables redacting sensitive information in logs",
+        action="store_true",
+        dest="no_redact",
     )
     subparsers = parser.add_subparsers(metavar="subcommand", help="", dest="command")
 
