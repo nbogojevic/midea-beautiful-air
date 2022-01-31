@@ -8,12 +8,17 @@ HDR_ZZ: Final = b"\x5a\x5a"
 _MAX_LEN: Final = 1024
 
 
-midea_debug_log: bool = False
+_very_verbose: bool = False
+
+
+def is_very_verbose() -> bool:
+    global _very_verbose
+    return _very_verbose
 
 
 def very_verbose(verbose: bool) -> None:
-    global midea_debug_log
-    midea_debug_log = verbose
+    global _very_verbose
+    _very_verbose = verbose
 
 
 def strtobool(val) -> bool:

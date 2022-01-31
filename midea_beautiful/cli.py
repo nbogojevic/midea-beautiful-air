@@ -269,7 +269,7 @@ def cli(argv) -> int:
     if "no_redact" in args and args.no_redact:
         Redacted.redacting = False
     if "verbose" in args and args.verbose:
-        very_verbose(False)
+        very_verbose(True)
     _logs_install(
         level=log_level,
         level_styles=dict(

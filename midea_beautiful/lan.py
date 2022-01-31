@@ -35,7 +35,7 @@ from midea_beautiful.midea import (
 from midea_beautiful.util import (
     HDR_8370,
     HDR_ZZ,
-    midea_debug_log,
+    is_very_verbose,
     Redacted,
 )
 
@@ -487,7 +487,7 @@ class LanDevice:
             byte_token = binascii.unhexlify(self.token)
         except binascii.Error as ex:
             raise AuthenticationError(f"Invalid token {ex}") from ex
-        if midea_debug_log:
+        if is_very_verbose():
             _LOGGER.debug(
                 "token='%s' key='%s' for %s",
                 Redacted(self.token, -2),
@@ -511,7 +511,7 @@ class LanDevice:
                 f"Failed to perform handshake for {self.serial_number}"
             )
 
-        if midea_debug_log:
+        if is_very_verbose():
             _LOGGER.debug("handshake_response=%s for %s", response, self)
         response = response[8:72]
 
@@ -520,7 +520,7 @@ class LanDevice:
     def _get_tcp_key(self, response: bytes):
         try:
             tcp_key = self._security.tcp_key(response, binascii.unhexlify(self.key))
-            if midea_debug_log:
+            if is_very_verbose():
                 _LOGGER.debug("tcp_key=%s for %s", tcp_key, self)
 
             self._got_tcp_key = True
@@ -557,7 +557,7 @@ class LanDevice:
 
     def _appliance_send_8370(self, data: bytes) -> list[bytes]:
         """Sends data using v3 (8370) protocol"""
-        if midea_debug_log:
+        if is_very_verbose():
             _LOGGER.debug("appliance_send_8370 %s data=%s", self, data)
 
         if not self._socket or not self._got_tcp_key:
@@ -585,7 +585,7 @@ class LanDevice:
         # copy from data in order to resend data
         original_data = bytes(data)
         data = self._security.encode_8370(data, MSGTYPE_ENCRYPTED_REQUEST)
-        if midea_debug_log:
+        if is_very_verbose():
             _LOGGER.debug("encode_8370 %s data=%s", self, data)
 
         # wait few seconds before re-sending data, default is 0
@@ -598,7 +598,7 @@ class LanDevice:
         responses, self._buffer = self._security.decode_8370(
             self._buffer + response_buf
         )
-        if midea_debug_log:
+        if is_very_verbose():
             _LOGGER.debug(
                 "decode_8370 responses=%s overflow=%s for %s",
                 responses,
@@ -616,7 +616,7 @@ class LanDevice:
     def _appliance_send_v2(self, data: bytes) -> list[bytes]:
         # wait few seconds before re-sending data, default is 0
         self._sleep(self._retries)
-        if midea_debug_log:
+        if is_very_verbose():
             _LOGGER.debug("appliance_send_v2 %s data=%s", self, data)
         response_buf = self._request(data)
         if packets := self._retry_send(data, response_buf):
@@ -658,7 +658,7 @@ class LanDevice:
     def _retry_send(self, data: bytes, response_buf: bytes) -> list[bytes]:
         if not response_buf:
             if self._retries < self.max_retries:
-                if midea_debug_log:
+                if is_very_verbose():
                     _LOGGER.debug(
                         "retrying appliance_send_lan %d of %d",
                         self._retries,
@@ -784,7 +784,7 @@ class LanDevice:
         if len(responses) == 0:
             _LOGGER.debug("No response on device capabilities request")
         else:
-            if midea_debug_log:
+            if is_very_verbose():
                 _LOGGER.debug("device capabilities %s response=%s", self, responses[-1])
             self.state.process_response_device_capabilities(responses[-1], 0)
         cmd = DeviceCapabilitiesCommandMore()
@@ -792,7 +792,7 @@ class LanDevice:
         if len(responses) == 0:
             _LOGGER.debug("No response on device capabilities request (more)")
         else:
-            if midea_debug_log:
+            if is_very_verbose():
                 _LOGGER.debug(
                     "device capabilities (more) %s response=%s", self, responses[-1]
                 )

@@ -16,7 +16,7 @@ from midea_beautiful.command import (
 )
 from midea_beautiful.exceptions import MideaError
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
-from midea_beautiful.util import midea_debug_log, Redacted, strtobool
+from midea_beautiful.util import is_very_verbose, Redacted, strtobool
 
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-instance-attributes
@@ -30,7 +30,8 @@ def _as_bool(value: Any) -> bool:
 
 
 def _dump_data(data: bytes):
-    if midea_debug_log:
+    _LOGGER.error(is_very_verbose)
+    if is_very_verbose():
         for i, byte in enumerate(data):
             _LOGGER.debug("%2d %3d %02X", i, byte, byte)
 
@@ -223,7 +224,7 @@ class DehumidifierAppliance(Appliance):
         )
 
     def process_response(self, data: bytes) -> None:
-        if midea_debug_log:
+        if is_very_verbose():
             _LOGGER.debug(
                 "Processing response for dehumidifier id=%s data=%s",
                 self._id,
@@ -518,7 +519,7 @@ class AirConditionerAppliance(Appliance):
         )
 
     def process_response(self, data: bytes) -> None:
-        if midea_debug_log:
+        if is_very_verbose():
             _LOGGER.debug(
                 "Processing response for air conditioner id=%s data=%s", self._id, data
             )

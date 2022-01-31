@@ -10,6 +10,7 @@ from midea_beautiful.appliance import (
 )
 from midea_beautiful.command import MideaCommand
 from midea_beautiful.exceptions import MideaError
+from midea_beautiful.util import very_verbose
 
 # pylint: disable=protected-access
 # pylint: disable=missing-function-docstring
@@ -444,12 +445,12 @@ def test_aircon_empty_response(caplog: pytest.LogCaptureFixture):
 def test_dump_data(caplog: pytest.LogCaptureFixture):
     appliance = Appliance.instance("34", "ac")
     assert isinstance(appliance, AirConditionerAppliance)
-    with caplog.at_level(logging.NOTSET):
+    with caplog.at_level(logging.DEBUG):
         caplog.clear()
+        very_verbose(True)
         sample_buf: Final = b"\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
         appliance.process_response(sample_buf)
         assert len(caplog.records) > len(sample_buf)
-        assert any(r.levelno < logging.DEBUG for r in caplog.records)
         assert any(" 0  19 13" in m for m in caplog.messages)
         assert any("12   0 00" in m for m in caplog.messages)
     assert appliance.online
