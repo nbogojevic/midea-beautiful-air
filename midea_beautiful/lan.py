@@ -498,7 +498,6 @@ class LanDevice:
         for i in range(self.max_retries):
             request = self._security.encode_8370(byte_token, MSGTYPE_HANDSHAKE_REQUEST)
             response = self._request(request)
-
             if not response:
                 if i > 0:
                     # Retry handshake
@@ -521,7 +520,7 @@ class LanDevice:
         try:
             tcp_key = self._security.tcp_key(response, binascii.unhexlify(self.key))
             if is_very_verbose():
-                _LOGGER.debug("tcp_key=%s for %s", tcp_key, self)
+                _LOGGER.debug("tcp_key=%s for %s", tcp_key.hex(), self)
 
             self._got_tcp_key = True
             _LOGGER.debug("Got TCP key for: %s", self)
@@ -736,7 +735,9 @@ class LanDevice:
                 _LOGGER.debug("Token valid for %s udp_id=%s", self, udp_id)
                 return True
             except MideaError as ex:
-                _LOGGER.debug("Token check failed for udp_id=%s, %s", udp_id, ex)
+                _LOGGER.debug(
+                    "Token check failed for udp_id=%s, %s", udp_id, ex, exc_info=True
+                )
                 # token/key were not valid, forget them
                 self.token, self.key = "", ""
 

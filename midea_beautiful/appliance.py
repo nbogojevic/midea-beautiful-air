@@ -30,7 +30,6 @@ def _as_bool(value: Any) -> bool:
 
 
 def _dump_data(data: bytes):
-    _LOGGER.error(is_very_verbose)
     if is_very_verbose():
         for i, byte in enumerate(data):
             _LOGGER.debug("%2d %3d %02X", i, byte, byte)
