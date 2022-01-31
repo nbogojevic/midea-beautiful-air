@@ -1,2 +1,2 @@
 """ Version File """
-__version__ = "0.8.36"
+__version__ = "0.8.37"
