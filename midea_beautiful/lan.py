@@ -251,7 +251,9 @@ class LanDevice:
         appliance_id = str(int.from_bytes(data[20:26], "little"))
         reply = self._security.aes_decrypt(data[40:-16])
         self.address = ".".join([str(i) for i in reply[3::-1]])
-        _LOGGER.debug("From %s decrypted reply=%s", self.address, Redacted(reply))
+        _LOGGER.debug(
+            "From %s decrypted reply=%s", Redacted(self.address, 5), Redacted(reply)
+        )
         self.port = int.from_bytes(reply[4:8], "little")
         self.serial_number = reply[8:40].decode("ascii")
         ssid_len = reply[40]
@@ -520,7 +522,7 @@ class LanDevice:
         try:
             tcp_key = self._security.tcp_key(response, binascii.unhexlify(self.key))
             if is_very_verbose():
-                _LOGGER.debug("tcp_key=%s for %s", tcp_key.hex(), self)
+                _LOGGER.debug("tcp_key=%s for %s", Redacted(tcp_key.hex(), -2), self)
 
             self._got_tcp_key = True
             _LOGGER.debug("Got TCP key for: %s", self)
