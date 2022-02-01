@@ -973,12 +973,16 @@ def appliance_state(
             sock.connect((address, port))
 
             # Send the discovery query
-            _LOGGER.debug("Sending to %s:%d %s", address, port, DISCOVERY_MSG)
+            _LOGGER.debug(
+                "Sending to %s:%d %s", Redacted(address, 5), port, DISCOVERY_MSG
+            )
             sock.sendall(DISCOVERY_MSG)
 
             # Received data
             response = sock.recv(512)
-            _LOGGER.debug("Received from %s:%d %s", address, port, response)
+            _LOGGER.debug(
+                "Received from %s:%d %s", Redacted(address, 5), port, response
+            )
             appliance = LanDevice(
                 data=response, token=token, key=key, security=security
             )

@@ -59,20 +59,20 @@ class Appliance:
         requested type.
         """
         if DehumidifierAppliance.supported(appliance_type):
-            _LOGGER.debug("Creating DehumidifierAppliance %s", appliance_id)
+            _LOGGER.debug(
+                "Creating DehumidifierAppliance %s", Redacted(appliance_id, 4)
+            )
             return DehumidifierAppliance(
                 appliance_id=appliance_id, appliance_type=appliance_type
             )
         if AirConditionerAppliance.supported(appliance_type):
             _LOGGER.debug(
-                "Creating AirConditionerAppliance %s %s", appliance_id, appliance_type
+                "Creating AirConditionerAppliance %s", Redacted(appliance_id, 4)
             )
             return AirConditionerAppliance(
                 appliance_id=appliance_id, appliance_type=appliance_type
             )
-        _LOGGER.warning(
-            "Creating unsupported appliance %s %s", appliance_id, appliance_type
-        )
+        _LOGGER.warning("Creating unsupported appliance %s", Redacted(appliance_id, 4))
         return Appliance(appliance_id, appliance_type)
 
     @staticmethod
@@ -226,7 +226,7 @@ class DehumidifierAppliance(Appliance):
         if is_very_verbose():
             _LOGGER.debug(
                 "Processing response for dehumidifier id=%s data=%s",
-                self._id,
+                Redacted(self._id, 4),
                 data,
             )
         self.latest_data = data
@@ -520,7 +520,9 @@ class AirConditionerAppliance(Appliance):
     def process_response(self, data: bytes) -> None:
         if is_very_verbose():
             _LOGGER.debug(
-                "Processing response for air conditioner id=%s data=%s", self._id, data
+                "Processing response for air conditioner id=%s data=%s",
+                Redacted(self._id, 4),
+                data,
             )
         self.latest_data = data
         if len(data) > 0:

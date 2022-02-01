@@ -98,7 +98,7 @@ Library supports following protocols:
 
 ## Logging
 
-Library logs additional information at log levels 5 and 1. Credentials information like username, password or token keys should not be logged on levels 5 and higher, but you can use command line tool to display token and key (K1) data. 
+Credentials information like username, password or token keys are redacted by default. When using command line, pass `--no-redact` option to show them in the logs. You can use command line tool to display token and key (K1) data. 
 
 
 ## Command Line Usage
@@ -220,7 +220,7 @@ Set `WARNING` level (default log level if option was not specified)
 midea-beautiful-air-cli --log WARNING discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
-Level can be specified as number, for example `--log 5` or `--log 1`.
+Additional logging is enabled by passing `--verbose` option. Redacting of sensitive information can be disabled by passing `--no-redact` option.
 
 ## Code examples
 

@@ -41,6 +41,7 @@ PROTECTED_RESPONSES: Final = ["iot/secure/getToken", "user/login/id/get", "user/
 _MAX_RETRIES: Final = 3
 _DEFAULT_CLOUD_TIMEOUT: Final = 9
 _REDACTED_KEYS: Final = {"id": {"length": 4}, "sn": {"length": 8}}
+_REDACTED_REQUEST: Final = {"sessionId": {}}
 
 
 def _encode_as_csv(data: bytes | bytearray) -> str:
@@ -163,17 +164,18 @@ class MideaCloud:
 
                 data["sign"] = self._security.sign(url, data)
                 if endpoint not in PROTECTED_REQUESTS:
-                    _LOGGER.debug("HTTP request %s: %s", endpoint, data)
+                    _LOGGER.debug(
+                        "HTTP request %s: %s",
+                        endpoint,
+                        Redacted(data, keys=_REDACTED_REQUEST),
+                    )
                 # POST the endpoint with the payload
                 response = requests.post(
                     url=url, data=data, timeout=self.request_timeout
                 )
                 response.raise_for_status()
                 if endpoint not in PROTECTED_RESPONSES:
-                    _LOGGER.debug(
-                        "HTTP response text: %s",
-                        Redacted(response.text, len(response.text) - 10)
-                    )
+                    _LOGGER.debug("HTTP response text: %s", Redacted(response.text, 0))
 
                 payload = json.loads(response.text)
             except RequestException as exc:
@@ -188,7 +190,7 @@ class MideaCloud:
         if endpoint not in PROTECTED_RESPONSES:
             _LOGGER.debug(
                 "HTTP response: %s",
-                payload if not Redacted.redacting else "*** REDACTED ***"
+                payload if not Redacted.redacting else "*** REDACTED ***",
             )
 
         # Check for errors, raise if there are any
@@ -274,7 +276,9 @@ class MideaCloud:
         )
         if not self._session.get("sessionId"):
             raise AuthenticationError("Unable to retrieve session id from Midea API")
+        sensitive(str(self._session.get("sessionId")))
         self._security.access_token = str(self._session.get("accessToken"))
+        sensitive(self._security.access_token)
 
     def get_lua_script(
         self,
@@ -321,9 +325,9 @@ class MideaCloud:
         Returns:
             list[bytes]: List of reply payloads
         """
-        _LOGGER.debug("Sending to id=%s data=%s", appliance_id, data)
+        _LOGGER.debug("Sending to id=%s data=%s", Redacted(appliance_id, 4), data)
         encoded = _encode_as_csv(data)
-        _LOGGER.debug("Encoded id=%s data=%s", appliance_id, encoded)
+        _LOGGER.debug("Encoded id=%s data=%s", Redacted(appliance_id, 4), encoded)
 
         order = self._security.aes_encrypt_string(encoded)
         response = self.api_request(
@@ -334,7 +338,7 @@ class MideaCloud:
         decrypted = self._security.aes_decrypt_string(response["reply"])
         _LOGGER.debug("decrypted reply %s", decrypted)
         reply = _decode_from_csv(decrypted)
-        _LOGGER.debug("Received from id=%s data=%s", appliance_id, reply)
+        _LOGGER.debug("Received from id=%s data=%s", Redacted(appliance_id, 4), reply)
         if len(reply) < 50:
             raise ProtocolError(
                 f"Invalid payload size, was {len(reply)} expected 50 bytes"
