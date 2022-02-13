@@ -7,7 +7,7 @@ import importlib
 import logging
 import pprint
 import sys
-from typing import Any, cast
+from typing import Any, Sequence, cast
 
 from midea_beautiful import appliance_state, connect_to_cloud, find_appliances
 from midea_beautiful.appliance import AirConditionerAppliance, DehumidifierAppliance
@@ -260,8 +260,10 @@ def _add_standard_options(parser: ArgumentParser) -> None:
     )
 
 
-def cli(argv) -> int:
+def cli(argv: Sequence[str] | None = None) -> int:
     """Command line interface for the library"""
+    if argv is None:
+        argv = sys.argv[1:]
     parser = _configure_argparser()
     args = parser.parse_args(argv)
 

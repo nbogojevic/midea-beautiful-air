@@ -1,6 +1,7 @@
 """Test command line interface and global functions"""
 from argparse import Namespace
 import logging
+import sys
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -178,6 +179,10 @@ def test_run_discover_command(capsys: pytest.CaptureFixture):
 
 
 def test_run_cli(caplog: pytest.LogCaptureFixture):
+    # Empty command
+    with patch.object(sys, 'argv', ["no-args"]):
+        cli()
+
     with pytest.raises(SystemExit):
         cli(["set", "--not-existing"])
 
