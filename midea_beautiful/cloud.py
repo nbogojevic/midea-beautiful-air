@@ -163,7 +163,7 @@ class MideaCloud:
                 url = self._server_url + endpoint
 
                 data["sign"] = self._security.sign(url, data)
-                if endpoint not in PROTECTED_REQUESTS:
+                if not Redacted.redacting or endpoint not in PROTECTED_REQUESTS:
                     _LOGGER.debug(
                         "HTTP request %s: %s",
                         endpoint,
@@ -174,7 +174,7 @@ class MideaCloud:
                     url=url, data=data, timeout=self.request_timeout
                 )
                 response.raise_for_status()
-                if endpoint not in PROTECTED_RESPONSES:
+                if not Redacted.redacting or endpoint not in PROTECTED_RESPONSES:
                     _LOGGER.debug("HTTP response text: %s", Redacted(response.text, 0))
 
                 payload = json.loads(response.text)
@@ -187,7 +187,7 @@ class MideaCloud:
                     cause=exc,
                 )
 
-        if endpoint not in PROTECTED_RESPONSES:
+        if not Redacted.redacting or endpoint not in PROTECTED_RESPONSES:
             _LOGGER.debug(
                 "HTTP response: %s",
                 payload if not Redacted.redacting else "*** REDACTED ***",
