@@ -16,6 +16,7 @@ CLOUD_API_SERVER_URL: Final = "https://mapp.appsmb.com/v1/"
 SUPPORTED_APPS: Final = {
     "NetHome Plus": {"appkey": "3742e9e5842d4ad59c2db887e12449f9", "appid": 1017},
     "Midea Air": {"appkey": "ff0cf6f5f0c3471de36341cab3f7a9af", "appid": 1117},
+    "MSmartHome": {"appkey": "ac21b9f9cbfe4ca5a88562ef25e2b768", "appid": 1010},
 }
 
 # spell-checker: disable
