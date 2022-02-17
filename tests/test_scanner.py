@@ -154,10 +154,7 @@ def test_discover_appliances(
         assert res[0].appliance_id == "456"
         assert res[1].appliance_id == "123"
         assert len(caplog.records) == 1
-        assert (
-            str(caplog.messages[0])
-            == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
-        )
+        assert "the account: appliance-999" in str(caplog.messages[0])
 
 
 def test_discover_appliances_no_cloud(
@@ -215,10 +212,7 @@ def test_scanner_find_appliances(
         assert res[0].appliance_id == "456"
         assert res[1].appliance_id == "123"
         assert len(caplog.records) == 1
-        assert (
-            str(caplog.messages[0])
-            == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
-        )
+        assert "the account: appliance-999" in str(caplog.messages[0])
 
 
 def test_scanner_find_appliances_changed_id(
@@ -251,10 +245,7 @@ def test_scanner_find_appliances_changed_id(
         assert res[1].name == "name-124"
         assert res[1].serial_number == "X0123"
         assert len(caplog.records) == 1
-        assert (
-            str(caplog.messages[0])
-            == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
-        )
+        assert "the account: appliance-999" in str(caplog.messages[0])
 
 
 def test_scanner_find_appliances_missing(mock_cloud, caplog: pytest.LogCaptureFixture):
@@ -337,10 +328,7 @@ def test_scanner_find_appliances_not_supported(
         assert res[0].appliance_id == "123"
         assert res[1].appliance_id == "456"
         assert len(caplog.records) == 3
-        assert (
-            str(caplog.messages[0])
-            == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
-        )
+        assert "the account: appliance-999" in str(caplog.messages[0])
 
 
 def test_scanner_find_appliances_with_update(
@@ -376,7 +364,4 @@ def test_scanner_find_appliances_with_update(
         assert res[0].appliance_id == "123"
         assert res[1].appliance_id == "456"
         assert len(caplog.records) == 3
-        assert (
-            str(caplog.messages[0])
-            == "Found an appliance that is not registered to the account: appliance-999"  # noqa: E501
-        )
+        assert "the account: appliance-999" in str(caplog.messages[0])

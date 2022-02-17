@@ -1,8 +1,11 @@
 """Cryptographic tools."""
 from __future__ import annotations
 
-from binascii import unhexlify
+from binascii import hexlify, unhexlify
+import collections
 from hashlib import md5, sha256
+import hmac
+import logging
 from os import urandom
 from typing import Any, Final, Tuple
 from urllib.parse import unquote_plus, urlencode, urlparse
@@ -13,10 +16,15 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from midea_beautiful.exceptions import AuthenticationError, MideaError, ProtocolError
 from midea_beautiful.midea import (
     DEFAULT_APPKEY,
+    DEFAULT_HMACKEY,
+    DEFAULT_IOTKEY,
+    DEFAULT_SIGNKEY,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_ENCRYPTED_RESPONSE,
 )
 from midea_beautiful.util import HDR_8370
+
+_LOGGER = logging.getLogger(__name__)
 
 ENCRYPTED_MESSAGE_TYPES: Final = (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST)
 
@@ -300,7 +308,6 @@ def crc8(data: bytes) -> int:
 
 
 _BLOCKSIZE: Final = 16
-_DEFAULT_SIGNKEY: Final = "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S"
 
 
 class Security:
@@ -310,11 +317,15 @@ class Security:
     def __init__(
         self,
         appkey: str = DEFAULT_APPKEY,
-        signkey: str = _DEFAULT_SIGNKEY,
+        signkey: str = DEFAULT_SIGNKEY,
+        iotkey: str = DEFAULT_IOTKEY,
+        hmackey: str = DEFAULT_HMACKEY,
         iv: bytes = b"\x00" * _BLOCKSIZE,
     ) -> None:
         self._appkey = appkey
         self._signkey = signkey.encode()
+        self._iotkey = iotkey
+        self._hmackey = hmackey
         self._iv = bytes(iv)
         self._enc_key = md5(self._signkey).digest()  # nosec Midea use MD5 hashing
         self._tcp_key = b""
@@ -502,6 +513,38 @@ class Security:
         sha.update(login_hash.encode("ascii"))
         return sha.hexdigest()
 
+    def encrypt_iam_password(self, login_id: str, password: str) -> str:
+        """Encrypts password for cloud API"""
+        # Hash the password
+        md = md5()
+        md.update(password.encode("ascii"))
+        md_second = md5()
+        md_second.update(md.hexdigest().encode("ascii"))
+        # Create the login hash with the loginID + password hash + appKey,
+        # then hash it all again
+        login_hash = login_id + md_second.hexdigest() + self._appkey
+        sha = sha256()
+        sha.update(login_hash.encode("ascii"))
+
+        return sha.hexdigest()
+
+    def sign_proxied(self, query: dict[str, Any], data: str, random: str) -> str:
+        msg = self._iotkey
+        if data:
+            msg += data
+
+        if query:
+            query = collections.OrderedDict(sorted(query.items()))
+            for k, v in query.items():
+                print(k)
+                print(v)
+                msg += k
+                msg += v
+        msg += random
+
+        sign = hmac.new(self._hmackey.encode("ascii"), msg.encode("ascii"), sha256)
+        return sign.hexdigest()
+
     @property
     def access_token(self) -> str | None:
         """Returns current access token"""
@@ -512,6 +555,11 @@ class Security:
         self._access_token = token
         key = self.md5appkey
         self._data_key = self.aes_decrypt_string(self._access_token, key)
+
+    def set_access_token(self, token: str, key: str) -> None:
+        self._access_token = token
+        key = self.md5appkey
+        self._data_key = self.aes_decrypt_string_no_pad(self._access_token, key)
 
     @property
     def md5appkey(self) -> str:
@@ -540,6 +588,22 @@ class Security:
         unpadder = padding.PKCS7(_BLOCKSIZE * 8).unpadder()
         result = unpadder.update(decrypted) + unpadder.finalize()
         return result.decode("utf-8")
+
+    def aes_decrypt_string_no_pad(self, data: str, key: str | None = None) -> str:
+        """
+        Decrypt string data using key or data_key if key omitted
+        """
+        key = key or self._data_key
+        if key is None:
+            raise MideaError("Missing data key")
+        encrypted_data = unhexlify(data)
+
+        # Midea uses ECB mode for some exchanges
+        cipher = Cipher(algorithms.AES(key.encode("ascii")), modes.ECB())  # nosec
+        decryptor = cipher.decryptor()
+        decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
+        # spell-checker: ignore hexlify
+        return hexlify(decrypted)
 
     def aes_encrypt_string(self, data: str, key: str | None = None) -> str:
         """

@@ -5,8 +5,9 @@ from datetime import datetime
 import json
 import logging
 from threading import RLock
-from time import sleep
+from time import sleep, time
 from typing import Any, Final, Tuple
+from secrets import token_hex, token_urlsafe
 
 import requests
 from requests.exceptions import RequestException
@@ -21,8 +22,16 @@ from midea_beautiful.exceptions import (
     ProtocolError,
     RetryLaterError,
 )
-from midea_beautiful.midea import CLOUD_API_SERVER_URL, DEFAULT_APP_ID, DEFAULT_APPKEY
-from midea_beautiful.util import Redacted, sensitive
+from midea_beautiful.midea import (
+    DEFAULT_API_SERVER_URL,
+    DEFAULT_APP_ID,
+    DEFAULT_APPKEY,
+    DEFAULT_HMACKEY,
+    DEFAULT_IOTKEY,
+    DEFAULT_PROXIED,
+    DEFAULT_SIGNKEY,
+)
+from midea_beautiful.util import Redacted, is_very_verbose, sensitive
 
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
@@ -33,15 +42,25 @@ _LOGGER = logging.getLogger(__name__)
 CLOUD_API_CLIENT_TYPE: Final = 1  # Android
 CLOUD_API_FORMAT: Final = 2  # JSON
 CLOUD_API_LANGUAGE: Final = "en_US"
-CLOUD_API_SRC: Final = 17
 
-PROTECTED_REQUESTS: Final = ["user/login/id/get", "user/login"]
-PROTECTED_RESPONSES: Final = ["iot/secure/getToken", "user/login/id/get", "user/login"]
+PROTECTED_REQUESTS: Final = ["/v1/user/login/id/get", "/v1/user/login"]
+PROTECTED_RESPONSES: Final = [
+    "/v1/iot/secure/getToken",
+    "/v1/user/login/id/get",
+    "/v1/user/login",
+]
 
 _MAX_RETRIES: Final = 3
 _DEFAULT_CLOUD_TIMEOUT: Final = 9
 _REDACTED_KEYS: Final = {"id": {"length": 4}, "sn": {"length": 8}}
 _REDACTED_REQUEST: Final = {"sessionId": {}}
+
+_PROXIED_AUTH: Final = "Basic YWMyMWI5ZjljYmZlNGNhNWE4ODU2MmVmMjVlMmI3Njg6bWVpY2xvdWQ="
+_PROXIED_APP_VERSION: Final = "2.22.0"
+_PROXIED_SYS_VERSION: Final = "8.1.0"
+# _PROXIED_BRAND: Final = "Beautiful"
+# _PROXIED_DEVICE_ID: Final = "baba"
+# _PROXIED_DEVICE_NAME: Final = "Python"
 
 
 def _encode_as_csv(data: bytes | bytearray) -> str:
@@ -78,25 +97,46 @@ class MideaCloud:
         account: str,
         password: str,
         appid: int | str | None = DEFAULT_APP_ID,
-        server_url: str = CLOUD_API_SERVER_URL,
+        api_url: str = DEFAULT_API_SERVER_URL,
+        sign_key: str = DEFAULT_SIGNKEY,
+        iot_key: str = DEFAULT_IOTKEY,
+        hmac_key: str = DEFAULT_HMACKEY,
+        proxied: str = DEFAULT_PROXIED,
     ) -> None:
         # Get this from any of the Midea based apps
         self._appkey = appkey or DEFAULT_APPKEY
         self._appid = int(appid or DEFAULT_APP_ID)
+        self._sign_key = sign_key or DEFAULT_SIGNKEY
+        self._iot_key = iot_key or DEFAULT_IOTKEY
+        self._hmac_key = hmac_key or DEFAULT_IOTKEY
+        self._proxied = proxied or DEFAULT_PROXIED
+        self._pushtoken = token_urlsafe(120)
         # Your email address for your Midea account
         self._account = account
         self._password = password
         # Server URL
-        self._server_url = server_url
+        self._api_url = api_url
+        self._region = None
 
-        self._security = Security(appkey=self._appkey)
+        self._security = Security(
+            appkey=self._appkey,
+            signkey=self._sign_key,
+            iotkey=self._iot_key,
+            hmackey=self._hmac_key,
+        )
 
         # Unique user ID that is separate to the email address
         self._login_id: str = ""
 
+        self._country_code: str = ""
+        self._id_adapt: str = ""
+        self._mas_url: str = ""
+        self._sse_url: str = ""
         # A session dictionary that holds the login information of
         # the current user
         self._session: dict = {}
+        self._uid: str = ""
+        self._header_access_token = ""
 
         # Allow for multiple threads to initiate requests
         self._api_lock = RLock()
@@ -114,7 +154,10 @@ class MideaCloud:
         endpoint: str,
         args: dict[str, Any] = None,
         authenticate=True,
-        key="result",
+        key=None,
+        data=None,
+        req_id=None,
+        instant=None,
     ) -> Any:
         """
         Sends an API request to the Midea cloud service and returns the
@@ -145,33 +188,91 @@ class MideaCloud:
                     return self._session
 
                 # Set up the initial data payload with the global variable set
-                data = {
-                    "appId": self._appid,
-                    "format": CLOUD_API_FORMAT,
-                    "clientType": CLOUD_API_CLIENT_TYPE,
-                    "language": CLOUD_API_LANGUAGE,
-                    "src": CLOUD_API_SRC,
-                    "stamp": datetime.now().strftime("%Y%m%d%H%M%S"),
-                }
+                if data is None:
+                    data = {
+                        "appId": self._appid,
+                        "format": CLOUD_API_FORMAT,
+                        "clientType": CLOUD_API_CLIENT_TYPE,
+                        "language": CLOUD_API_LANGUAGE,
+                        "src": self._appid,
+                        "stamp": datetime.now().strftime("%Y%m%d%H%M%S"),
+                    }
                 # Add the method parameters for the endpoint
                 data.update(args)
+                headers = {}
 
                 # Add the sessionId if there is a valid session
                 if self._session:
-                    data["sessionId"] = self._session["sessionId"]
+                    if not self._proxied:
+                        data["sessionId"] = self._session["sessionId"]
+                    else:
+                        headers["uid"] = self._uid
+                        headers["accessToken"] = self._header_access_token
 
-                url = self._server_url + endpoint
+                url = self._api_url + endpoint
 
-                data["sign"] = self._security.sign(url, data)
+                if self._proxied:
+                    error_code_tag = "code"
+                    key = key if key is not None else "data"
+                    if not data.get("reqId"):
+                        data.update(
+                            {
+                                # "androidApiLevel": "27",
+                                "appVNum": _PROXIED_APP_VERSION,
+                                "appVersion": _PROXIED_APP_VERSION,
+                                "clientVersion": _PROXIED_APP_VERSION,
+                                # "deviceBrand": _PROXIED_BRAND,
+                                # "deviceId": _PROXIED_DEVICE_ID,
+                                "platformId": "1",
+                                "reqId": req_id or token_hex(16),
+                                "retryCount": "3",
+                                "uid": self._uid or "",
+                                "userType": "0",
+                            }
+                        )
+                    send_payload = json.dumps(data)
+                    instant = instant or str(int(time()))
+                    sign = self._security.sign_proxied(
+                        None, data=send_payload, random=instant
+                    )
+                    headers.update(
+                        {
+                            "x-recipe-app": str(self._appid),
+                            "Authorization": _PROXIED_AUTH,
+                            "sign": sign,
+                            "secretVersion": "1",
+                            "random": instant,
+                            "version": _PROXIED_APP_VERSION,
+                            "systemVersion": _PROXIED_SYS_VERSION,
+                            "platform": "0",
+                            "Accept-Encoding": "identity",
+                            "Content-Type": "application/json",
+                        }
+                    )
+
+                    if self._uid:
+                        headers["uid"] = self._uid
+                    if self._header_access_token:
+                        headers["accessToken"] = self._header_access_token
+                else:
+                    error_code_tag = "errorCode"
+                    key = key if key is not None else "result"
+                    data["sign"] = self._security.sign(url, data)
+
+                    send_payload = data
+
                 if not Redacted.redacting or endpoint not in PROTECTED_REQUESTS:
                     _LOGGER.debug(
-                        "HTTP request %s: %s",
+                        "HTTP request %s: %s %s",
                         endpoint,
+                        headers,
                         Redacted(data, keys=_REDACTED_REQUEST),
                     )
-                # POST the endpoint with the payload
                 response = requests.post(
-                    url=url, data=data, timeout=self.request_timeout
+                    url=url,
+                    data=send_payload,
+                    timeout=self.request_timeout,
+                    headers=headers,
                 )
                 response.raise_for_status()
                 if not Redacted.redacting or endpoint not in PROTECTED_RESPONSES:
@@ -194,7 +295,7 @@ class MideaCloud:
             )
 
         # Check for errors, raise if there are any
-        if str(payload.get("errorCode", "0")) != "0":
+        if str(payload.get(error_code_tag, "0")) != "0":
             self.handle_api_error(int(payload["errorCode"]), payload["msg"])
             # If no exception, then retry
             return self._retry_api_request(
@@ -206,7 +307,10 @@ class MideaCloud:
             )
 
         self._retries = 0
-        return payload.get(key) if key else payload
+        result = payload.get(key) if key else payload
+        if is_very_verbose():
+            _LOGGER.debug("using key=%s, result=%s", key, result)
+        return result
 
     def _sleep(self, duration: float) -> None:
         sleep(duration * self.sleep_interval)
@@ -245,27 +349,109 @@ class MideaCloud:
         Get the login ID from the email address
         """
         response = self.api_request(
-            "user/login/id/get",
+            "/v1/user/login/id/get",
             {"loginAccount": self._account},
             authenticate=False,
         )
         self._login_id: str = response["loginId"]
+
+    def _get_region(self) -> None:
+        """
+        Gets the region from the email address
+        """
+        response = self.api_request(
+            "/v1/multicloud/platform/user/route",
+            {"userName": self._account},
+            authenticate=False,
+        )
+        self._country_code: str = response["countryCode"]
+        self._id_adapt: str = response["idAdapt"]
+        if mas_url := response["masUrl"]:
+            self._api_url = mas_url
 
     def authenticate(self) -> None:
         """
         Performs a user login with the credentials supplied to the
         constructor
         """
+        if self._proxied and not self._region:
+            self._get_region()
         if not self._login_id:
             self._get_login_id()
 
-        if self._session is not None and self._session.get("sessionId") is not None:
-            # Don't try logging in again, someone beat this thread to it
-            return
+        if self._session:
+            if self._proxied:
+                return
+            if self._session.get("sessionId") is not None:
+                # Don't try logging in again, someone beat this thread to it
+                return
 
         # Log in and store the session
+        if self._proxied:
+            login_id = self._login_id
+            stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            self._header_access_token = ""
+            self._uid = ""
+            self._session: dict = self.api_request(
+                "/mj/user/login",
+                instant=None,
+                data={
+                    "data": {
+                        "appKey": self._appkey,
+                        "appVersion": _PROXIED_APP_VERSION,
+                        # "deviceId": _PROXIED_DEVICE_ID,
+                        # "deviceName": _PROXIED_DEVICE_NAME,
+                        "osVersion": _PROXIED_SYS_VERSION,
+                        "platform": "2",
+                    },
+                    "iotData": {
+                        # "androidApiLevel": "27",
+                        "appId": str(self._appid),
+                        "appVNum": _PROXIED_APP_VERSION,
+                        "appVersion": _PROXIED_APP_VERSION,
+                        "clientType": CLOUD_API_CLIENT_TYPE,
+                        "clientVersion": _PROXIED_APP_VERSION,
+                        # "deviceBrand": _PROXIED_BRAND,
+                        # "deviceId": _PROXIED_DEVICE_ID,
+                        "format": CLOUD_API_FORMAT,
+                        "language": CLOUD_API_LANGUAGE,
+                        # spell-checker: ignore iampwd
+                        "iampwd": self._security.encrypt_iam_password(
+                            login_id, self._password
+                        ),
+                        "loginAccount": self._account,
+                        "password": self._security.encrypt_password(
+                            login_id, self._password
+                        ),
+                        "pushToken": self._pushtoken,
+                        "pushType": "4",
+                        "reqId": token_hex(16),
+                        "retryCount": "3",
+                        "src": "10",
+                        "stamp": stamp,
+                    },
+                    "reqId": token_hex(16),
+                    "stamp": stamp,
+                },
+                authenticate=False,
+            )
+            self._uid = str(self._session.get("uid"))
+            sensitive(self._uid)
+            # spell-checker:ignore mdata
+            if mdata := self._session.get("mdata"):
+                self._header_access_token = mdata["accessToken"]
+                sensitive(self._header_access_token)
+
+            self._security.set_access_token(
+                str(self._session.get("accessToken")), self._appkey
+            )
+            sensitive(self._security.access_token)
+        else:
+            self._login_non_proxied()
+
+    def _login_non_proxied(self):
         self._session: dict = self.api_request(
-            "user/login",
+            "/v1/user/login",
             {
                 "loginAccount": self._account,
                 "password": self._security.encrypt_password(
@@ -290,7 +476,7 @@ class MideaCloud:
     ):
         """Retrieves Lua script used by mobile app"""
         response: dict = self.api_request(
-            "appliance/protocol/lua/luaGet",
+            "/v1/appliance/protocol/lua/luaGet",
             {
                 "iotAppId": DEFAULT_APP_ID,
                 "applianceMFCode": manufacturer,
@@ -299,9 +485,9 @@ class MideaCloud:
                 "applianceSn": serial_number,
                 "version": version,
             },
-            key=None,
+            key="",
         )
-        if data := response.get("data", {}):
+        if response and (data := response.get("data", {})):
             url = str(data.get("url"))
             _LOGGER.debug("Lua script url=%s", url)
             payload = requests.get(url)
@@ -331,7 +517,7 @@ class MideaCloud:
 
         order = self._security.aes_encrypt_string(encoded)
         response = self.api_request(
-            "appliance/transparent/send",
+            "/v1/appliance/transparent/send",
             {"order": order, "funId": "0000", "applianceId": appliance_id},
         )
 
@@ -355,28 +541,31 @@ class MideaCloud:
             return self._appliance_list
 
         # Get all home groups
-        response = self.api_request("homegroup/list/get")
-        _LOGGER.debug("Midea home group query result=%s", response)
-        if not response or not response.get("list"):
-            _LOGGER.debug(
-                "Unable to get home groups from Midea API. response=%s",
-                response,
-            )
-            raise CloudRequestError("Unable to get home groups from Midea API")
-        home_groups = response["list"]
+        # response = self.api_request("/v1/homegroup/list/get")
+        # _LOGGER.debug("Midea home group query result=%s", response)
+        # if not response or not response.get("list"):
+        #     _LOGGER.debug(
+        #         "Unable to get home groups from Midea API. response=%s",
+        #         response,
+        #     )
+        #     raise CloudRequestError("Unable to get home groups from Midea API")
+        # home_groups = response["list"]
 
-        # Find default home group
-        home_group = next((grp for grp in home_groups if grp["isDefault"] == "1"), None)
-        if not home_group:
-            _LOGGER.debug("Unable to get default home group from Midea API")
-            raise CloudRequestError("Unable to get default home group from Midea API")
+        # # Find default home group
+        # home_group = next(
+        #   (grp for grp in home_groups if grp["isDefault"] == "1"), Next
+        # )
+        # if not home_group:
+        #     _LOGGER.debug("Unable to get default home group from Midea API")
+        #     raise CloudRequestError("Unable to get default home group from Midea API")
 
-        home_group_id = home_group["id"]
+        # home_group_id = home_group["id"]
 
         # Get list of appliances in default home group
-        response = self.api_request(
-            "appliance/list/get", {"homegroupId": home_group_id}
-        )
+        # response = self.api_request(
+        #     "/v1/appliance/list/get", {"homegroupId": home_group_id}
+        # )
+        response = self.api_request("/v1/appliance/user/list/get", {})
 
         self._appliance_list = []
         if response["list"]:
@@ -407,7 +596,7 @@ class MideaCloud:
         Get token corresponding to udp_id
         """
 
-        response = self.api_request("iot/secure/getToken", {"udpid": udp_id})
+        response = self.api_request("/v1/iot/secure/getToken", {"udpid": udp_id})
         for token in response["tokenlist"]:
             if token["udpId"] == udp_id:
                 return str(token["token"]), str(token["key"])
@@ -474,4 +663,4 @@ class MideaCloud:
         handler()
 
     def __str__(self) -> str:
-        return f"MideaCloud({self._server_url})"
+        return f"MideaCloud({self._api_url})"

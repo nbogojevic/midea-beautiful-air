@@ -6,8 +6,12 @@ import logging
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import LanDevice, appliance_state
 from midea_beautiful.midea import (
+    DEFAULT_API_SERVER_URL,
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
+    DEFAULT_HMACKEY,
+    DEFAULT_IOTKEY,
+    DEFAULT_PROXIED,
     DEFAULT_RETRIES,
     DEFAULT_TIMEOUT,
 )
@@ -29,7 +33,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def connect_to_cloud(
-    account: str, password: str, appkey=DEFAULT_APPKEY, appid=DEFAULT_APP_ID
+    account: str,
+    password: str,
+    appkey=DEFAULT_APPKEY,
+    appid=DEFAULT_APP_ID,
+    hmackey=DEFAULT_HMACKEY,
+    iotkey=DEFAULT_IOTKEY,
+    api_url=DEFAULT_API_SERVER_URL,
+    proxied=DEFAULT_PROXIED,
 ) -> MideaCloud:
     """Connects to Midea cloud API
 
@@ -42,7 +53,16 @@ def connect_to_cloud(
     Returns:
         MideaCloud: Interface to Midea cloud API
     """
-    cloud = MideaCloud(appkey=appkey, account=account, password=password, appid=appid)
+    cloud = MideaCloud(
+        appkey=appkey,
+        account=account,
+        password=password,
+        appid=appid,
+        hmac_key=hmackey,
+        iot_key=iotkey,
+        api_url=api_url,
+        proxied=proxied,
+    )
     cloud.authenticate()
     return cloud
 
@@ -57,6 +77,10 @@ def find_appliances(  # pylint: disable=too-many-arguments
     appliances: list[LanDevice] = None,
     retries: int = DEFAULT_RETRIES,
     timeout: float = DEFAULT_TIMEOUT,
+    hmackey=DEFAULT_HMACKEY,
+    iotkey=DEFAULT_IOTKEY,
+    api_url=DEFAULT_API_SERVER_URL,
+    proxied=DEFAULT_PROXIED,
 ) -> list[LanDevice]:
     """Finds appliances on local network
 
@@ -78,7 +102,16 @@ def find_appliances(  # pylint: disable=too-many-arguments
     """
     _LOGGER.debug("Library version=%s", __version__)
     if not cloud and account and password:
-        cloud = connect_to_cloud(account, password, appkey, appid)
+        cloud = connect_to_cloud(
+            account,
+            password,
+            appkey,
+            appid,
+            hmackey=hmackey,
+            iotkey=iotkey,
+            api_url=api_url,
+            proxied=proxied,
+        )
 
     addresses = addresses or ["255.255.255.255"]
     _LOGGER.debug("Scanning for midea dehumidifier appliances via %s", addresses)

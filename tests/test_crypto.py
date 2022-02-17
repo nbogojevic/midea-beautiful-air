@@ -173,3 +173,22 @@ def test_encode_8730() -> None:
     security._tcp_key = b""
     with pytest.raises(ProtocolError):
         result, incomplete = security.decode_8370(msg_bytes)
+
+
+def test_sign_proxied() -> None:
+    # spell-checker: ignore meicloud babadeda
+    security = Security("ac21b9f9cbfe4ca5a88562ef25e2b768", iotkey="meicloud", hmackey="PROD_VnoClJI9aikS8dyy")  # noqa: E501
+    data = '{"appVersion":"2.22.0","src":"10","retryCount":"3","format":2,"androidApiLevel":"27","stamp":"20220216161350","language":"en","platformId":"1","userName":"test@example.com","clientVersion":"2.22.0","deviceId":"babadeda","reqId":"d0f7eb1638e3480bbbde67a22bf41298","uid":"","clientType":1,"appId":"1010","userType":"0","appVNum":"2.22.0","deviceBrand":"Test device"}'  # noqa: E501
+    random_value = "1645024430315"
+    sign = security.sign_proxied(None, data, random_value)
+    assert sign == "63c353e308fd7b6d1b84c55aedfbc70624974a6251d5f2992d408cd82135b812"
+
+
+def test_decrypt_access_token_proxy() -> None:
+    access_token = "52d68e27772d0e63cb864de90c4ec6e02ad38cbc26e42b1a524918674068feca"
+    security = Security("ac21b9f9cbfe4ca5a88562ef25e2b768", iotkey="meicloud", hmackey="PROD_VnoClJI9aikS8dyy")  # noqa: 
+
+    security.set_access_token(access_token, "ac21b9f9cbfe4ca5a88562ef25e2b768")
+
+    assert security._access_token == "52d68e27772d0e63cb864de90c4ec6e02ad38cbc26e42b1a524918674068feca"  # noqa: E501
+    assert security._data_key == b"c8aa6c57402cac8b5674db84acc89be82c704362da72b5ff21544b483b50d39c"  # noqa: E501

@@ -117,7 +117,11 @@ class _MideaDiscovery:
                     appliances.append(scanned)
 
     def _match_with_cloud(
-        self, appliances, cloud_appliances, known_cloud_appliances, scanned
+        self,
+        appliances: list[LanDevice],
+        cloud_appliances: list[dict],
+        known_cloud_appliances: set[str],
+        scanned: LanDevice,
     ):
         for details in cloud_appliances:
             if matches_lan_cloud(scanned, details):
@@ -128,9 +132,16 @@ class _MideaDiscovery:
                     known_cloud_appliances.remove(details["id"])
                 break
         else:
+            try:
+                scanned.valid_token(self._cloud)
+            except Exception as ex:
+                _LOGGER.debug("Unable to get token for %s cause %s", scanned, ex)
             _LOGGER.warning(
-                "Found an appliance that is not registered to the account: %s",
+                "Found an appliance that is not registered to the account: %s"
+                " token=%s key=%s",
                 scanned,
+                Redacted(scanned.token),
+                Redacted(scanned.key)
             )
 
 

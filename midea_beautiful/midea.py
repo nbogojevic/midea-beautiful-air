@@ -11,12 +11,39 @@ MSGTYPE_TRANSPARENT: Final = 0xF
 
 DISCOVERY_PORT: Final = 6445
 
-CLOUD_API_SERVER_URL: Final = "https://mapp.appsmb.com/v1/"
+_CLOUD_API_SERVER_URL: Final = "https://mapp.appsmb.com"
+_MSMART_API_SERVER_URL: Final = "https://mp-prod.appsmb.com/mas/v5/app/proxy?alias="
+# spell-checker: disable
+
+MSMART_APP_MAS_SIGN_TEST = "SIT_4VjZdg19laDoIrut"
+_MSMART_APP_MAS_SIGN = "PROD_VnoClJI9aikS8dyy"
+# spell-check: enable
 
 SUPPORTED_APPS: Final = {
-    "NetHome Plus": {"appkey": "3742e9e5842d4ad59c2db887e12449f9", "appid": 1017},
-    "Midea Air": {"appkey": "ff0cf6f5f0c3471de36341cab3f7a9af", "appid": 1117},
-    "MSmartHome": {"appkey": "ac21b9f9cbfe4ca5a88562ef25e2b768", "appid": 1010},
+    "NetHome Plus": {
+        "appkey": "3742e9e5842d4ad59c2db887e12449f9",
+        "appid": 1017,
+        "apiurl": "https://mapp.appsmb.com",
+        "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
+        "proxied": None,
+    },
+    "Midea Air": {
+        "appkey": "ff0cf6f5f0c3471de36341cab3f7a9af",
+        "appid": 1117,
+        "apiurl": "https://mapp.appsmb.com",
+        "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
+        "proxied": None,
+    },
+    "MSmartHome": {
+        "appkey": "ac21b9f9cbfe4ca5a88562ef25e2b768",
+        "appid": 1010,
+        "apiurl": "https://mp-prod.appsmb.com/mas/v5/app/proxy?alias=",
+        "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
+        "iotkey": "meicloud",
+        "hmackey": "PROD_VnoClJI9aikS8dyy",
+        "proxied": "v5",
+
+    },
 }
 
 # spell-checker: disable
@@ -25,6 +52,11 @@ SUPPORTED_APPS: Final = {
 DEFAULT_APP = "NetHome Plus"
 DEFAULT_APPKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP]["appkey"]
 DEFAULT_APP_ID: Final[int] = SUPPORTED_APPS[DEFAULT_APP]["appid"]
+DEFAULT_API_SERVER_URL: Final[str] = SUPPORTED_APPS[DEFAULT_APP]["apiurl"]
+DEFAULT_SIGNKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP]["signkey"]
+DEFAULT_HMACKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP].get("hmackey")
+DEFAULT_IOTKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP].get("iotkey")
+DEFAULT_PROXIED: Final[str] = SUPPORTED_APPS[DEFAULT_APP]["proxied"]
 # spell-checker: disable
 # pylint: enable=unsubscriptable-object
 # spell-checker: enable

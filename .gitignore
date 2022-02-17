@@ -133,3 +133,6 @@ dmypy.json
 **/tem*.py
 
 prof
+
+# Private tests
+private_tests/

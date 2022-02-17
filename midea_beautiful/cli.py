@@ -14,7 +14,14 @@ from midea_beautiful.appliance import AirConditionerAppliance, DehumidifierAppli
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.command import AirConditionerResponse, DehumidifierResponse
 from midea_beautiful.lan import LanDevice
-from midea_beautiful.midea import DEFAULT_APP_ID, DEFAULT_APPKEY
+from midea_beautiful.midea import (
+    DEFAULT_API_SERVER_URL,
+    DEFAULT_APP_ID,
+    DEFAULT_APPKEY,
+    DEFAULT_HMACKEY,
+    DEFAULT_IOTKEY,
+    DEFAULT_SIGNKEY,
+)
 from midea_beautiful.util import very_verbose, Redacted
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,6 +88,10 @@ def _run_discover_command(args: Namespace) -> int:
         password=args.password,
         appid=args.appid,
         addresses=args.address,
+        hmackey=args.hmackey,
+        iotkey=args.iotkey,
+        api_url=args.apiurl,
+        proxied="v5" if args.proxied else None,
     )
     for appliance in appliances:
         _output(appliance, args.credentials)
@@ -118,7 +129,14 @@ def _run_status_command(args: Namespace) -> int:
     if not args.token:
         if args.account and args.password:
             cloud = connect_to_cloud(
-                args.account, args.password, args.appkey, args.appid
+                account=args.account,
+                password=args.password,
+                appkey=args.appkey,
+                appid=args.appid,
+                hmackey=args.hmackey,
+                iotkey=args.iotkey,
+                api_url=args.apiurl,
+                proxied="v5" if args.proxied else None,
             )
             appliance = appliance_state(
                 address=args.ip, cloud=cloud, use_cloud=args.cloud, appliance_id=args.id
@@ -144,18 +162,23 @@ def _run_status_command(args: Namespace) -> int:
 
 _COMMON_ARGUMENTS = [
     "account",
+    "apiurl",
     "appid",
     "appkey",
     "cloud",
     "command",
     "credentials",
+    "hmackey",
     "id",
+    "iotkey",
     "ip",
     "key",
     "loglevel",
     "no_redact",
+    "signkey",
     "verbose",
     "password",
+    "proxied",
     "token",
 ]
 
@@ -205,7 +228,14 @@ def _run_set_command(args: Namespace) -> int:
     if not args.token:
         if args.account and args.password:
             cloud = connect_to_cloud(
-                args.account, args.password, args.appkey, args.appid
+                account=args.account,
+                password=args.password,
+                appkey=args.appkey,
+                appid=args.appid,
+                hmackey=args.hmackey,
+                iotkey=args.iotkey,
+                api_url=args.apiurl,
+                proxied="v5" if args.proxied else None,
             )
             appliance = appliance_state(
                 address=args.ip, cloud=cloud, use_cloud=args.cloud, appliance_id=args.id
@@ -245,18 +275,26 @@ def _add_standard_options(parser: ArgumentParser) -> None:
     parser.add_argument(
         "--password", help="Midea app password", default="", required=False
     )
-    parser.add_argument(
-        "--appkey",
-        help="Midea app key",
-        default=DEFAULT_APPKEY,
-    )
+    parser.add_argument("--appkey", help="Midea app key", default=DEFAULT_APPKEY)
     parser.add_argument(
         "--appid",
         help="Midea app id. Note that appid must correspond to app key",
         default=DEFAULT_APP_ID,
     )
+    parser.add_argument("--hmackey", help="Midea HMAC key", default=DEFAULT_HMACKEY)
+    parser.add_argument(
+        "--apiurl", help="Midea API server url", default=DEFAULT_API_SERVER_URL
+    )
+    parser.add_argument("--iotkey", help="Midea IOT key", default=DEFAULT_IOTKEY)
+    parser.add_argument("--signkey", help="Midea sign key", default=DEFAULT_SIGNKEY)
     parser.add_argument(
         "--credentials", action="store_true", help="show credentials in output"
+    )
+    parser.add_argument(
+        "--proxied",
+        help="activates proxy api",
+        action="store_true",
+        dest="proxied",
     )
 
 

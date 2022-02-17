@@ -754,7 +754,7 @@ class LanDevice:
             _LOGGER.debug("Error identifying appliance %s", ex)
             return False
 
-    def _valid_token(self, cloud: MideaCloud | None):
+    def valid_token(self, cloud: MideaCloud | None):
         if not self.token or not self.key:
             if not cloud:
                 raise MideaError(f"Provide either token/key pair or cloud {self!r}")
@@ -780,7 +780,7 @@ class LanDevice:
         self._check_is_supported(use_cloud)
 
         if _is_token_version(self.version) and not use_cloud:
-            self._valid_token(cloud)
+            self.valid_token(cloud)
 
         cmd = DeviceCapabilitiesCommand()
         responses = self._status(cmd, cloud if use_cloud else None)

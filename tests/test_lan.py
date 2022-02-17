@@ -507,20 +507,20 @@ def test_valid_token(mock_cloud):
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
     )
     with pytest.raises(MideaError) as ex:
-        device._valid_token(None)
+        device.valid_token(None)
     assert "Provide either token/key pair or cloud " in ex.value.message
     with patch.object(device, "_get_valid_token", side_effect=[False]):
         with pytest.raises(AuthenticationError) as ex:
-            device._valid_token(mock_cloud)
+            device.valid_token(mock_cloud)
         assert "Unable to get valid token for " in ex.value.message
     with patch.object(device, "_get_valid_token", side_effect=[True]):
         with patch.object(device, "_authenticate") as _authenticate:
-            device._valid_token(mock_cloud)
+            device.valid_token(mock_cloud)
             _authenticate.assert_not_called()
     device.token = "TOKEN"
     device.key = "TOKEN"
     with patch.object(device, "_authenticate") as _authenticate:
-        device._valid_token(None)
+        device.valid_token(None)
         _authenticate.assert_called_once()
 
 
