@@ -143,6 +143,12 @@ Search for devices by providing broadcast address
 midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --address 192.0.2.255 --credentials
 ```
 
+Disovery when appliances are registered to new API:
+
+```shell
+midea-beautiful-air-cli --verbose ---log DEBUG discover --account ACCOUNT --password PASSWORD --credentials --appkey APPKEY --appid APPID --hmackey HMACKEY --iotkey IOTKEY --apiurl https://mp-prod.appsmb.com/mas/v5/app/proxy?alias= --proxied
+```
+
 ### Appliance status
 
 Get status of an appliance using known TOKEN and KEY (e.g. retrieved using `discover` command)
