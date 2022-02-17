@@ -22,7 +22,7 @@ from midea_beautiful.midea import (
     DEFAULT_IOTKEY,
     DEFAULT_SIGNKEY,
 )
-from midea_beautiful.util import very_verbose, Redacted
+from midea_beautiful.util import Redacted, very_verbose
 
 _LOGGER = logging.getLogger(__name__)
 

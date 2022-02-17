@@ -32,12 +32,7 @@ from midea_beautiful.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
 )
-from midea_beautiful.util import (
-    HDR_8370,
-    HDR_ZZ,
-    is_very_verbose,
-    Redacted,
-)
+from midea_beautiful.util import HDR_8370, HDR_ZZ, Redacted, is_very_verbose
 
 # pylint: disable=too-many-arguments
 # pylint: disable=duplicate-code

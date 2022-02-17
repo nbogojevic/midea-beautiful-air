@@ -1,7 +1,11 @@
 """Midea constants"""
 from __future__ import annotations
 
+from binascii import unhexlify
 from typing import Final
+
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 MSGTYPE_HANDSHAKE_REQUEST: Final = 0x0
 MSGTYPE_HANDSHAKE_RESPONSE: Final = 0x1
@@ -11,13 +15,24 @@ MSGTYPE_TRANSPARENT: Final = 0xF
 
 DISCOVERY_PORT: Final = 6445
 
-_CLOUD_API_SERVER_URL: Final = "https://mapp.appsmb.com"
-_MSMART_API_SERVER_URL: Final = "https://mp-prod.appsmb.com/mas/v5/app/proxy?alias="
-# spell-checker: disable
 
-MSMART_APP_MAS_SIGN_TEST = "SIT_4VjZdg19laDoIrut"
-_MSMART_APP_MAS_SIGN = "PROD_VnoClJI9aikS8dyy"
-# spell-check: enable
+INTERNAL_KEY = unhexlify(
+    "c8aa6c57402cac8b5674db84acc89be82c704362da72b5ff21544b483b50d39c"
+)
+
+
+_BLOCKSIZE: Final = 16
+
+
+def decrypt_internal(data: str) -> str:
+    encrypted_data = unhexlify(data)
+    cipher = Cipher(algorithms.AES(INTERNAL_KEY), modes.ECB())  # nosec
+    decryptor = cipher.decryptor()
+    decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
+    unpadder = padding.PKCS7(_BLOCKSIZE * 8).unpadder()
+    result = unpadder.update(decrypted) + unpadder.finalize()
+    return str(result, "utf-8")
+
 
 SUPPORTED_APPS: Final = {
     "NetHome Plus": {
@@ -39,16 +54,18 @@ SUPPORTED_APPS: Final = {
         "appid": 1010,
         "apiurl": "https://mp-prod.appsmb.com/mas/v5/app/proxy?alias=",
         "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
-        "iotkey": "meicloud",
-        "hmackey": "PROD_VnoClJI9aikS8dyy",
+        # meicloud
+        "iotkey": decrypt_internal("f4dcd1511147af45775d7e680ac5312b"),  # noqa: E501
+        # PROD_VnoClJI9aikS8dyy
+        "hmackey": decrypt_internal(
+            "5018e65c32bcec087e6c01631d8cf55398308fc19344d3e130734da81ac2e162"
+        ),
         "proxied": "v5",
-
     },
 }
 
-# spell-checker: disable
+# spell-checker: ignore unsubscriptable
 # pylint: disable=unsubscriptable-object
-# spell-checker: enable
 DEFAULT_APP = "NetHome Plus"
 DEFAULT_APPKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP]["appkey"]
 DEFAULT_APP_ID: Final[int] = SUPPORTED_APPS[DEFAULT_APP]["appid"]
@@ -57,9 +74,7 @@ DEFAULT_SIGNKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP]["signkey"]
 DEFAULT_HMACKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP].get("hmackey")
 DEFAULT_IOTKEY: Final[str] = SUPPORTED_APPS[DEFAULT_APP].get("iotkey")
 DEFAULT_PROXIED: Final[str] = SUPPORTED_APPS[DEFAULT_APP]["proxied"]
-# spell-checker: disable
 # pylint: enable=unsubscriptable-object
-# spell-checker: enable
 
 
 DEFAULT_RETRIES: Final = 3
@@ -74,3 +89,5 @@ APPLIANCE_TYPE_AIRCON: Final = "0xac"
 
 AC_MIN_TEMPERATURE: Final = 16
 AC_MAX_TEMPERATURE: Final = 31
+
+BASIC_AUTH_PROXY = "dcc2c5ac4b67323df3a0aa4bf573a88fd79753bda20ab34d9c7a772a64a489d883c18d18a8134514257cdc398d87cfebd2eee3fbe83d89fd73169c9daf924034"  # noqa: E501

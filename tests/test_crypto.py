@@ -1,6 +1,9 @@
 """Test encryption functions"""
 import binascii
 from typing import Final
+
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import pytest
 
 from midea_beautiful.crypto import Security
@@ -8,7 +11,9 @@ from midea_beautiful.exceptions import AuthenticationError, MideaError, Protocol
 from midea_beautiful.midea import (
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
+    INTERNAL_KEY,
     MSGTYPE_ENCRYPTED_REQUEST,
+    decrypt_internal,
 )
 
 # pylint: disable=protected-access
@@ -177,7 +182,11 @@ def test_encode_8730() -> None:
 
 def test_sign_proxied() -> None:
     # spell-checker: ignore meicloud babadeda
-    security = Security("ac21b9f9cbfe4ca5a88562ef25e2b768", iotkey="meicloud", hmackey="PROD_VnoClJI9aikS8dyy")  # noqa: E501
+    security = Security(
+        "ac21b9f9cbfe4ca5a88562ef25e2b768",
+        iotkey="meicloud",
+        hmackey="PROD_VnoClJI9aikS8dyy",
+    )  # noqa: E501
     data = '{"appVersion":"2.22.0","src":"10","retryCount":"3","format":2,"androidApiLevel":"27","stamp":"20220216161350","language":"en","platformId":"1","userName":"test@example.com","clientVersion":"2.22.0","deviceId":"babadeda","reqId":"d0f7eb1638e3480bbbde67a22bf41298","uid":"","clientType":1,"appId":"1010","userType":"0","appVNum":"2.22.0","deviceBrand":"Test device"}'  # noqa: E501
     random_value = "1645024430315"
     sign = security.sign_proxied(None, data, random_value)
@@ -186,9 +195,59 @@ def test_sign_proxied() -> None:
 
 def test_decrypt_access_token_proxy() -> None:
     access_token = "52d68e27772d0e63cb864de90c4ec6e02ad38cbc26e42b1a524918674068feca"
-    security = Security("ac21b9f9cbfe4ca5a88562ef25e2b768", iotkey="meicloud", hmackey="PROD_VnoClJI9aikS8dyy")  # noqa: 
+    security = Security(
+        "ac21b9f9cbfe4ca5a88562ef25e2b768",
+        iotkey="meicloud",
+        hmackey="PROD_VnoClJI9aikS8dyy",
+    )  # noqa:
 
     security.set_access_token(access_token, "ac21b9f9cbfe4ca5a88562ef25e2b768")
 
-    assert security._access_token == "52d68e27772d0e63cb864de90c4ec6e02ad38cbc26e42b1a524918674068feca"  # noqa: E501
-    assert security._data_key == b"c8aa6c57402cac8b5674db84acc89be82c704362da72b5ff21544b483b50d39c"  # noqa: E501
+    assert (
+        security._access_token
+        == "52d68e27772d0e63cb864de90c4ec6e02ad38cbc26e42b1a524918674068feca"
+    )  # noqa: E501
+    assert (
+        security._data_key
+        == b"c8aa6c57402cac8b5674db84acc89be82c704362da72b5ff21544b483b50d39c"
+    )  # noqa: E501
+
+
+_BLOCKSIZE: Final = 16
+
+
+def _encrypt_internal(data: str) -> str:
+    raw = data.encode("utf-8")
+    padder = padding.PKCS7(_BLOCKSIZE * 8).padder()
+    raw = padder.update(raw) + padder.finalize()
+    cipher = Cipher(algorithms.AES(INTERNAL_KEY), modes.ECB())  # nosec
+    encryptor = cipher.encryptor()
+    result: bytes = encryptor.update(raw) + encryptor.finalize()
+    return result.hex()
+
+
+def test_encrypt_internal_auth() -> None:
+    basic_auth = "Basic YWMyMWI5ZjljYmZlNGNhNWE4ODU2MmVmMjVlMmI3Njg6bWVpY2xvdWQ="
+    encrypted = _encrypt_internal(basic_auth)
+    output = decrypt_internal(encrypted)
+    assert output == basic_auth
+    assert (
+        encrypted
+        == "dcc2c5ac4b67323df3a0aa4bf573a88fd79753bda20ab34d9c7a772a64a489d883c18d18a8134514257cdc398d87cfebd2eee3fbe83d89fd73169c9daf924034"  # noqa: E501
+    )
+
+
+def test_encrypt_internal_iot_key() -> None:
+    encrypted = _encrypt_internal("meicloud")
+    output = decrypt_internal(encrypted)
+    assert encrypted == "f4dcd1511147af45775d7e680ac5312b"
+    assert output == "meicloud"
+
+
+def test_encrypt_internal_hmac_key() -> None:
+    encrypted = _encrypt_internal("PROD_VnoClJI9aikS8dyy")
+    output = decrypt_internal(encrypted)
+    assert (
+        encrypted == "5018e65c32bcec087e6c01631d8cf55398308fc19344d3e130734da81ac2e162"
+    )
+    assert output == "PROD_VnoClJI9aikS8dyy"

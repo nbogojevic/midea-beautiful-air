@@ -23,6 +23,7 @@ from midea_beautiful.exceptions import (
     RetryLaterError,
 )
 from midea_beautiful.midea import (
+    BASIC_AUTH_PROXY,
     DEFAULT_API_SERVER_URL,
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
@@ -30,6 +31,7 @@ from midea_beautiful.midea import (
     DEFAULT_IOTKEY,
     DEFAULT_PROXIED,
     DEFAULT_SIGNKEY,
+    decrypt_internal,
 )
 from midea_beautiful.util import Redacted, is_very_verbose, sensitive
 
@@ -55,12 +57,8 @@ _DEFAULT_CLOUD_TIMEOUT: Final = 9
 _REDACTED_KEYS: Final = {"id": {"length": 4}, "sn": {"length": 8}}
 _REDACTED_REQUEST: Final = {"sessionId": {}}
 
-_PROXIED_AUTH: Final = "Basic YWMyMWI5ZjljYmZlNGNhNWE4ODU2MmVmMjVlMmI3Njg6bWVpY2xvdWQ="
 _PROXIED_APP_VERSION: Final = "2.22.0"
 _PROXIED_SYS_VERSION: Final = "8.1.0"
-# _PROXIED_BRAND: Final = "Beautiful"
-# _PROXIED_DEVICE_ID: Final = "baba"
-# _PROXIED_DEVICE_NAME: Final = "Python"
 
 
 def _encode_as_csv(data: bytes | bytearray) -> str:
@@ -148,6 +146,8 @@ class MideaCloud:
 
         # A list of appliances associated with the account
         self._appliance_list: list[dict[str, str]] = []
+
+        self._proxied_auth = decrypt_internal(BASIC_AUTH_PROXY)
 
     def api_request(
         self,
@@ -238,7 +238,7 @@ class MideaCloud:
                     headers.update(
                         {
                             "x-recipe-app": str(self._appid),
-                            "Authorization": _PROXIED_AUTH,
+                            "Authorization": self._proxied_auth,
                             "sign": sign,
                             "secretVersion": "1",
                             "random": instant,

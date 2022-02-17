@@ -9,7 +9,7 @@ from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import DISCOVERY_MSG, LanDevice, matches_lan_cloud
 from midea_beautiful.midea import DEFAULT_RETRIES, DEFAULT_TIMEOUT, DISCOVERY_PORT
-from midea_beautiful.util import is_very_verbose, Redacted
+from midea_beautiful.util import Redacted, is_very_verbose
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-arguments
