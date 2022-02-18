@@ -193,48 +193,14 @@ def test_sign_proxied() -> None:
     assert sign == "63c353e308fd7b6d1b84c55aedfbc70624974a6251d5f2992d408cd82135b812"
 
 
-def test_decrypt_access_token_proxy() -> None:
-    access_token = "52d68e27772d0e63cb864de90c4ec6e02ad38cbc26e42b1a524918674068feca"
-    security = Security(
-        "ac21b9f9cbfe4ca5a88562ef25e2b768",
-        iotkey="meicloud",
-        hmackey="PROD_VnoClJI9aikS8dyy",
-    )  # noqa:
-
-    security.set_access_token(access_token, "ac21b9f9cbfe4ca5a88562ef25e2b768")
-
-    assert (
-        security._access_token
-        == "52d68e27772d0e63cb864de90c4ec6e02ad38cbc26e42b1a524918674068feca"
-    )  # noqa: E501
-    assert (
-        security._data_key
-        == b"c8aa6c57402cac8b5674db84acc89be82c704362da72b5ff21544b483b50d39c"
-    )  # noqa: E501
-
-
-_BLOCKSIZE: Final = 16
-
-
 def _encrypt_internal(data: str) -> str:
     raw = data.encode("utf-8")
-    padder = padding.PKCS7(_BLOCKSIZE * 8).padder()
+    padder = padding.PKCS7(16 * 8).padder()
     raw = padder.update(raw) + padder.finalize()
     cipher = Cipher(algorithms.AES(INTERNAL_KEY), modes.ECB())  # nosec
     encryptor = cipher.encryptor()
     result: bytes = encryptor.update(raw) + encryptor.finalize()
     return result.hex()
-
-
-def test_encrypt_internal_auth() -> None:
-    basic_auth = "Basic YWMyMWI5ZjljYmZlNGNhNWE4ODU2MmVmMjVlMmI3Njg6bWVpY2xvdWQ="
-    encrypted = _encrypt_internal(basic_auth)
-    output = decrypt_internal(encrypted)
-    assert output == basic_auth
-    assert (
-        encrypted
-        == "dcc2c5ac4b67323df3a0aa4bf573a88fd79753bda20ab34d9c7a772a64a489d883c18d18a8134514257cdc398d87cfebd2eee3fbe83d89fd73169c9daf924034"  # noqa: E501
-    )
 
 
 def test_encrypt_internal_iot_key() -> None:

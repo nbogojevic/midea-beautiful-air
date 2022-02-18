@@ -1,5 +1,6 @@
 """Interface to Midea cloud API."""
 from __future__ import annotations
+import base64
 
 from datetime import datetime
 import json
@@ -23,7 +24,6 @@ from midea_beautiful.exceptions import (
     RetryLaterError,
 )
 from midea_beautiful.midea import (
-    BASIC_AUTH_PROXY,
     DEFAULT_API_SERVER_URL,
     DEFAULT_APP_ID,
     DEFAULT_APPKEY,
@@ -31,12 +31,12 @@ from midea_beautiful.midea import (
     DEFAULT_IOTKEY,
     DEFAULT_PROXIED,
     DEFAULT_SIGNKEY,
-    decrypt_internal,
 )
 from midea_beautiful.util import Redacted, is_very_verbose, sensitive
 
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
+# spell-checker: ignore iampwd mdata
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,7 +106,7 @@ class MideaCloud:
         self._appid = int(appid or DEFAULT_APP_ID)
         self._sign_key = sign_key or DEFAULT_SIGNKEY
         self._iot_key = iot_key or DEFAULT_IOTKEY
-        self._hmac_key = hmac_key or DEFAULT_IOTKEY
+        self._hmac_key = hmac_key or DEFAULT_HMACKEY
         self._proxied = proxied or DEFAULT_PROXIED
         self._pushtoken = token_urlsafe(120)
         # Your email address for your Midea account
@@ -114,7 +114,7 @@ class MideaCloud:
         self._password = password
         # Server URL
         self._api_url = api_url
-        self._region = None
+        self._country_code = None
 
         self._security = Security(
             appkey=self._appkey,
@@ -122,6 +122,11 @@ class MideaCloud:
             iotkey=self._iot_key,
             hmackey=self._hmac_key,
         )
+
+        basic = base64.b64encode(
+            f"{self._appkey}:{self._iot_key}".encode("ascii")
+        ).decode("ascii")
+        self._proxied_auth = f"Basic {basic}"
 
         # Unique user ID that is separate to the email address
         self._login_id: str = ""
@@ -146,8 +151,6 @@ class MideaCloud:
 
         # A list of appliances associated with the account
         self._appliance_list: list[dict[str, str]] = []
-
-        self._proxied_auth = decrypt_internal(BASIC_AUTH_PROXY)
 
     def api_request(
         self,
@@ -217,12 +220,9 @@ class MideaCloud:
                     if not data.get("reqId"):
                         data.update(
                             {
-                                # "androidApiLevel": "27",
                                 "appVNum": _PROXIED_APP_VERSION,
                                 "appVersion": _PROXIED_APP_VERSION,
                                 "clientVersion": _PROXIED_APP_VERSION,
-                                # "deviceBrand": _PROXIED_BRAND,
-                                # "deviceId": _PROXIED_DEVICE_ID,
                                 "platformId": "1",
                                 "reqId": req_id or token_hex(16),
                                 "retryCount": "3",
@@ -374,7 +374,7 @@ class MideaCloud:
         Performs a user login with the credentials supplied to the
         constructor
         """
-        if self._proxied and not self._region:
+        if self._proxied and not self._country_code:
             self._get_region()
         if not self._login_id:
             self._get_login_id()
@@ -399,23 +399,17 @@ class MideaCloud:
                     "data": {
                         "appKey": self._appkey,
                         "appVersion": _PROXIED_APP_VERSION,
-                        # "deviceId": _PROXIED_DEVICE_ID,
-                        # "deviceName": _PROXIED_DEVICE_NAME,
                         "osVersion": _PROXIED_SYS_VERSION,
                         "platform": "2",
                     },
                     "iotData": {
-                        # "androidApiLevel": "27",
                         "appId": str(self._appid),
                         "appVNum": _PROXIED_APP_VERSION,
                         "appVersion": _PROXIED_APP_VERSION,
                         "clientType": CLOUD_API_CLIENT_TYPE,
                         "clientVersion": _PROXIED_APP_VERSION,
-                        # "deviceBrand": _PROXIED_BRAND,
-                        # "deviceId": _PROXIED_DEVICE_ID,
                         "format": CLOUD_API_FORMAT,
                         "language": CLOUD_API_LANGUAGE,
-                        # spell-checker: ignore iampwd
                         "iampwd": self._security.encrypt_iam_password(
                             login_id, self._password
                         ),
@@ -437,7 +431,6 @@ class MideaCloud:
             )
             self._uid = str(self._session.get("uid"))
             sensitive(self._uid)
-            # spell-checker:ignore mdata
             if mdata := self._session.get("mdata"):
                 self._header_access_token = mdata["accessToken"]
                 sensitive(self._header_access_token)
@@ -540,31 +533,6 @@ class MideaCloud:
         if not force and self._appliance_list:
             return self._appliance_list
 
-        # Get all home groups
-        # response = self.api_request("/v1/homegroup/list/get")
-        # _LOGGER.debug("Midea home group query result=%s", response)
-        # if not response or not response.get("list"):
-        #     _LOGGER.debug(
-        #         "Unable to get home groups from Midea API. response=%s",
-        #         response,
-        #     )
-        #     raise CloudRequestError("Unable to get home groups from Midea API")
-        # home_groups = response["list"]
-
-        # # Find default home group
-        # home_group = next(
-        #   (grp for grp in home_groups if grp["isDefault"] == "1"), Next
-        # )
-        # if not home_group:
-        #     _LOGGER.debug("Unable to get default home group from Midea API")
-        #     raise CloudRequestError("Unable to get default home group from Midea API")
-
-        # home_group_id = home_group["id"]
-
-        # Get list of appliances in default home group
-        # response = self.api_request(
-        #     "/v1/appliance/list/get", {"homegroupId": home_group_id}
-        # )
         response = self.api_request("/v1/appliance/user/list/get", {})
 
         self._appliance_list = []
