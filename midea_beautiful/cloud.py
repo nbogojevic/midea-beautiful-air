@@ -296,14 +296,14 @@ class MideaCloud:
 
         # Check for errors, raise if there are any
         if str(payload.get(error_code_tag, "0")) != "0":
-            self.handle_api_error(int(payload["errorCode"]), payload["msg"])
+            self.handle_api_error(int(payload[error_code_tag]), payload["msg"])
             # If no exception, then retry
             return self._retry_api_request(
                 endpoint=endpoint,
                 args=args,
                 authenticate=authenticate,
                 key=key,
-                cause=f"{payload['msg']} ({payload['errorCode']})",
+                cause=f"{payload['msg']} ({payload[error_code_tag]})",
             )
 
         self._retries = 0

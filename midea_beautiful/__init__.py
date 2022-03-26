@@ -13,6 +13,7 @@ from midea_beautiful.midea import (
     DEFAULT_IOTKEY,
     DEFAULT_PROXIED,
     DEFAULT_RETRIES,
+    DEFAULT_SIGNKEY,
     DEFAULT_TIMEOUT,
     SUPPORTED_APPS,
 )
@@ -43,6 +44,7 @@ def connect_to_cloud(
     iotkey=DEFAULT_IOTKEY,
     api_url=DEFAULT_API_SERVER_URL,
     proxied=DEFAULT_PROXIED,
+    sign_key=DEFAULT_SIGNKEY,
 ) -> MideaCloud:
     """Connects to Midea cloud API
 
@@ -56,12 +58,15 @@ def connect_to_cloud(
         MideaCloud: Interface to Midea cloud API
     """
     if appname is not None:
-        appkey = SUPPORTED_APPS[appname]["appkey"]
-        appid = SUPPORTED_APPS[appname]["appid"]
-        hmackey = SUPPORTED_APPS[appname]["hmackey"]
-        iotkey = SUPPORTED_APPS[appname]["iotkey"]
-        proxied = SUPPORTED_APPS[appname]["proxied"]
-        api_url = SUPPORTED_APPS[appname]["apiurl"]
+        app = SUPPORTED_APPS[appname]
+        appkey = app["appkey"]
+        appid = app["appid"]
+        api_url = app["apiurl"]
+        hmackey = app.get("hmackey")
+        iotkey = app.get("iotkey")
+        proxied = app.get("proxied")
+        sign_key = app["signkey"]
+
     cloud = MideaCloud(
         appkey=appkey,
         account=account,
@@ -71,6 +76,7 @@ def connect_to_cloud(
         iot_key=iotkey,
         api_url=api_url,
         proxied=proxied,
+        sign_key=sign_key,
     )
     cloud.authenticate()
     return cloud
@@ -91,6 +97,7 @@ def find_appliances(  # pylint: disable=too-many-arguments
     iotkey=DEFAULT_IOTKEY,
     api_url=DEFAULT_API_SERVER_URL,
     proxied=DEFAULT_PROXIED,
+    sign_key=DEFAULT_SIGNKEY,
 ) -> list[LanDevice]:
     """Finds appliances on local network
 
@@ -111,24 +118,28 @@ def find_appliances(  # pylint: disable=too-many-arguments
         list[LanDevice]: [description]
     """
     if appname is not None:
-        appkey = SUPPORTED_APPS[appname]["appkey"]
-        appid = SUPPORTED_APPS[appname]["appid"]
-        hmackey = SUPPORTED_APPS[appname]["hmackey"]
-        iotkey = SUPPORTED_APPS[appname]["iotkey"]
-        proxied = SUPPORTED_APPS[appname]["proxied"]
-        api_url = SUPPORTED_APPS[appname]["apiurl"]
+        app = SUPPORTED_APPS[appname]
+        appkey = app["appkey"]
+        appid = app["appid"]
+        api_url = app["apiurl"]
+        hmackey = app.get("hmackey")
+        iotkey = app.get("iotkey")
+        proxied = app.get("proxied")
+        sign_key = app["signkey"]
 
     _LOGGER.debug("Library version=%s", __version__)
     if not cloud and account and password:
         cloud = connect_to_cloud(
             account,
             password,
+            appname=appname,
             appkey=appkey,
             appid=appid,
             hmackey=hmackey,
             iotkey=iotkey,
             api_url=api_url,
             proxied=proxied,
+            sign_key=sign_key,
         )
 
     addresses = addresses or ["255.255.255.255"]
