@@ -86,6 +86,7 @@ def _run_discover_command(args: Namespace) -> int:
         appkey=args.appkey,
         account=args.account,
         password=args.password,
+        appname=args.app,
         appid=args.appid,
         addresses=args.address,
         hmackey=args.hmackey,
@@ -131,6 +132,7 @@ def _run_status_command(args: Namespace) -> int:
             cloud = connect_to_cloud(
                 account=args.account,
                 password=args.password,
+                appname=args.app,
                 appkey=args.appkey,
                 appid=args.appid,
                 hmackey=args.hmackey,
@@ -163,6 +165,7 @@ def _run_status_command(args: Namespace) -> int:
 _COMMON_ARGUMENTS = [
     "account",
     "apiurl",
+    "app",
     "appid",
     "appkey",
     "cloud",
@@ -230,6 +233,7 @@ def _run_set_command(args: Namespace) -> int:
             cloud = connect_to_cloud(
                 account=args.account,
                 password=args.password,
+                appname=args.app,
                 appkey=args.appkey,
                 appid=args.appid,
                 hmackey=args.hmackey,
@@ -275,6 +279,7 @@ def _add_standard_options(parser: ArgumentParser) -> None:
     parser.add_argument(
         "--password", help="Midea app password", default="", required=False
     )
+    parser.add_argument("--app", help="Midea app being used", default=None)
     parser.add_argument("--appkey", help="Midea app key", default=DEFAULT_APPKEY)
     parser.add_argument(
         "--appid",

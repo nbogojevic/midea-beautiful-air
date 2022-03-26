@@ -14,6 +14,7 @@ from midea_beautiful.midea import (
     DEFAULT_PROXIED,
     DEFAULT_RETRIES,
     DEFAULT_TIMEOUT,
+    SUPPORTED_APPS,
 )
 from midea_beautiful.scanner import do_find_appliances
 import midea_beautiful.version as version
@@ -37,6 +38,7 @@ def connect_to_cloud(
     password: str,
     appkey=DEFAULT_APPKEY,
     appid=DEFAULT_APP_ID,
+    appname: str = None,
     hmackey=DEFAULT_HMACKEY,
     iotkey=DEFAULT_IOTKEY,
     api_url=DEFAULT_API_SERVER_URL,
@@ -53,6 +55,13 @@ def connect_to_cloud(
     Returns:
         MideaCloud: Interface to Midea cloud API
     """
+    if appname is not None:
+        appkey = SUPPORTED_APPS[appname]["appkey"]
+        appid = SUPPORTED_APPS[appname]["appid"]
+        hmackey = SUPPORTED_APPS[appname]["hmackey"]
+        iotkey = SUPPORTED_APPS[appname]["iotkey"]
+        proxied = SUPPORTED_APPS[appname]["proxied"]
+        api_url = SUPPORTED_APPS[appname]["apiurl"]
     cloud = MideaCloud(
         appkey=appkey,
         account=account,
@@ -77,6 +86,7 @@ def find_appliances(  # pylint: disable=too-many-arguments
     appliances: list[LanDevice] = None,
     retries: int = DEFAULT_RETRIES,
     timeout: float = DEFAULT_TIMEOUT,
+    appname: str = None,
     hmackey=DEFAULT_HMACKEY,
     iotkey=DEFAULT_IOTKEY,
     api_url=DEFAULT_API_SERVER_URL,
@@ -100,13 +110,21 @@ def find_appliances(  # pylint: disable=too-many-arguments
     Returns:
         list[LanDevice]: [description]
     """
+    if appname is not None:
+        appkey = SUPPORTED_APPS[appname]["appkey"]
+        appid = SUPPORTED_APPS[appname]["appid"]
+        hmackey = SUPPORTED_APPS[appname]["hmackey"]
+        iotkey = SUPPORTED_APPS[appname]["iotkey"]
+        proxied = SUPPORTED_APPS[appname]["proxied"]
+        api_url = SUPPORTED_APPS[appname]["apiurl"]
+
     _LOGGER.debug("Library version=%s", __version__)
     if not cloud and account and password:
         cloud = connect_to_cloud(
             account,
             password,
-            appkey,
-            appid,
+            appkey=appkey,
+            appid=appid,
             hmackey=hmackey,
             iotkey=iotkey,
             api_url=api_url,

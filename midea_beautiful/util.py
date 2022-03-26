@@ -1,7 +1,8 @@
 """Utility services for Midea library."""
 from __future__ import annotations
 
-from typing import Any, Final, Mapping
+from typing import Any, Final
+from collections.abc import Mapping
 
 HDR_8370: Final = b"\x83\x70"
 HDR_ZZ: Final = b"\x5a\x5a"
@@ -11,14 +12,18 @@ _MAX_LEN: Final = 1024
 _very_verbose: bool = False
 
 
+# pylint: disable=global-statement,invalid-name
 def is_very_verbose() -> bool:
+    """Checks if very verbose mode is active."""
     global _very_verbose
     return _very_verbose
 
 
 def very_verbose(verbose: bool) -> None:
+    """Activates/deactivates very verbose mode."""
     global _very_verbose
     _very_verbose = verbose
+# pylint: enable=global-statement,invalid-name
 
 
 def strtobool(val) -> bool:
@@ -58,20 +63,24 @@ class _SensitiveStrings:
     sensitives: dict[str, dict] = {}
 
     @staticmethod
-    def add(sensitive: str, rules: dict) -> None:
-        _SensitiveStrings.sensitives[sensitive] = redact(sensitive, **rules)
+    def add(sensitive_data: str, rules: dict) -> None:
+        """Adds sensitive data that should be redacted to the collection."""
+        _SensitiveStrings.sensitives[sensitive_data] = redact(sensitive, **rules)
 
     @staticmethod
     def clean(value: str) -> None:
+        """Removes/redacts sensitive data from the passed string."""
         cleaned = str(value)
-        for sensitive, replace in _SensitiveStrings.sensitives.items():
-            cleaned = cleaned.replace(sensitive, replace)
+        for sensitive_data, replace in _SensitiveStrings.sensitives.items():
+            cleaned = cleaned.replace(sensitive_data, replace)
         return cleaned
 
 
-def sensitive(sensitive: str, rules: dict = {}) -> None:
+def sensitive(sensitive_data: str, rules: dict = None) -> None:
     """Add sensitive string to the list. Apply passed rules to redaction method."""
-    _SensitiveStrings.add(sensitive, rules)
+    if rules is None:
+        rules = {}
+    _SensitiveStrings.add(sensitive_data, rules)
 
 
 def clear_sensitive() -> None:
@@ -89,12 +98,12 @@ class Redacted:
         to_redact: Any,
         length: int = _MAX_LEN,
         char: str = "*",
-        keys: dict[str, dict] = {},
+        keys: dict[str, dict] = None,
     ) -> None:
         self.to_redact = to_redact
         self.length = length
         self.char = char
-        self.keys = keys
+        self.keys = keys or {}
 
     def __str__(self) -> str:
         if Redacted.redacting:

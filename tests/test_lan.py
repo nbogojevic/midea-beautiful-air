@@ -356,7 +356,7 @@ def test_request():
         result = device._request(b"123")
         assert result == b""
         assert device._retries == 1
-        assert "No results from 192.0.2.9" == str(device.last_error)
+        assert str(device.last_error) == "No results from 192.0.2.9"
         device._socket = MagicMock()
         device._socket.sendall.side_effect = Exception("test-sendall")
         result = device._request(b"123")

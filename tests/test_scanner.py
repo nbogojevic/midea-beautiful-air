@@ -116,14 +116,14 @@ def test_MideaDiscovery_broadcast_message(caplog: pytest.LogCaptureFixture):
         caplog.clear()
         with caplog.at_level(logging.DEBUG):
             discovery._broadcast_message(["255.255.255.255", "192.0.2.1"])
-        assert len(caplog.records) == 4
+        assert len(caplog.records) == 2
         assert mocked_socket.sendto.call_count == 2
         mocked_socket.sendto.side_effect = ["", Exception("test")]
         caplog.clear()
         with caplog.at_level(logging.DEBUG):
             discovery._broadcast_message(["255.255.255.255", "192.0.2.1"])
-        assert len(caplog.records) == 5
-        assert caplog.messages[4] == "Unable to send broadcast to: 192.0.2.1 cause test"
+        assert len(caplog.records) == 3
+        assert caplog.messages[2] == "Unable to send broadcast to: 192.0.2.1 cause test"
 
 
 def test_discover_appliances(

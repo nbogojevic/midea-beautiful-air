@@ -118,6 +118,7 @@ def test_status():
         appkey="876",
         appid="1000",
         cloud=True,
+        app=None,
     )
     _with_defaults(namespace)
     with pytest.raises(pytest_socket.SocketBlockedError):
@@ -139,6 +140,7 @@ def test_status_ok(
         appid="1000",
         cloud=True,
         credentials=False,
+        app=None,
     )
     _with_defaults(namespace)
     with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
@@ -167,6 +169,7 @@ def test_status_no_appliance(
             appid="1000",
             cloud=True,
             credentials=False,
+            app=None,
         )
         _with_defaults(namespace)
         caplog.clear()
@@ -186,6 +189,7 @@ def test_run_discover_command(capsys: pytest.CaptureFixture):
             appid="1000",
             address=None,
             credentials=False,
+            app=None,
         )
         _with_defaults(namespace)
         res = _run_discover_command(namespace)
@@ -259,6 +263,7 @@ def test_set_command_error():
         appkey="876",
         appid="1000",
         cloud=True,
+        app=None,
     )
     _with_defaults(namespace)
     with pytest.raises(pytest_socket.SocketBlockedError):
@@ -284,6 +289,7 @@ def test_set_command(
         beep_prompt=True,
         no_redact=False,
         verbose=False,
+        app=None,
     )
     _with_defaults(namespace)
     with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
@@ -310,6 +316,7 @@ def test_set_command_read_only(
         loglevel="INFO",
         online=True,
         verbose=False,
+        app=None,
     )
     _with_defaults(namespace)
 
@@ -338,6 +345,7 @@ def test_set_command_not_existing(
         no_redact=False,
         something=True,
         verbose=False,
+        app=None,
     )
     _with_defaults(namespace)
 
@@ -367,6 +375,7 @@ def test_set_with_cloud(
         command="set",
         loglevel="INFO",
         verbose=False,
+        app=None,
     )
     _with_defaults(namespace)
 
@@ -396,6 +405,7 @@ def test_set_no_status(
             appid="1000",
             cloud=True,
             credentials=False,
+            app=None,
         )
         _with_defaults(namespace)
 
@@ -437,7 +447,7 @@ def test_run_dump(capsys: pytest.CaptureFixture):
     assert "15  75 4b" in captured.out
 
 
-def test_run_dump_fail(capsys: pytest.CaptureFixture):
+def test_run_dump_fail():
     namespace = Namespace(
         dehumidifier=False,
         payload="c80101507f7f0023000000000000004b1e580000000000080a28",
