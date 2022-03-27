@@ -44,6 +44,15 @@ BROADCAST_PAYLOAD: Final = (
     "123456789abc069fcd0300080103010000000000000000000000000000000000000000"
 )
 
+BROADCAST_PAYLOAD_AC: Final = (
+    "020100c02c190000"
+    "3030303030305030303030303030513131323334353637383941424330303030"
+    "0b6e65745f61315f394142430000000001000000040000000000"
+    "ac"
+    "00000000000000"
+    "123456789abc069fcd0300080103010000000000000000000000000000000000000000"
+)
+
 
 class _TestError(Exception):
     pass
@@ -168,7 +177,7 @@ def test_appliance_repr():
 
 
 def test_appliance_from_broadcast_ac():
-    payload = bytearray(unhexlify(BROADCAST_PAYLOAD))
+    payload = bytearray(unhexlify(BROADCAST_PAYLOAD_AC))
     payload[46] = 0x63  # Letter c
     payload[66] = int(APPLIANCE_TYPE_AIRCON, base=16)
     encrypted = Security().aes_encrypt(payload)
