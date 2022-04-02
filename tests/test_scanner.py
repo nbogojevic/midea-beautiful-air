@@ -8,7 +8,7 @@ import pytest
 from midea_beautiful import find_appliances
 from midea_beautiful.crypto import Security
 import midea_beautiful.scanner as scanner
-from midea_beautiful.util import Redacted
+from midea_beautiful.util import Redacted, very_verbose
 
 # pylint: disable=protected-access
 # pylint: disable=missing-function-docstring
@@ -161,7 +161,9 @@ def test_discover_appliances(
     with (
         patch("midea_beautiful.scanner.LanDevice", side_effect=lan_device_mocking),
         patch("socket.socket") as mock_socket,
+        caplog.at_level(logging.DEBUG),
     ):
+        very_verbose(True)
         mocked_socket = MagicMock()
         mock_socket.return_value = mocked_socket
         mocked_socket.recvfrom.side_effect = [
@@ -184,8 +186,8 @@ def test_discover_appliances(
         assert res[0].appliance_id == "456"
         assert res[1].appliance_id == "123"
         assert res[2].appliance_id == "345"
-        assert len(caplog.records) == 1
-        assert "the account: appliance-999" in str(caplog.messages[0])
+        assert len(caplog.records) == 20
+        assert "the account: appliance-999" in str(caplog.messages[10])
 
 
 def test_discover_appliances_no_cloud(

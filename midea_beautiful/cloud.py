@@ -430,6 +430,7 @@ class MideaCloud:
                 authenticate=False,
             )
             self._uid = str(self._session.get("uid"))
+            _LOGGER.debug("UID=%s", self._uid)
             sensitive(self._uid)
             if mdata := self._session.get("mdata"):
                 self._header_access_token = mdata["accessToken"]

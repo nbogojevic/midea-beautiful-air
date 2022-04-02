@@ -1,7 +1,7 @@
 """Cryptographic tools."""
 from __future__ import annotations
 
-from binascii import hexlify, unhexlify
+from binascii import unhexlify
 import collections
 from hashlib import md5, sha256
 import hmac
@@ -557,8 +557,8 @@ class Security:
         self._data_key = self.aes_decrypt_string(self._access_token, key)
 
     def set_access_token(self, token: str, key: str) -> None:
+        """Set access token and set data key using passed key"""
         self._access_token = token
-        key = self.md5appkey
         self._data_key = self.aes_decrypt_string_no_pad(self._access_token, key)
 
     @property
@@ -603,7 +603,7 @@ class Security:
         decryptor = cipher.decryptor()
         decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
         # spell-checker: ignore hexlify
-        return hexlify(decrypted)
+        return decrypted.hex()
 
     def aes_encrypt_string(self, data: str, key: str | None = None) -> str:
         """
