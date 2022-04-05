@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from typing import Any, Final
-from collections.abc import Mapping
 
 HDR_8370: Final = b"\x83\x70"
 HDR_ZZ: Final = b"\x5a\x5a"
@@ -60,12 +59,12 @@ def redact(to_redact: str, length: int = _MAX_LEN, char: str = "*") -> str:
 class _SensitiveStrings:
     """Collection of strings that should be removed from logs."""
 
-    sensitives: dict[str, dict] = {}
+    sensitives: dict[str, str] = {}
 
     @staticmethod
     def add(sensitive_data: str, rules: dict) -> None:
         """Adds sensitive data that should be redacted to the collection."""
-        _SensitiveStrings.sensitives[sensitive_data] = redact(sensitive, **rules)
+        _SensitiveStrings.sensitives[sensitive_data] = redact(sensitive_data, **rules)
 
     @staticmethod
     def clean(value: str) -> None:
@@ -108,14 +107,14 @@ class Redacted:
     def __str__(self) -> str:
         if Redacted.redacting:
             if isinstance(self.to_redact, str):
-                return redact(self.to_redact, self.length, self.char)
-            if isinstance(self.to_redact, Mapping):
+                converted = redact(self.to_redact, self.length, self.char)
+            elif isinstance(self.to_redact, dict):
                 new = {**self.to_redact}
                 for key, kwargs in self.keys.items():
                     if key in new:
-                        new[key] = redact(new[key], **kwargs)
-                return str(new)
-            if isinstance(self.to_redact, list):
+                        new[key] = "X" + redact(new[key], **kwargs)
+                converted = str(new)
+            elif isinstance(self.to_redact, list):
                 new_list = []
                 for item in self.to_redact:
                     new = {**item}
@@ -123,8 +122,9 @@ class Redacted:
                     for key, kwargs in self.keys.items():
                         if key in new:
                             new[key] = redact(new[key], **kwargs)
-                return str(new_list)
-            converted = str(self.to_redact)
+                converted = str(new_list)
+            else:
+                converted = str(self.to_redact)
             return _SensitiveStrings.clean(converted)
 
         return str(self.to_redact)
