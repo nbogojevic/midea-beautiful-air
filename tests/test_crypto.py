@@ -1,5 +1,6 @@
 """Test encryption functions"""
 import binascii
+from hashlib import sha256
 from typing import Final
 
 from cryptography.hazmat.primitives import padding
@@ -217,3 +218,17 @@ def test_encrypt_internal_hmac_key() -> None:
         encrypted == "5018e65c32bcec087e6c01631d8cf55398308fc19344d3e130734da81ac2e162"
     )
     assert output == "PROD_VnoClJI9aikS8dyy"
+
+
+def test_encrypt_msmarthome() -> None:
+    sn_str = "5c824364d8080ffcba3325fe4e795bd53fdf5ef14023f9e7a9b05035ec3e878c3f77cba43e211073d6b919d4a436675b"  # noqa: E501
+    random_data = "869b74f01fc6c9cd6828ad22d408deab827337bcfd9af0b2b2af43d49390ac68"
+    access_token = "81380e2c734451510a051a49f05104656eaea6a2d186e6a3596016770258dc55"
+    app_key_str = "ac21b9f9cbfe4ca5a88562ef25e2b768"
+    security = Security(app_key_str)
+    security.set_access_token(access_token, random_data)
+    assert security._data_iv == "9c997e4ec1044dc5"
+    assert security._data_key == "4f6e2bf02f174807"
+    sn = security.aes_decrypt_string(sn_str)
+    assert "Q13C2" in sn
+

@@ -134,7 +134,7 @@ class _MideaDiscovery:
         else:
             try:
                 scanned.valid_token(self._cloud)
-            except Exception as ex:
+            except Exception as ex:  # pylint: disable=broad-except
                 _LOGGER.debug("Unable to get token for %s cause %s", scanned, ex)
             _LOGGER.warning(
                 "Found an appliance that is not registered to the account: %s"

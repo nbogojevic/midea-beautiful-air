@@ -50,6 +50,7 @@ PROTECTED_RESPONSES: Final = [
     "/v1/iot/secure/getToken",
     "/v1/user/login/id/get",
     "/v1/user/login",
+    "/mj/user/login",
 ]
 
 _MAX_RETRIES: Final = 3
@@ -126,6 +127,7 @@ class MideaCloud:
         basic = base64.b64encode(
             f"{self._appkey}:{self._iot_key}".encode("ascii")
         ).decode("ascii")
+        sensitive(basic)
         self._proxied_auth = f"Basic {basic}"
 
         # Unique user ID that is separate to the email address
@@ -265,7 +267,7 @@ class MideaCloud:
                     _LOGGER.debug(
                         "HTTP request %s: %s %s",
                         endpoint,
-                        headers,
+                        Redacted(headers),
                         Redacted(data, keys=_REDACTED_REQUEST),
                     )
                 response = requests.post(
@@ -288,11 +290,12 @@ class MideaCloud:
                     cause=exc,
                 )
 
-        if not Redacted.redacting or endpoint not in PROTECTED_RESPONSES:
-            _LOGGER.debug(
-                "HTTP response: %s",
-                payload if not Redacted.redacting else "*** REDACTED ***",
-            )
+        _LOGGER.debug(
+            "HTTP response: %s",
+            Redacted(payload)
+            if not Redacted.redacting or endpoint not in PROTECTED_RESPONSES
+            else "*** REDACTED ***",
+        )
 
         # Check for errors, raise if there are any
         if str(payload.get(error_code_tag, "0")) != "0":
@@ -309,7 +312,13 @@ class MideaCloud:
         self._retries = 0
         result = payload.get(key) if key else payload
         if is_very_verbose():
-            _LOGGER.debug("using key=%s, result=%s", key, result)
+            _LOGGER.debug(
+                "using key='%s', result=%s",
+                key,
+                Redacted(result)
+                if not Redacted.redacting or endpoint not in PROTECTED_RESPONSES
+                else "*** REDACTED ***",
+            )
         return result
 
     def _sleep(self, duration: float) -> None:
@@ -374,6 +383,7 @@ class MideaCloud:
         Performs a user login with the credentials supplied to the
         constructor
         """
+        sensitive(self._account, {"length": -2})
         if self._proxied and not self._country_code:
             self._get_region()
         if not self._login_id:
@@ -388,69 +398,73 @@ class MideaCloud:
 
         # Log in and store the session
         if self._proxied:
-            login_id = self._login_id
-            stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            self._header_access_token = ""
-            self._uid = ""
-            self._session: dict = self.api_request(
-                "/mj/user/login",
-                instant=None,
-                data={
-                    "data": {
-                        "appKey": self._appkey,
-                        "appVersion": _PROXIED_APP_VERSION,
-                        "osVersion": _PROXIED_SYS_VERSION,
-                        "platform": "2",
-                    },
-                    "iotData": {
-                        "appId": str(self._appid),
-                        "appVNum": _PROXIED_APP_VERSION,
-                        "appVersion": _PROXIED_APP_VERSION,
-                        "clientType": CLOUD_API_CLIENT_TYPE,
-                        "clientVersion": _PROXIED_APP_VERSION,
-                        "format": CLOUD_API_FORMAT,
-                        "language": CLOUD_API_LANGUAGE,
-                        "iampwd": self._security.encrypt_iam_password(
-                            login_id, self._password
-                        ),
-                        "loginAccount": self._account,
-                        "password": self._security.encrypt_password(
-                            login_id, self._password
-                        ),
-                        "pushToken": self._pushtoken,
-                        "pushType": "4",
-                        "reqId": token_hex(16),
-                        "retryCount": "3",
-                        "src": "10",
-                        "stamp": stamp,
-                    },
-                    "reqId": token_hex(16),
-                    "stamp": stamp,
-                },
-                authenticate=False,
-            )
-            self._uid = str(self._session.get("uid"))
-            _LOGGER.debug("UID=%s", self._uid)
-            sensitive(self._uid)
-            if mdata := self._session.get("mdata"):
-                self._header_access_token = mdata["accessToken"]
-                sensitive(self._header_access_token)
-
-            self._security.set_access_token(
-                str(self._session.get("accessToken")), self._appkey
-            )
-            sensitive(self._security.access_token)
+            self._login_proxied()
         else:
             self._login_non_proxied()
 
+    def _login_proxied(self):
+        login_id = self._login_id
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        self._header_access_token = ""
+        self._uid = ""
+
+        iampwd = self._security.encrypt_iam_password(login_id, self._password)
+        sensitive(iampwd)
+        password = self._security.encrypt_password(login_id, self._password)
+        sensitive(password)
+        self._session: dict = self.api_request(
+            "/mj/user/login",
+            instant=None,
+            data={
+                "data": {
+                    "appKey": self._appkey,
+                    "appVersion": _PROXIED_APP_VERSION,
+                    "osVersion": _PROXIED_SYS_VERSION,
+                    "platform": "2",
+                },
+                "iotData": {
+                    "appId": str(self._appid),
+                    "appVNum": _PROXIED_APP_VERSION,
+                    "appVersion": _PROXIED_APP_VERSION,
+                    "clientType": CLOUD_API_CLIENT_TYPE,
+                    "clientVersion": _PROXIED_APP_VERSION,
+                    "format": CLOUD_API_FORMAT,
+                    "language": CLOUD_API_LANGUAGE,
+                    "iampwd": iampwd,
+                    "loginAccount": self._account,
+                    "password": password,
+                    "pushToken": self._pushtoken,
+                    "pushType": "4",
+                    "reqId": token_hex(16),
+                    "retryCount": "3",
+                    "src": "10",
+                    "stamp": stamp,
+                },
+                "reqId": token_hex(16),
+                "stamp": stamp,
+            },
+            authenticate=False,
+        )
+        self._uid = str(self._session.get("uid"))
+        _LOGGER.debug("UID=%s", self._uid)
+        sensitive(self._uid)
+        if mdata := self._session.get("mdata"):
+            self._header_access_token = mdata["accessToken"]
+            sensitive(self._header_access_token)
+
+        self._security.set_access_token(
+            str(self._session.get("accessToken")),
+            str(self._session.get("randomData")),
+        )
+
     def _login_non_proxied(self):
+        password = self._security.encrypt_password(self._login_id, self._password)
+        sensitive(password)
         self._session: dict = self.api_request(
             "/v1/user/login",
             {
                 "loginAccount": self._account,
-                "password": self._security.encrypt_password(
-                    self._login_id, self._password
-                ),
+                "password": password,
             },
             authenticate=False,
         )
@@ -458,7 +472,6 @@ class MideaCloud:
             raise AuthenticationError("Unable to retrieve session id from Midea API")
         sensitive(str(self._session.get("sessionId")))
         self._security.access_token = str(self._session.get("accessToken"))
-        sensitive(self._security.access_token)
 
     def get_lua_script(
         self,

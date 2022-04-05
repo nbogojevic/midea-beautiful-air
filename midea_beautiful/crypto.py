@@ -22,7 +22,7 @@ from midea_beautiful.midea import (
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_ENCRYPTED_RESPONSE,
 )
-from midea_beautiful.util import HDR_8370
+from midea_beautiful.util import HDR_8370, sensitive
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -333,6 +333,7 @@ class Security:
         self._response_count = 0
         self._access_token = None
         self._data_key = None
+        self._data_iv = None
 
     def aes_decrypt(self, raw: bytes) -> bytes:
         """
@@ -553,13 +554,27 @@ class Security:
     @access_token.setter
     def access_token(self, token: str) -> None:
         self._access_token = token
+        sensitive(self._access_token)
         key = self.md5appkey
         self._data_key = self.aes_decrypt_string(self._access_token, key)
+        sensitive(self._data_key)
 
-    def set_access_token(self, token: str, key: str) -> None:
+    def set_access_token(
+        self, token: str, random_data: str
+    ) -> None:
         """Set access token and set data key using passed key"""
         self._access_token = token
-        self._data_key = self.aes_decrypt_string_no_pad(self._access_token, key)
+        sensitive(self._access_token)
+        sha = sha256()
+        sha.update(self._appkey.encode("ascii"))
+        res_sha256 = sha.hexdigest()
+
+        key = res_sha256[:16]
+        key_iv = res_sha256[16:32]
+        self._data_key = self.aes_decrypt_string(self._access_token, key, key_iv)
+        sensitive(self._data_key)
+        self._data_iv = self.aes_decrypt_string(random_data, key, key_iv)
+        sensitive(self._data_iv)
 
     @property
     def md5appkey(self) -> str:
@@ -572,38 +587,30 @@ class Security:
         """Returns current data encryption key"""
         return self._data_key
 
-    def aes_decrypt_string(self, data: str, key: str | None = None) -> str:
+    def aes_decrypt_string(
+        self, data: str, key: str | None = None, init_vector: str | None = None
+    ) -> str:
         """
         Decrypt string data using key or data_key if key omitted
         """
         key = key or self._data_key
+        init_vector = init_vector or self._data_iv
         if key is None:
             raise MideaError("Missing data key")
         encrypted_data = unhexlify(data)
 
-        # Midea uses ECB mode for some exchanges
-        cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())  # nosec
+        if init_vector is None:
+            cipher = Cipher(algorithms.AES(key.encode("utf-8")), modes.ECB())  # nosec
+        else:
+            cipher = Cipher(
+                algorithms.AES(key.encode("utf-8")),
+                modes.CBC(init_vector.encode("utf-8")),
+            )  # nosec
         decryptor = cipher.decryptor()
         decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
         unpadder = padding.PKCS7(_BLOCKSIZE * 8).unpadder()
         result = unpadder.update(decrypted) + unpadder.finalize()
         return result.decode("utf-8")
-
-    def aes_decrypt_string_no_pad(self, data: str, key: str | None = None) -> str:
-        """
-        Decrypt string data using key or data_key if key omitted
-        """
-        key = key or self._data_key
-        if key is None:
-            raise MideaError("Missing data key")
-        encrypted_data = unhexlify(data)
-
-        # Midea uses ECB mode for some exchanges
-        cipher = Cipher(algorithms.AES(key.encode("ascii")), modes.ECB())  # nosec
-        decryptor = cipher.decryptor()
-        decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
-        # spell-checker: ignore hexlify
-        return decrypted.hex()
 
     def aes_encrypt_string(self, data: str, key: str | None = None) -> str:
         """
@@ -624,3 +631,17 @@ class Security:
         result = encryptor.update(raw) + encryptor.finalize()
 
         return result.hex()
+
+    def aes_decrypt_str(self, data: str, key: str = None, iv: str = None) -> str:
+        key = key or self._data_key
+        iv = iv or self._data_iv
+
+        cipher = Cipher(
+            algorithms.AES(key.encode("ascii")),
+            modes.CBC(iv.encode("ascii")),
+        )
+        data_bytes = unhexlify(data)
+        decryptor = cipher.decryptor()
+        decrypted = decryptor.update(data_bytes) + decryptor.finalize()
+        unpadder = padding.PKCS7(_BLOCKSIZE * 8).unpadder()
+        return (unpadder.update(decrypted) + unpadder.finalize()).decode("utf-8")
