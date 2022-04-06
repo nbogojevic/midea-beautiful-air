@@ -149,7 +149,7 @@ class Appliance:
             if sequence == 0:
                 self.capabilities = {}
             for _ in range(properties_count):
-                if (step := self.intercept_B5_property(data, i)) >= 0:
+                if (step := self.intercept_b5_property(data, i)) >= 0:
                     _LOGGER.debug("Intercepted capability %s", data[i : i + 2])
                     i += step
                 elif attr := self.B5_CAPABILITIES.get(data[i : i + 2]):
@@ -159,27 +159,30 @@ class Appliance:
                     _LOGGER.warning("Midea B5 unknown property=%s", data[i : i + 2])
                 i += 4
 
-    def intercept_B5_property(self, data: bytes, index: int) -> int:
+    # pylint: disable=unused-argument,no-self-use
+    def intercept_b5_property(self, data: bytes, index: int) -> int:
         """Returns positive integer if properties was processed by implementation,
         otherwise returns number of excess bytes processed on top of minimal
         4 for each property."""
         return -1
+    # pylint: enable=unused-argument
 
-    def refresh_command(self) -> MideaCommand:  # pylint: disable=no-self-use
+    def refresh_command(self) -> MideaCommand:
         """Builds refresh/status query command"""
         return MideaCommand()
 
-    def apply_command(self) -> MideaCommand:  # pylint: disable=no-self-use
+    def apply_command(self) -> MideaCommand:
         """Builds update command"""
         return MideaCommand()
 
-    def capabilities_command(self) -> MideaCommand:  # pylint: disable=no-self-use
+    def capabilities_command(self) -> MideaCommand:
         """Builds device capabilities"""
         return DeviceCapabilitiesCommand(int(self.type, 16))
 
-    def capabilities_next_command(self) -> MideaCommand:  # pylint: disable=no-self-use
+    def capabilities_next_command(self) -> MideaCommand:
         """Builds device capabilities (get more capabilities)"""
         return DeviceCapabilitiesCommandMore(int(self.type, 16))
+    # pylint: enable=no-self-use
 
     def __str__(self) -> str:
         return "[UnknownAppliance]{id=%s type=%s}" % (
@@ -560,7 +563,7 @@ class AirConditionerAppliance(Appliance):
         else:
             self._online = False
 
-    def intercept_B5_property(self, data: bytes, index: int) -> int:
+    def intercept_b5_property(self, data: bytes, index: int) -> int:
         if data[index : index + 2] == b"\x25\x02":
             for j in range(7):
                 self.capabilities[f"temperature{j}"] = data[index + 3 + j]

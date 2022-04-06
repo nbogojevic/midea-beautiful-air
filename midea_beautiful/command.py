@@ -778,11 +778,11 @@ class AirConditionerResponse:
         self.quick_check = (data[1] & 0b00100000) != 0
         self.appliance_error = (data[1] & 0b10000000) != 0
 
-        self.mode = data[2] & 0b01110000
+        self.mode = (data[2] & 0b11100000) >> 5
         self.target_temperature = (
             (data[2] & 0b00001111)
             + 16.0
-            + (0.5 if (data[2] & 0b10000000) != 0 else 0.0)
+            + (0.5 if (data[2] & 0b00010000) != 0 else 0.0)
         )
 
         self.fan_speed = data[3] & 0b01111111

@@ -51,17 +51,17 @@ def aircon():
 
 
 def test_device_capabilities_command() -> None:
-    dc = DeviceCapabilitiesCommand(0xa1)
+    dc = DeviceCapabilitiesCommand(0xA1)
     assert dc.finalize().hex() == "aa0ea100000000000303b501004d48"
 
 
 def test_device_capabilities_command_more_a1() -> None:
-    dc = DeviceCapabilitiesCommandMore(0xa1)
+    dc = DeviceCapabilitiesCommandMore(0xA1)
     assert dc.finalize().hex() == "aa0fa100000000000303b501011380"
 
 
 def test_device_capabilities_command_more() -> None:
-    dc = DeviceCapabilitiesCommandMore(0xac)
+    dc = DeviceCapabilitiesCommandMore(0xAC)
     assert dc.finalize().hex() == "aa0fac00000000000303b501011375"
 
 
@@ -143,7 +143,7 @@ def test_dehumidifier_tank_warning_level() -> None:
     )
 
 
-_CMD_MSMART = b'\xaa \xac\x00\x00\x00\x00\x00\x00\x03A\x81\x00\xff\x03\xff\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x11\xeco'  # noqa: E501
+_CMD_MSMART = b"\xaa \xac\x00\x00\x00\x00\x00\x00\x03A\x81\x00\xff\x03\xff\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x11\xeco"  # noqa: E501
 
 
 def test_ac_status(aircon: AirConditionerAppliance) -> None:
@@ -355,3 +355,7 @@ def test_ac_response():
     assert response.outdoor_temperature == 16.3
     assert response.indoor_temperature == -8.7
     assert "'indoor_temperature': -8.7" in str(response)
+    response = AirConditionerResponse(
+        b"\xc0\x00Rf\x7f\x7f\x00<\x00\x00\x04VZ\x00p\x00\x00\x00\x00\x00\x00\x00\x00\x01\xac\xa8"  # noqa: E501
+    )
+    assert response.mode == 2
