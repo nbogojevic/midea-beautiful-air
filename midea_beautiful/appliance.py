@@ -12,6 +12,8 @@ from midea_beautiful.command import (
     DehumidifierResponse,
     DehumidifierSetCommand,
     DehumidifierStatusCommand,
+    DeviceCapabilitiesCommand,
+    DeviceCapabilitiesCommandMore,
     MideaCommand,
 )
 from midea_beautiful.exceptions import MideaError
@@ -148,8 +150,10 @@ class Appliance:
                 self.capabilities = {}
             for _ in range(properties_count):
                 if (step := self.intercept_B5_property(data, i)) >= 0:
+                    _LOGGER.debug("Intercepted capability %s", data[i : i + 2])
                     i += step
                 elif attr := self.B5_CAPABILITIES.get(data[i : i + 2]):
+                    _LOGGER.debug("Got capability %s", data[i : i + 2])
                     self.capabilities[attr] = data[i + 3]
                 else:
                     _LOGGER.warning("Midea B5 unknown property=%s", data[i : i + 2])
@@ -168,6 +172,14 @@ class Appliance:
     def apply_command(self) -> MideaCommand:  # pylint: disable=no-self-use
         """Builds update command"""
         return MideaCommand()
+
+    def capabilities_command(self) -> MideaCommand:  # pylint: disable=no-self-use
+        """Builds device capabilities"""
+        return DeviceCapabilitiesCommand(int(self.type, 16))
+
+    def capabilities_next_command(self) -> MideaCommand:  # pylint: disable=no-self-use
+        """Builds device capabilities (get more capabilities)"""
+        return DeviceCapabilitiesCommandMore(int(self.type, 16))
 
     def __str__(self) -> str:
         return "[UnknownAppliance]{id=%s type=%s}" % (

@@ -12,11 +12,7 @@ from typing import Any, Final
 
 from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
-from midea_beautiful.command import (
-    DeviceCapabilitiesCommand,
-    DeviceCapabilitiesCommandMore,
-    MideaCommand,
-)
+from midea_beautiful.command import MideaCommand
 from midea_beautiful.crypto import Security
 from midea_beautiful.exceptions import (
     AuthenticationError,
@@ -363,11 +359,14 @@ class LanDevice:
         )
 
         # Append the encrypted command data to the packet
+        cmd_data = command.finalize()
+        if is_very_verbose():
+            _LOGGER.debug("Command payload: %s", cmd_data)
         if local_packet:
-            encrypted = self._security.aes_encrypt(command.finalize())
+            encrypted = self._security.aes_encrypt(cmd_data)
             packet.extend(encrypted)
         else:
-            packet.extend(command.finalize())
+            packet.extend(cmd_data)
         # Set packet length
         packet[4:6] = (len(packet) + 16).to_bytes(2, "little")
         # Append a checksum to the packet
@@ -517,7 +516,7 @@ class LanDevice:
         try:
             tcp_key = self._security.tcp_key(response, binascii.unhexlify(self.key))
             if is_very_verbose():
-                _LOGGER.debug("tcp_key=%s for %s", Redacted(tcp_key.hex(), -2), self)
+                _LOGGER.debug("tcp_key=%s for %s", tcp_key.hex(), self)
 
             self._got_tcp_key = True
             _LOGGER.debug("Got TCP key for: %s", self)
@@ -777,24 +776,36 @@ class LanDevice:
         if _is_token_version(self.version) and not use_cloud:
             self.valid_token(cloud)
 
-        cmd = DeviceCapabilitiesCommand()
-        responses = self._status(cmd, cloud if use_cloud else None)
-        if len(responses) == 0:
-            _LOGGER.debug("No response on device capabilities request")
-        else:
-            if is_very_verbose():
-                _LOGGER.debug("device capabilities %s response=%s", self, responses[-1])
-            self.state.process_response_device_capabilities(responses[-1], 0)
-        cmd = DeviceCapabilitiesCommandMore()
-        responses = self._status(cmd, cloud if use_cloud else None)
-        if len(responses) == 0:
-            _LOGGER.debug("No response on device capabilities request (more)")
-        else:
-            if is_very_verbose():
-                _LOGGER.debug(
-                    "device capabilities (more) %s response=%s", self, responses[-1]
-                )
-            self.state.process_response_device_capabilities(responses[-1], 1)
+        try:
+            _LOGGER.debug("Getting more capabilities")
+            cmd = self.state.capabilities_command()
+            responses = self._status(cmd, cloud if use_cloud else None)
+            if len(responses) == 0:
+                _LOGGER.debug("No response on device capabilities request")
+            else:
+                if is_very_verbose():
+                    _LOGGER.debug(
+                        "device capabilities %s response=%s", self, responses[-1]
+                    )
+                self.state.process_response_device_capabilities(responses[-1], 0)
+            _LOGGER.debug("Getting more capabilities")
+            cmd = self.state.capabilities_next_command()
+            responses = self._status(cmd, cloud if use_cloud else None)
+            if len(responses) == 0:
+                _LOGGER.debug("No response on device capabilities request (more)")
+            else:
+                if is_very_verbose():
+                    _LOGGER.debug(
+                        "device capabilities (more) %s response=%s", self, responses[-1]
+                    )
+                self.state.process_response_device_capabilities(responses[-1], 1)
+        except MideaError as ex:
+            _LOGGER.warning(
+                "Error getting device capabilities for %s, cause %s",
+                self,
+                ex,
+                exc_info=True,
+            )
 
         self.refresh(cloud if use_cloud else None)
         _LOGGER.debug("Identified appliance: %s", self.redacted())

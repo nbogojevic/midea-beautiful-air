@@ -69,9 +69,10 @@ class MideaSequenceCommand(MideaCommand):
 class DeviceCapabilitiesCommand(MideaCommand):
     """B5 Command"""
 
-    def __init__(self, appliance_type: int = 0xA1) -> None:
+    def __init__(self, appliance_type: int) -> None:
         super().__init__()
         # pylint: disable=duplicate-code
+
         self.data = bytearray(
             [
                 0xAA,
@@ -86,7 +87,7 @@ class DeviceCapabilitiesCommand(MideaCommand):
                 0x03,
                 0xB5,
                 0x01,
-                0x11,
+                0x00,
                 0x00,
                 0x00,
             ]
@@ -96,13 +97,13 @@ class DeviceCapabilitiesCommand(MideaCommand):
 class DeviceCapabilitiesCommandMore(MideaCommand):
     """B5 Command"""
 
-    def __init__(self, appliance_type: int = 0xA1) -> None:
+    def __init__(self, appliance_type) -> None:
         super().__init__()
         # pylint: disable=duplicate-code
         self.data = bytearray(
             [
                 0xAA,
-                0x0E,
+                0x0F,
                 appliance_type,
                 0x00,
                 0x00,
