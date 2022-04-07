@@ -671,18 +671,18 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @horizontal_swing.setter
     def horizontal_swing(self, mode: int):
-        self.data[17] &= ~0x0011  # Clear the mode bit
-        self.data[17] |= 0x1110011 if mode else 0
+        self.data[17] &= ~0b0011  # Clear the mode bit
+        self.data[17] |= 0b1110011 if mode else 0
 
     @property
     def vertical_swing(self):
         """Vertical swing mode active"""
-        return (self.data[17] & 0x1100) >> 2
+        return (self.data[17] & 0b1100) >> 2
 
     @vertical_swing.setter
     def vertical_swing(self, mode: int):
-        self.data[17] &= ~0x1100  # Clear the mode bit
-        self.data[17] |= 0x111100 if mode else 0
+        self.data[17] &= ~0b1100  # Clear the mode bit
+        self.data[17] |= 0b111100 if mode else 0
 
     @property
     def turbo_fan(self) -> bool:
