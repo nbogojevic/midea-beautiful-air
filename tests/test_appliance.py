@@ -439,7 +439,7 @@ def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
     caplog.clear()
     appliance.process_response_device_capabilities(capabilities_ac_more)
     print(binascii.hexlify(capabilities_ac_more))
-    assert len(caplog.records) == 1
+    assert len(caplog.records) == 0
 
 
 def test_aircon_empty_response(caplog: pytest.LogCaptureFixture):
