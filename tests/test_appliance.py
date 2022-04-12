@@ -1,5 +1,6 @@
 """Test appliance class"""
 
+import binascii
 from typing import Final
 import logging
 import pytest
@@ -367,6 +368,9 @@ capabilities_not_b5: Final = (
     b"\xb3\x03\x16\x02\x01\x01\x18\x02\x01\x01\x17\x02\x01\x01\xabU"
 )
 
+capabilities_ac_more: Final = b'\xb5\x03\x1f\x02\x01\x00,\x02\x01\x01\t\x00\x01\x01\x00\x13p\x9b'  # noqa: E501
+capabilities_ac_init: Final = b'\xb5\x08\x14\x02\x01\x00\x15\x02\x01\x00\x1e\x02\x01\x00\x17\x02\x01\x02\x1a\x02\x01\x00\x10\x02\x01\x01%\x02\x07 < < <\x00$\x02\x01\x01\x01\x00\xa4\xb0'  # noqa: E501
+
 
 def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
     appliance = Appliance.instance("34", "ac")
@@ -428,6 +432,14 @@ def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "Midea B5 unknown property=b'\\xff\\x01'"
     assert appliance.capabilities == {"fan_speed": 7, "screen_display": 1}
+    caplog.clear()
+    appliance.process_response_device_capabilities(capabilities_ac_init)
+    print(binascii.hexlify(capabilities_ac_init))
+    assert len(caplog.records) == 0
+    caplog.clear()
+    appliance.process_response_device_capabilities(capabilities_ac_more)
+    print(binascii.hexlify(capabilities_ac_more))
+    assert len(caplog.records) == 1
 
 
 def test_aircon_empty_response(caplog: pytest.LogCaptureFixture):
