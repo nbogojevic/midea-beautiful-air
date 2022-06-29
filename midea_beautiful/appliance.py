@@ -138,12 +138,12 @@ class Appliance:
         if len(selected) < 10:
             _LOGGER.warning("Invalid extended response %s", selected)
             return
+        _dump_data(data[-1])
         if not selected[9] in [2, 3, 4, 5]:
             _LOGGER.warning(
                 "Unknown extended response %x %s", selected[9], Redacted(selected, 10)
             )
-
-        _dump_data(data[-1])
+            return
         self.process_response(data[-1][10:])
 
     # pylint: enable=unused-argument
