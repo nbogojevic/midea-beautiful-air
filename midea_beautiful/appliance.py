@@ -131,6 +131,23 @@ class Appliance:
         """Current appliance error code or zero if no errors"""
         return self._error
 
+    # pylint: disable=unused-argument
+    def process_response_ext(self, data: list[bytes]) -> None:
+        """Parses extended response payload and updates appliance data"""
+        selected = data[-1]
+        if len(selected) < 10:
+            _LOGGER.warning("Invalid extended response %s", selected)
+            return
+        if not selected[9] in [2, 3, 4, 5]:
+            _LOGGER.warning(
+                "Unknown extended response %x %s", selected[9], Redacted(selected, 10)
+            )
+
+        _dump_data(data[-1])
+        self.process_response(data[-1][10:])
+
+    # pylint: enable=unused-argument
+
     def process_response(self, data: bytes) -> None:  # pylint: disable=unused-argument
         """Parses response payload and updates appliance data"""
         _LOGGER.debug("Ignored process_response %s", self)
@@ -165,6 +182,7 @@ class Appliance:
         otherwise returns number of excess bytes processed on top of minimal
         4 for each property."""
         return -1
+
     # pylint: enable=unused-argument
 
     def refresh_command(self) -> MideaCommand:
@@ -174,6 +192,7 @@ class Appliance:
     def apply_command(self) -> MideaCommand:
         """Builds update command"""
         return MideaCommand()
+    # pylint: enable=no-self-use
 
     def capabilities_command(self) -> MideaCommand:
         """Builds device capabilities"""
@@ -182,7 +201,6 @@ class Appliance:
     def capabilities_next_command(self) -> MideaCommand:
         """Builds device capabilities (get more capabilities)"""
         return DeviceCapabilitiesCommandMore(int(self.type, 16))
-    # pylint: enable=no-self-use
 
     def __str__(self) -> str:
         return "[UnknownAppliance]{id=%s type=%s}" % (
@@ -247,7 +265,6 @@ class DehumidifierAppliance(Appliance):
         self.latest_data = data
         if len(data) > 0:
             self._online = True
-            _dump_data(data)
             response = DehumidifierResponse(data)
             _LOGGER.debug("DehumidifierResponse %s", response)
 
@@ -548,7 +565,6 @@ class AirConditionerAppliance(Appliance):
         self.latest_data = data
         if len(data) > 0:
             self._online = True
-            _dump_data(data)
             response = AirConditionerResponse(data)
             _LOGGER.debug("AirConditionerResponse %s", response)
 

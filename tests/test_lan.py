@@ -283,12 +283,15 @@ def test_get_appliance_state_set_state_non_existing(
     device = LanDevice(appliance_id="22222", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
     # with self.assertLogs("midea_beautiful.lan", logging.WARNING):
     caplog.clear()
-    device.set_state(cloud=mock_cloud, non_existing_property="12")
-    assert len(caplog.records) == 1
-    assert (
-        caplog.messages[0]
-        == "Unknown state attribute non_existing_property for sn=None id=2**** address=None version=3"  # noqa: E501
-    )
+    mock_cloud.appliance_transparent_send.return_value = [b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"]  # noqa: E501
+
+    with caplog.at_level(logging.WARNING):
+        device.set_state(cloud=mock_cloud, non_existing_property="12")
+        assert len(caplog.records) == 1
+        assert (
+            caplog.messages[0]
+            == "Unknown state attribute non_existing_property for sn=None id=2**** address=None version=3"  # noqa: E501
+        )
 
 
 def test_get_appliance_state_lan(mock_cloud):

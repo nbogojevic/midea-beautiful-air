@@ -389,7 +389,7 @@ class LanDevice:
                     )
                 self._online = True
                 _LOGGER.debug("refresh %s responses=%s", self, responses)
-                self.state.process_response(responses[-1])
+                self.state.process_response_ext(responses)
 
     def _check_for_offline(self, cloud):
         if self._no_responses > self.max_retries:
@@ -605,7 +605,7 @@ class LanDevice:
                 response = self._security.aes_decrypt(response[40:-16])
             # header length is 10 bytes
             if len(response) > 10:
-                packets.append(response[10:])
+                packets.append(response)
         return packets
 
     def _appliance_send_v2(self, data: bytes) -> list[bytes]:
@@ -635,7 +635,7 @@ class LanDevice:
             data = self._security.aes_decrypt(response_buf[i : i + size][40:-16])
             # header length is 10 bytes
             if len(data) > 10:
-                packets.append(data[10:])
+                packets.append(data)
             i += size
 
     def _b5_packets(self, response_buf: bytes, packets: list[bytes]) -> None:
@@ -704,7 +704,7 @@ class LanDevice:
                         len(responses),
                     )
                 self._online = True
-                self.state.process_response(responses[-1])
+                self.state.process_response_ext(responses)
             else:
                 _LOGGER.debug("Got no responses on apply from: %s", self)
                 self._online = False
@@ -1023,6 +1023,7 @@ def appliance_state(
         cloud.max_retries = retries
         cloud.request_timeout = cloud_timeout or timeout
     appliance.identify(cloud, use_cloud)
+
     if cloud:
         for details in cloud.list_appliances():
             if matches_lan_cloud(appliance, details):

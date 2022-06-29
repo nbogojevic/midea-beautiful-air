@@ -349,6 +349,7 @@ def test_set_command_not_existing(
     )
     _with_defaults(namespace)
 
+    mock_cloud.appliance_transparent_send.return_value = [b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"]  # noqa: E501
     with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
         res = _run_set_command(namespace)
         assert len(caplog.records) == 1

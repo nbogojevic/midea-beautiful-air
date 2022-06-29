@@ -241,6 +241,7 @@ def _run_set_command(args: Namespace) -> int:
                 api_url=args.apiurl,
                 proxied="v5" if args.proxied else None,
             )
+
             appliance = appliance_state(
                 address=args.ip, cloud=cloud, use_cloud=args.cloud, appliance_id=args.id
             )

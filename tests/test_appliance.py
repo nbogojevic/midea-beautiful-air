@@ -460,9 +460,29 @@ def test_dump_data(caplog: pytest.LogCaptureFixture):
     with caplog.at_level(logging.DEBUG):
         caplog.clear()
         very_verbose(True)
-        sample_buf: Final = b"\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
-        appliance.process_response(sample_buf)
+        sample_buf: Final = b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
+        appliance.process_response_ext([sample_buf])
         assert len(caplog.records) > len(sample_buf)
-        assert any(" 0  19 13" in m for m in caplog.messages)
-        assert any("12   0 00" in m for m in caplog.messages)
+        assert any("10  19 13" in m for m in caplog.messages)
+        assert any("22   0 00" in m for m in caplog.messages)
+    assert appliance.online
+
+
+def test_process_response_ext(caplog: pytest.LogCaptureFixture):
+    appliance = Appliance.instance("34", "ac")
+    assert isinstance(appliance, AirConditionerAppliance)
+    with caplog.at_level(logging.DEBUG):
+        caplog.clear()
+        sample_buf_02: Final = b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
+        appliance.process_response_ext([sample_buf_02])
+        assert not any(r.levelname == "WARNING" for r in caplog.records)
+        caplog.clear()
+        sample_buf_05: Final = b"012345678\05\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
+        appliance.process_response_ext([sample_buf_05])
+        assert not any(r.levelname == "WARNING" for r in caplog.records)
+    with caplog.at_level(logging.DEBUG):
+        caplog.clear()
+        sample_buf_bad: Final = b"012345678\00\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
+        appliance.process_response_ext([sample_buf_bad])
+        assert any(r.levelname == "WARNING" for r in caplog.records)
     assert appliance.online

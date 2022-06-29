@@ -405,7 +405,7 @@ def test_appliance_transparent_send(cloud_client, for_login: requests_mock.Mocke
     assert len(result) == 1
     assert (
         result[0].hex()
-        == "412100ff030000020000000000000000000000000b24a400000000000000000000000000000000"  # noqa: E501
+        == "aa20a100000000000303412100ff030000020000000000000000000000000b24a400000000000000000000000000000000"  # noqa: E501
     )
 
 

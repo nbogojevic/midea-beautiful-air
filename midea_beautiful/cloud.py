@@ -536,7 +536,7 @@ class MideaCloud:
             raise ProtocolError(
                 f"Invalid payload size, was {len(reply)} expected 50 bytes"
             )
-        reply = reply[50:]
+        reply = reply[40:]
 
         return [reply]
 
