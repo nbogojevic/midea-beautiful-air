@@ -602,7 +602,13 @@ class LanDevice:
             )
         for response in responses:
             if len(response) > 40 + 16:
-                response = self._security.aes_decrypt(response[40:-16])
+                try:
+                    response = self._security.aes_decrypt(response[40:-16])
+                except ValueError as ex:
+                    raise MideaError(
+                        f"Failed to decrypt response for {self}, length {len(response)}"
+                        f" response {response}"
+                    ) from ex
             # header length is 10 bytes
             if len(response) > 10:
                 packets.append(response)
