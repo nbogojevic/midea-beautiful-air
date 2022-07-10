@@ -112,7 +112,7 @@ class Redacted:
                 new = {**self.to_redact}
                 for key, kwargs in self.keys.items():
                     if key in new:
-                        new[key] = "X" + redact(new[key], **kwargs)
+                        new[key] = redact(new[key], **kwargs)
                 converted = str(new)
             elif isinstance(self.to_redact, list):
                 new_list = []
