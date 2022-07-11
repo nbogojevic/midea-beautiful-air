@@ -49,10 +49,16 @@ def connect_to_cloud(
     """Connects to Midea cloud API
 
     Args:
-        appkey (str): Midea app key
+        appname (str): Name of Midea app to use (see SUPPORTED_APPS)
         account (str): Midea app user e-mail
         password (str): Midea app password
+        appkey (str): Midea app key
         appid (str): Midea app id
+        hmackey (str): Midea HMAC key
+        iotkey (str): Midea iot key
+        api_url (str): URL of Midea API
+        proxied (boolean): Is using proxied API
+        sign_key (str): Midea signing key
 
     Returns:
         MideaCloud: Interface to Midea cloud API

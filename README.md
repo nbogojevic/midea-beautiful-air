@@ -241,6 +241,7 @@ Discover appliances on local network:
 ```python
 from midea_beautiful import find_appliances
 
+
 appliances = find_appliances(
     account="USER_EMAIL@example.com",  # Account e-mail
     password="secret_password",  # Account password
@@ -266,12 +267,18 @@ print(f"{appliance!r}")
 Get appliance state from cloud:
 
 ```python
-from midea_beautiful import appliance_state
+from midea_beautiful import appliance_state, connect_to_cloud
+
+
+cloud = connect_to_cloud(
+            account="USER_EMAIL@example.com",  # Account e-mail
+            password="secret_password",  # Account password
+            appname="MSmartHome"
+        )
 
 appliance = appliance_state( 
-    account="USER_EMAIL@example.com",  # Account e-mail
-    password="secret_password",  # Account password
-    id=123412341234,  # Appliance id obtained from Midea API 
+    cloud=cloud,  # Account e-mail
+    id=appliance_id,  # Appliance id obtained from Midea API 
 )
 print(f"{appliance!r}")
 ```
