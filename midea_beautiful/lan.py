@@ -793,7 +793,12 @@ class LanDevice:
                     _LOGGER.debug(
                         "device capabilities %s response=%s", self, responses[-1]
                     )
-                self.state.process_response_device_capabilities(responses[-1], 0)
+                if len(responses[-1]) > 10:
+                    self.state.process_response_device_capabilities(
+                        responses[-1][10:], 0
+                    )
+                else:
+                    _LOGGER.debug("Invalid B5 response %s", responses)
             _LOGGER.debug("Getting more capabilities")
             cmd = self.state.capabilities_next_command()
             responses = self._status(cmd, cloud if use_cloud else None)
@@ -804,7 +809,12 @@ class LanDevice:
                     _LOGGER.debug(
                         "device capabilities (more) %s response=%s", self, responses[-1]
                     )
-                self.state.process_response_device_capabilities(responses[-1], 1)
+                if len(responses[-1]) > 10:
+                    self.state.process_response_device_capabilities(
+                        responses[-1][10:], 0
+                    )
+                else:
+                    _LOGGER.debug("Invalid B5 response %s", responses)
         except MideaError as ex:
             _LOGGER.warning(
                 "Error getting device capabilities for %s, cause %s",

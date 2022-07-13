@@ -159,7 +159,7 @@ class Appliance:
         if data:
             self.capabilities_data = data
             if data[0] != 0xB5:
-                _LOGGER.debug("Not a B5 response")
+                _LOGGER.debug("Not a B5 response %s", data)
                 return
             properties_count = data[1]
             i = 2
