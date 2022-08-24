@@ -192,6 +192,10 @@ class Appliance:
     def apply_command(self) -> MideaCommand:
         """Builds update command"""
         return MideaCommand()
+
+    def needs_refresh(self) -> bool:
+        """Indicates if appliance needs refresh after apply command"""
+        return False
     # pylint: enable=no-self-use
 
     def capabilities_command(self) -> MideaCommand:
@@ -613,6 +617,10 @@ class AirConditionerAppliance(Appliance):
         cmd.turbo_fan = self.turbo_fan
         cmd.vertical_swing = self.vertical_swing
         return cmd
+
+    def needs_refresh(self) -> bool:
+        """Indicates that after apply, we need to refresh status for AC"""
+        return True
 
     @property
     def running(self) -> bool:

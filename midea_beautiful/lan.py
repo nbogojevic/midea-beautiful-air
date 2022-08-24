@@ -710,7 +710,12 @@ class LanDevice:
                         len(responses),
                     )
                 self._online = True
-                self.state.process_response_ext(responses)
+                _LOGGER.debug("apply %s responses=%s", self, responses)
+                if self.state.needs_refresh():
+                    _LOGGER.debug("Using refresh after apply")
+                    self.refresh(cloud)
+                else:
+                    self.state.process_response_ext(responses)
             else:
                 _LOGGER.debug("Got no responses on apply from: %s", self)
                 self._online = False
