@@ -288,6 +288,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @target_humidity.setter
     def target_humidity(self, humidity: int) -> None:
+        humidity = int(humidity)
         self.data[17] &= ~0b01111111  # Clear the humidity part
         self.data[17] |= humidity
 
@@ -298,6 +299,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @mode.setter
     def mode(self, mode: int) -> None:
+        mode = int(mode)
         self.data[12] &= ~0b00001111  # Clear the mode bits
         self.data[12] |= mode
 
@@ -308,6 +310,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @fan_speed.setter
     def fan_speed(self, speed: int) -> None:
+        speed = int(speed)
         self.data[13] &= ~0b01111111  # Clear the fan speed part
         self.data[13] |= speed & 0b01111111
 
