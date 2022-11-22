@@ -105,6 +105,8 @@ Credentials information like username, password or token keys are redacted by de
 
 ### Installing package
 
+* At least Python 3.8 is required
+
 ```shell
 pip install --upgrade midea-beautiful-air
 ```
