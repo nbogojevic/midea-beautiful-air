@@ -664,6 +664,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @fan_speed.setter
     def fan_speed(self, speed: int) -> None:
+        speed = int(speed)
         self.data[13] &= ~0b01111111  # Clear the fan speed part
         self.data[13] |= speed & 0b01111111
 
