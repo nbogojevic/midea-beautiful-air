@@ -49,6 +49,13 @@ SUPPORTED_APPS: Final = {
         "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
         "proxied": None,
     },
+    "Ariston Clima": {
+        "appkey": "434a209a5ce141c3b726de067835d7f0",
+        "appid": 1005,
+        "apiurl": "https://mapp.appsmb.com",
+        "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
+        "proxied": None,
+    },
     "MSmartHome": {
         "appkey": "ac21b9f9cbfe4ca5a88562ef25e2b768",
         "appid": 1010,
