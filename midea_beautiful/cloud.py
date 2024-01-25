@@ -42,6 +42,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 CLOUD_API_CLIENT_TYPE: Final = 1  # Android
+CLOUD_API_DEVICE_ID: Final = "c1acad8939ac0d7d"
 CLOUD_API_FORMAT: Final = 2  # JSON
 CLOUD_API_LANGUAGE: Final = "en_US"
 
@@ -201,6 +202,7 @@ class MideaCloud:
                         "language": CLOUD_API_LANGUAGE,
                         "src": self._appid,
                         "stamp": datetime.now().strftime("%Y%m%d%H%M%S"),
+                        "deviceId": CLOUD_API_DEVICE_ID,
                     }
                 # Add the method parameters for the endpoint
                 data.update(args)
@@ -420,6 +422,7 @@ class MideaCloud:
                     "appKey": self._appkey,
                     "appVersion": _PROXIED_APP_VERSION,
                     "osVersion": _PROXIED_SYS_VERSION,
+                    "deviceId": CLOUD_API_DEVICE_ID,
                     "platform": "2",
                 },
                 "iotData": {
