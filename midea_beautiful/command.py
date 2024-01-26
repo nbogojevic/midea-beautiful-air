@@ -741,6 +741,26 @@ class AirConditionerSetCommand(MideaSequenceCommand):
         self.data[18] |= 0b00000011 if state else 0
 
     @property
+    def frost_protect(self) -> bool:
+        """Activates frost protect"""
+        return self.data[31] & 0b10000000 != 0
+
+    @frost_protect.setter
+    def frost_protect(self, state: bool) -> None:
+        self.data[31] &= ~0b10000000  # Clear the frost protect switch
+        self.data[31] |= 0b10000000 if state else 0
+
+    @property
+    def comfort_mode(self) -> bool:
+        """Activates frost protect"""
+        return self.data[32] & 0b00000001 != 0
+
+    @comfort_mode.setter
+    def comfort_mode(self, state: bool) -> None:
+        self.data[32] &= ~0b00000001  # Clear the comfort mode
+        self.data[32] |= 0b00000001 if state else 0
+
+    @property
     def fahrenheit(self) -> bool:
         """Display degrees Fahrenheit (only impacts device display)"""
         return self.data[20] & 0b00000100 != 0
@@ -760,15 +780,6 @@ class AirConditionerSetCommand(MideaSequenceCommand):
         self.data[20] &= ~0b00000010
         self.data[20] |= 0b00000010 if turbo else 0
 
-    @property
-    def screen(self) -> bool:
-        """A/C screen display on/off"""
-        return self.data[20] & 0b00010000 != 0
-
-    @screen.setter
-    def screen(self, screen: bool):
-        self.data[20] &= ~0b00010000
-        self.data[20] |= 0b00010000 if screen else 0
 
 
 class AirConditionerResponse:
@@ -819,9 +830,8 @@ class AirConditionerResponse:
 
         self.turbo = (data[10] & 0b00000010) != 0
         self.fahrenheit = (data[10] & 0b00000100) != 0
-        self.prevent_freezing = (data[10] & 0b00100000) != 0
-
         self.pmv = (data[14] & 0b00001111) * 0.5 - 3.5
+        self.show_screen = ((data[14] >> 4 & 0b0111) != 0b0111) and self.run_status
         if data[12] != 0 and data[12] != 0xFF:
             self.outdoor_temperature = (data[12] - 50) / 2
             digit = 0.1 * ((data[15] & 0b11110000) >> 4)
@@ -842,10 +852,9 @@ class AirConditionerResponse:
             self.indoor_temperature = None
         self.err_code = data[16]
 
-        if len(data) > 20:
-            self.humidity = data[19]
-        else:
-            self.humidity = None
+        self.humidity = data[19] if len(data) > 20 else None
+        self.frost_protect = (data[21] & 0b10000000) > 0 if len(data) >= 22 else (data[10] & 0b00100000) != 0
+        self.comfort_mode = (data[22] & 0b00000001) > 0 if len(data) >= 23 else False
 
     def __str__(self) -> str:
         return str(self.__dict__)

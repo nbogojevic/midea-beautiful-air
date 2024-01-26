@@ -181,7 +181,6 @@ def test_aircon_defaults() -> None:
     assert not cmd.horizontal_swing
     assert not cmd.purifier
     assert not cmd.running
-    assert not cmd.screen
     assert not cmd.turbo
     assert not cmd.turbo_fan
     assert not cmd.vertical_swing
@@ -197,7 +196,7 @@ def test_aircon_set_fan(aircon: AirConditionerAppliance) -> None:
     cmd = aircon.apply_command().finalize()
     assert (
         cmd.hex()
-        == "aa23ac0000000000000240400030000000000000100000000000000000000100000078f6"
+        == "aa23ac000000000000024040003000000000000000000000000000000000010000008af4"
     )
 
 
@@ -208,7 +207,7 @@ def test_aircon_set_mode(aircon: AirConditionerAppliance) -> None:
     cmd = aircon.apply_command().finalize()
     assert (
         cmd.hex()
-        == "aa23ac00000000000002404040300000000000001000000000000000000001000000ce60"
+        == "aa23ac000000000000024040403000000000000000000000000000000000010000003c02"
     )
 
 
@@ -219,7 +218,7 @@ def test_aircon_set_turbo(aircon: AirConditionerAppliance) -> None:
     cmd = aircon.apply_command().finalize()
     assert (
         cmd.hex()
-        == "aa23ac000000000000024040002800000000000012000000000000000000010000000173"
+        == "aa23ac00000000000002404000280000000000000200000000000000000001000000f391"
     )
 
 
@@ -231,7 +230,7 @@ def test_aircon_set_temperature(aircon: AirConditionerAppliance) -> None:
     cmd = aircon.apply_command().finalize()
     assert (
         cmd.hex()
-        == "aa23ac000000000000024040142d0000000000001200000000000000000001000000a7b4"
+        == "aa23ac000000000000024040142d00000000000002000000000000000000010000005516"
     )
 
 

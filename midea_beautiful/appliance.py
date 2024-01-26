@@ -535,6 +535,8 @@ class AirConditionerAppliance(Appliance):
         self._fan_speed = 40
         self._target_temperature: float = 0
         self._comfort_sleep: bool = False
+        self._frost_protect: bool = False
+        self._comfort_mode: bool = False
         self._eco_mode: bool = False
         self._turbo: bool = False
         self._turbo_fan: bool = False
@@ -548,6 +550,7 @@ class AirConditionerAppliance(Appliance):
         self._horizontal_swing: bool = False
         self._show_screen: bool = True
         self._error: int = 0
+
 
     @staticmethod
     def supported(appliance_type: str | int) -> bool:
@@ -575,6 +578,8 @@ class AirConditionerAppliance(Appliance):
 
                 self._error = response.err_code
                 self.comfort_sleep = response.comfort_sleep
+                self.frost_protect = response.frost_protect
+                self.comfort_mode = response.comfort_mode
                 self.fahrenheit = response.fahrenheit
                 self.fan_speed = response.fan_speed
                 self.horizontal_swing = response.horizontal_swing
@@ -587,6 +592,7 @@ class AirConditionerAppliance(Appliance):
                 self.turbo = response.turbo
                 self.turbo_fan = response.turbo_fan
                 self.vertical_swing = response.vertical_swing
+                self.show_screen = response.show_screen
             else:
                 _LOGGER.debug(
                     "Ignoring response type=%02x data=%s",
@@ -610,6 +616,8 @@ class AirConditionerAppliance(Appliance):
         cmd = AirConditionerSetCommand()
         cmd.beep_prompt = self.beep_prompt
         cmd.comfort_sleep = self.comfort_sleep
+        cmd.frost_protect = self.frost_protect
+        cmd.comfort_mode = self.comfort_mode
         cmd.dryer = self.dryer
         cmd.eco_mode = self.eco_mode
         cmd.fahrenheit = self.fahrenheit
@@ -618,7 +626,6 @@ class AirConditionerAppliance(Appliance):
         cmd.mode = self.mode
         cmd.purifier = self.purifier
         cmd.running = self.running
-        cmd.screen = self.show_screen
         cmd.temperature = self.target_temperature
         cmd.turbo = self.turbo
         cmd.turbo_fan = self.turbo_fan
@@ -708,6 +715,24 @@ class AirConditionerAppliance(Appliance):
     @comfort_sleep.setter
     def comfort_sleep(self, value: bool | int | str) -> None:
         self._comfort_sleep = _as_bool(value)
+
+    @property
+    def frost_protect(self) -> bool:
+        """sleep frost protect on/off"""
+        return self._frost_protect
+
+    @frost_protect.setter
+    def frost_protect(self, value: bool | int | str) -> None:
+        self._frost_protect = _as_bool(value)
+
+    @property
+    def comfort_mode(self) -> bool:
+        """sleep comfort mode on/off"""
+        return self._comfort_mode
+
+    @comfort_mode.setter
+    def comfort_mode(self, value: bool | int | str) -> None:
+        self._comfort_mode = _as_bool(value)
 
     @property
     def turbo_fan(self) -> bool:
@@ -812,6 +837,8 @@ class AirConditionerAppliance(Appliance):
             " vertical_swing=%s"
             " horizontal_swing=%s"
             " comfort_sleep=%s,"
+            " frost_protect=%s,"
+            " comfort_mode=%s,"
             " error_code=%d,"
             " prompt=%s,"
             " supports=%s}"
@@ -831,6 +858,8 @@ class AirConditionerAppliance(Appliance):
                 self.vertical_swing,
                 self.horizontal_swing,
                 self.comfort_sleep,
+                self.frost_protect,
+                self.comfort_mode,
                 self.error_code,
                 self.beep_prompt,
                 self.capabilities,

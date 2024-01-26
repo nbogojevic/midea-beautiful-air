@@ -69,6 +69,8 @@ def _output(appliance: LanDevice, show_credentials: bool = False) -> None:
         print(f"  purify  = {state.purifier}")
         print(f"  eco     = {state.eco_mode}")
         print(f"  sleep   = {state.comfort_sleep}")
+        print(f"  frost   = {state.frost_protect}")
+        print(f"  comfort = {state.comfort_mode}")
         print(f"  F       = {state.fahrenheit}")
 
     print(f"  error   = {getattr(appliance.state, 'error_code')}")
