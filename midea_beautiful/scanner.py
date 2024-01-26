@@ -8,7 +8,7 @@ from typing import Final
 from midea_beautiful.appliance import Appliance
 from midea_beautiful.cloud import MideaCloud
 from midea_beautiful.lan import DISCOVERY_MSG, LanDevice, matches_lan_cloud
-from midea_beautiful.midea import DEFAULT_RETRIES, DEFAULT_TIMEOUT, DISCOVERY_PORT
+from midea_beautiful.midea import DEFAULT_RETRIES, DEFAULT_TIMEOUT, DISCOVERY_PORTS
 from midea_beautiful.util import Redacted, is_very_verbose
 
 # pylint: disable=too-few-public-methods
@@ -72,11 +72,12 @@ class _MideaDiscovery:
         for addr in addresses:
             _LOGGER.debug("Broadcasting to %s", addr)
             try:
-                if is_very_verbose():
-                    _LOGGER.debug(
-                        "UDP broadcast %s:%d %s", addr, DISCOVERY_PORT, DISCOVERY_MSG
-                    )
-                self._socket.sendto(DISCOVERY_MSG, (addr, DISCOVERY_PORT))
+                for port in DISCOVERY_PORTS:
+                    if is_very_verbose():
+                        _LOGGER.debug(
+                            "UDP broadcast %s:%d %s", addr, port, DISCOVERY_MSG
+                        )
+                    self._socket.sendto(DISCOVERY_MSG, (addr, port))
             except Exception as ex:  # pylint: disable=broad-except
                 _LOGGER.debug("Unable to send broadcast to: %s cause %s", addr, ex)
 

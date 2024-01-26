@@ -24,7 +24,7 @@ from midea_beautiful.exceptions import (
 from midea_beautiful.midea import (
     APPLIANCE_TYPE_DEHUMIDIFIER,
     DEFAULT_RETRIES,
-    DISCOVERY_PORT,
+    DISCOVERY_PORTS,
     MSGTYPE_ENCRYPTED_REQUEST,
     MSGTYPE_HANDSHAKE_REQUEST,
 )
@@ -995,39 +995,40 @@ def appliance_state(
         key = key or ""
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(timeout)
-        port = DISCOVERY_PORT
+        for port in DISCOVERY_PORTS:
 
-        try:
-            # Connect to the appliance
-            sock.connect((address, port))
+            try:
+                # Connect to the appliance
+                sock.connect((address, port))
 
-            # Send the discovery query
-            _LOGGER.debug(
-                "Sending to %s:%d %s", Redacted(address, 5), port, DISCOVERY_MSG
-            )
-            sock.sendall(DISCOVERY_MSG)
+                # Send the discovery query
+                _LOGGER.debug(
+                    "Sending to %s:%d %s", Redacted(address, 5), port, DISCOVERY_MSG
+                )
+                sock.sendall(DISCOVERY_MSG)
 
-            # Received data
-            response = sock.recv(512)
-            _LOGGER.debug(
-                "Received from %s:%d %s", Redacted(address, 5), port, response
-            )
-            appliance = LanDevice(
-                data=response, token=token, key=key, security=security
-            )
-            appliance.max_retries = retries
-            appliance.socket_timeout = timeout
-            _LOGGER.debug("Appliance %s", appliance)
-        except socket.timeout as ex:
-            raise MideaNetworkError(
-                f"Timeout while connecting to appliance {address}:{port}"
-            ) from ex
-        except socket.error as ex:
-            raise MideaNetworkError(
-                f"Could not connect to appliance {address}:{port}"
-            ) from ex
-        finally:
-            sock.close()
+                # Received data
+                response = sock.recv(512)
+                _LOGGER.debug(
+                    "Received from %s:%d %s", Redacted(address, 5), port, response
+                )
+                appliance = LanDevice(
+                    data=response, token=token, key=key, security=security
+                )
+                appliance.max_retries = retries
+                appliance.socket_timeout = timeout
+                _LOGGER.debug("Appliance %s", appliance)
+                break
+            except socket.timeout as ex:
+                raise MideaNetworkError(
+                    f"Timeout while connecting to appliance {address}:{port}"
+                ) from ex
+            except socket.error as ex:
+                raise MideaNetworkError(
+                    f"Could not connect to appliance {address}:{port}"
+                ) from ex
+            finally:
+                sock.close()
     elif appliance_id is not None:
         if use_cloud and cloud:
             appliance = LanDevice(
