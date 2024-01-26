@@ -70,9 +70,9 @@ class _MideaDiscovery:
     def _broadcast_message(self, addresses: list[str]) -> None:
 
         for addr in addresses:
-            _LOGGER.debug("Broadcasting to %s", addr)
             try:
                 for port in DISCOVERY_PORTS:
+                    _LOGGER.debug("Broadcasting to %s:%d", addr, port)
                     if is_very_verbose():
                         _LOGGER.debug(
                             "UDP broadcast %s:%d %s", addr, port, DISCOVERY_MSG
