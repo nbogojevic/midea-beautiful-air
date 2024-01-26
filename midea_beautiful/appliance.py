@@ -569,23 +569,30 @@ class AirConditionerAppliance(Appliance):
         self.latest_data = data
         if len(data) > 0:
             self._online = True
-            response = AirConditionerResponse(data)
-            _LOGGER.debug("AirConditionerResponse %s", response)
+            if (data[0] == 0xc0):
+                response = AirConditionerResponse(data)
+                _LOGGER.debug("AirConditionerResponse %s", response)
 
-            self._error = response.err_code
-            self.comfort_sleep = response.comfort_sleep
-            self.fahrenheit = response.fahrenheit
-            self.fan_speed = response.fan_speed
-            self.horizontal_swing = response.horizontal_swing
-            self._indoor_temperature = response.indoor_temperature
-            self.mode = response.mode
-            self._outdoor_temperature = response.outdoor_temperature
-            self.purifier = response.purifier
-            self.running = bool(response.run_status)
-            self.target_temperature = response.target_temperature
-            self.turbo = response.turbo
-            self.turbo_fan = response.turbo_fan
-            self.vertical_swing = response.vertical_swing
+                self._error = response.err_code
+                self.comfort_sleep = response.comfort_sleep
+                self.fahrenheit = response.fahrenheit
+                self.fan_speed = response.fan_speed
+                self.horizontal_swing = response.horizontal_swing
+                self._indoor_temperature = response.indoor_temperature
+                self.mode = response.mode
+                self._outdoor_temperature = response.outdoor_temperature
+                self.purifier = response.purifier
+                self.running = bool(response.run_status)
+                self.target_temperature = response.target_temperature
+                self.turbo = response.turbo
+                self.turbo_fan = response.turbo_fan
+                self.vertical_swing = response.vertical_swing
+            else:
+                _LOGGER.debug(
+                    "Ignoring response type=%02x data=%s",
+                    data[0],
+                    data
+                )
         else:
             self._online = False
 

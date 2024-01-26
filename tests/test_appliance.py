@@ -473,16 +473,20 @@ def test_process_response_ext(caplog: pytest.LogCaptureFixture):
     assert isinstance(appliance, AirConditionerAppliance)
     with caplog.at_level(logging.DEBUG):
         caplog.clear()
-        sample_buf_02: Final = b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
+        sample_buf_02: Final = b"012345678\02\xc0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
         appliance.process_response_ext([sample_buf_02])
         assert not any(r.levelname == "WARNING" for r in caplog.records)
         caplog.clear()
-        sample_buf_05: Final = b"012345678\05\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
+        sample_buf_05: Final = b"012345678\05\xc0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
         appliance.process_response_ext([sample_buf_05])
         assert not any(r.levelname == "WARNING" for r in caplog.records)
+        caplog.clear()
+        sample_buf_a6: Final = b"\xaa,\xac\x00\x00\x00\x00\x00\x03\x04\xa6\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00;\\\xe3"  # noqa: E501  # noqa: E501
+        appliance.process_response_ext([sample_buf_a6])
+        assert any("Ignoring response type=a6" in m for m in caplog.messages)
     with caplog.at_level(logging.DEBUG):
         caplog.clear()
-        sample_buf_bad: Final = b"012345678\00\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
+        sample_buf_bad: Final = b"012345678\00\xc0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa: E501
         appliance.process_response_ext([sample_buf_bad])
         assert any(r.levelname == "WARNING" for r in caplog.records)
     assert appliance.online
