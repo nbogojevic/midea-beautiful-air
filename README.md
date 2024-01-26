@@ -63,6 +63,8 @@ The following air conditioner data is accessible through this library:
 * active mode (can be set)
 * air purifier mode (boolean, can be set)
 * air drying mode (boolean, can be set)
+* prevent freeze mode (boolean, can be set)
+* comfort mode (boolean, can be set)
 * horizontal swing operation (boolean, can be set)
 * vertical swing operation (boolean, can be set)
 * fahrenheit degree display (boolean, can be set)
@@ -76,17 +78,17 @@ The following air conditioner data is accessible through this library:
 
 ## Discovery
 
-This library is able to discover appliances on local network. This is done by broadcasting UDP packets to port 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switchers to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key (K1) combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key (K1) pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
+This library is able to discover appliances on local network. This is done by broadcasting UDP packets to port 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switches to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key (K1) combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key (K1) pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
 
 Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful/midea.py](midea_beautiful/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
-The discovery should work on Linux and Windows based systems, however it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs depending on network setup. For example, a VM or a container needs to have rights to broadcast to physical network to make discovery work. One workaround, if physical network access is not possible, is to run discovery from non-virtualized environment host. 
+The discovery should work on Linux and Windows based systems, however as of 2022 it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs as it depends network capabilities. For example, a VM or a container needs to have rights to broadcast to physical network to make discovery work. One workaround, if physical network access is not possible, is to run discovery from non-virtualized environment host. 
 
-If this discovery mechanism doesn't work on particular set-up, it is still possible to either target appliances directly using their IP address when it is known or to retrieve or set their status using cloud service. 
+If this discovery mechanism doesn't work on particular set-up, it is still possible to either target appliances directly using their IP address, when it is known, or to retrieve or set their status using cloud service. 
 
 ### Network considerations
 
-Discovery requires that both appliance and the machine performing discovery are present on the same broadcast subnet. By default library issues broadcast to all network, i.e. address `255.255.255.255`, but it is possible to restrict broadcast subnet (e.g. 192.0.2.255)
+Discovery requires that both the appliance and the machine performing discovery are on the same broadcast subnet. By default library issues broadcast to all network, i.e. address `255.255.255.255`, but it is possible to restrict broadcast subnet (e.g. 192.0.2.255)
 
 ## Local protocol support
 
@@ -105,7 +107,7 @@ Credentials information like username, password or token keys are redacted by de
 
 ### Installing package
 
-* At least Python 3.8 is required
+* The library requires Python 3.8 or later. Current version is tested with Python 3.11.
 
 ```shell
 pip install --upgrade midea-beautiful-air
