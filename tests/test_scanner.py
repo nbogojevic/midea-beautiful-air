@@ -141,7 +141,7 @@ def test_MideaDiscovery_broadcast_message(caplog: pytest.LogCaptureFixture):
         with caplog.at_level(logging.DEBUG):
             discovery._broadcast_message(["255.255.255.255", "192.0.2.1"])
         assert len(caplog.records) == 2
-        assert mocked_socket.sendto.call_count == 2
+        assert mocked_socket.sendto.call_count == 4
         mocked_socket.sendto.side_effect = ["", Exception("test")]
         caplog.clear()
         with caplog.at_level(logging.DEBUG):
@@ -186,7 +186,7 @@ def test_discover_appliances(
         assert res[0].appliance_id == "456"
         assert res[1].appliance_id == "123"
         assert res[2].appliance_id == "345"
-        assert len(caplog.records) == 20
+        assert len(caplog.records) == 22
         assert "the account: appliance-999" in str(caplog.messages[10])
 
 
