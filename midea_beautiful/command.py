@@ -1,7 +1,7 @@
 """ Commands for Midea appliance """
 from __future__ import annotations
 
-from multiprocessing import RLock
+from threading import RLock
 from typing import ByteString
 
 from midea_beautiful.crypto import crc8
