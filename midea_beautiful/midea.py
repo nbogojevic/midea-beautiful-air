@@ -55,6 +55,13 @@ SUPPORTED_APPS: Final = {
         "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
         "proxied": None,
     },
+    "Bryant ControlBox": {
+        "appkey": "b3b5afd46868aa14c4eac8e8765f0e1a",
+        "appid": 1112,
+        "apiurl": "https://mapp.appsmb.com",
+        "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
+        "proxied": None,
+    },
     "MSmartHome": {
         "appkey": "ac21b9f9cbfe4ca5a88562ef25e2b768",
         "appid": 1010,
