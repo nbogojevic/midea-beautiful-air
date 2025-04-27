@@ -1,10 +1,13 @@
 """Test local network appliance scanner class"""
+
 from binascii import unhexlify
 import logging
 import socket
 from typing import Final
 from unittest.mock import MagicMock, patch
+
 import pytest
+
 from midea_beautiful import find_appliances
 from midea_beautiful.crypto import Security
 import midea_beautiful.scanner as scanner
@@ -147,7 +150,10 @@ def test_MideaDiscovery_broadcast_message(caplog: pytest.LogCaptureFixture):
         with caplog.at_level(logging.DEBUG):
             discovery._broadcast_message(["255.255.255.255", "192.0.2.1"])
         assert len(caplog.records) == 5
-        assert caplog.messages[2] == "Unable to send broadcast to: 255.255.255.255 cause test"
+        assert (
+            caplog.messages[2]
+            == "Unable to send broadcast to: 255.255.255.255 cause test"
+        )
 
 
 def test_discover_appliances(

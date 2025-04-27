@@ -1,14 +1,15 @@
 """Interface to Midea cloud API."""
-from __future__ import annotations
-import base64
 
+from __future__ import annotations
+
+import base64
 from datetime import datetime
 import json
 import logging
+from secrets import token_hex, token_urlsafe
 from threading import RLock
 from time import sleep, time
 from typing import Any, Final, Tuple
-from secrets import token_hex, token_urlsafe
 
 import requests
 from requests.exceptions import RequestException

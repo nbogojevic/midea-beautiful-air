@@ -1,4 +1,5 @@
-""" Commands for Midea appliance """
+"""Commands for Midea appliance"""
+
 from __future__ import annotations
 
 from threading import RLock
@@ -6,7 +7,6 @@ from typing import ByteString
 
 from midea_beautiful.crypto import crc8
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
-
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-instance-attributes
@@ -781,7 +781,6 @@ class AirConditionerSetCommand(MideaSequenceCommand):
         self.data[20] |= 0b00000010 if turbo else 0
 
 
-
 class AirConditionerResponse:
     """Response from air conditioner queries"""
 
@@ -853,7 +852,11 @@ class AirConditionerResponse:
         self.err_code = data[16]
 
         self.humidity = data[19] if len(data) > 20 else None
-        self.frost_protect = (data[21] & 0b10000000) > 0 if len(data) >= 22 else (data[10] & 0b00100000) != 0
+        self.frost_protect = (
+            (data[21] & 0b10000000) > 0
+            if len(data) >= 22
+            else (data[10] & 0b00100000) != 0
+        )
         self.comfort_mode = (data[22] & 0b00000001) > 0 if len(data) >= 23 else False
 
     def __str__(self) -> str:

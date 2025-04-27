@@ -1,9 +1,11 @@
 """Test appliance class"""
 
 import binascii
-from typing import Final
 import logging
+from typing import Final
+
 import pytest
+
 from midea_beautiful.appliance import (
     AirConditionerAppliance,
     Appliance,
@@ -189,7 +191,12 @@ def test_dehumidifier_device_capabilities(caplog: pytest.LogCaptureFixture):
         b"\xb5\x03\x10\x02\x01\x03\x1d\x02\x01\x01\x14\x02\x01\x04\xcb\\"
     )
     appliance.process_response_device_capabilities(capabilities_ion)
-    assert appliance.capabilities == {"fan_speed": 7, "auto": 1, "dry_clothes": 1, "ion": 1}  # noqa: E501
+    assert appliance.capabilities == {
+        "fan_speed": 7,
+        "auto": 1,
+        "dry_clothes": 1,
+        "ion": 1,
+    }  # noqa: E501
     appliance.process_response_device_capabilities(capabilities_no_ion)
     assert appliance.capabilities == {"fan_speed": 7, "auto": 1, "dry_clothes": 1}
     appliance.process_response_device_capabilities(capabilities_filter)
@@ -368,8 +375,10 @@ capabilities_not_b5: Final = (
     b"\xb3\x03\x16\x02\x01\x01\x18\x02\x01\x01\x17\x02\x01\x01\xabU"
 )
 
-capabilities_ac_more: Final = b'\xb5\x03\x1f\x02\x01\x00,\x02\x01\x01\t\x00\x01\x01\x00\x13p\x9b'  # noqa: E501
-capabilities_ac_init: Final = b'\xb5\x08\x14\x02\x01\x00\x15\x02\x01\x00\x1e\x02\x01\x00\x17\x02\x01\x02\x1a\x02\x01\x00\x10\x02\x01\x01%\x02\x07 < < <\x00$\x02\x01\x01\x01\x00\xa4\xb0'  # noqa: E501
+capabilities_ac_more: Final = (
+    b"\xb5\x03\x1f\x02\x01\x00,\x02\x01\x01\t\x00\x01\x01\x00\x13p\x9b"  # noqa: E501
+)
+capabilities_ac_init: Final = b"\xb5\x08\x14\x02\x01\x00\x15\x02\x01\x00\x1e\x02\x01\x00\x17\x02\x01\x02\x1a\x02\x01\x00\x10\x02\x01\x01%\x02\x07 < < <\x00$\x02\x01\x01\x01\x00\xa4\xb0"  # noqa: E501
 
 
 def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
@@ -377,17 +386,43 @@ def test_aircon_device_capabilities(caplog: pytest.LogCaptureFixture):
     assert isinstance(appliance, AirConditionerAppliance)
 
     appliance.process_response_device_capabilities(capabilities_ion)
-    assert appliance.capabilities == {"anion": 1, "fan_speed": 7, "humidity": 1, "strong_fan": 1}  # noqa: E501
+    assert appliance.capabilities == {
+        "anion": 1,
+        "fan_speed": 7,
+        "humidity": 1,
+        "strong_fan": 1,
+    }  # noqa: E501
     appliance.process_response_device_capabilities(capabilities_fan)
-    assert appliance.capabilities == {"anion": 1, "fan_speed": 3, "humidity": 1, "filter_check": 1}  # noqa: E501
+    assert appliance.capabilities == {
+        "anion": 1,
+        "fan_speed": 3,
+        "humidity": 1,
+        "filter_check": 1,
+    }  # noqa: E501
     appliance.process_response_device_capabilities(capabilities_fahrenheit_filter_check)
-    assert appliance.capabilities == {"anion": 1, "fan_speed": 7, "fahrenheit": 1, "heat_8": 1}  # noqa: E501
-    appliance.process_response_device_capabilities(capabilities_fan_avoid_ptc_fan_straight)  # noqa: E501
-    assert appliance.capabilities == {"ptc": 1, "fan_speed": 7, "fan_straight": 1, "fan_avoid": 1}  # noqa: E501
+    assert appliance.capabilities == {
+        "anion": 1,
+        "fan_speed": 7,
+        "fahrenheit": 1,
+        "heat_8": 1,
+    }  # noqa: E501
+    appliance.process_response_device_capabilities(
+        capabilities_fan_avoid_ptc_fan_straight
+    )  # noqa: E501
+    assert appliance.capabilities == {
+        "ptc": 1,
+        "fan_speed": 7,
+        "fan_straight": 1,
+        "fan_avoid": 1,
+    }  # noqa: E501
     appliance.process_response_device_capabilities(capabilities_self_clean_fan_swing)
     assert appliance.capabilities == {"fan_speed": 7, "self_clean": 1, "fan_swing": 1}
     appliance.process_response_device_capabilities(capabilities_electricity)
-    assert appliance.capabilities == {"electricity": 1, "no_fan_sense": 1, "filter_reminder": 1}  # noqa: E501
+    assert appliance.capabilities == {
+        "electricity": 1,
+        "no_fan_sense": 1,
+        "filter_reminder": 1,
+    }  # noqa: E501
     appliance.process_response_device_capabilities(capabilities_several_options)
     assert appliance.capabilities == {
         "energy_save_on_absence": 1,

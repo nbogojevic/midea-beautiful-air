@@ -22,10 +22,10 @@ If you are unsure about the version check the __version__.py file.
 ## Logs
 
 <!-- Add your logs here. ATTENTION: there may be personal information in your logs that you should mask by XXXXXX:
-- appliance mac address; 
+- appliance mac address;
 - serial number (there is mac address inside too)
-- credentials/token can be logged at log level 5 or NOTSET, so, please, double-check 
-- local network IP address (please keep first octet(s) or use documentation network: e.g. 192.0.2.xx) 
+- credentials/token can be logged at log level 5 or NOTSET, so, please, double-check
+- local network IP address (please keep first octet(s) or use documentation network: e.g. 192.0.2.xx)
 -->
 
 ```
@@ -44,5 +44,3 @@ Example log:
 
 ## Describe the bug
 A clear and concise description of what the bug is.
-
-

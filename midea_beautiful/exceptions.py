@@ -1,4 +1,5 @@
 """Exceptions raised by library"""
+
 from __future__ import annotations
 
 
@@ -67,7 +68,4 @@ class CloudAuthenticationError(MideaError):
         self.account = account
 
     def __str__(self) -> str:
-        return (
-            f"Cloud authentication error:"
-            f" {self.message} ({self.error_code})"
-        )
+        return f"Cloud authentication error: {self.message} ({self.error_code})"

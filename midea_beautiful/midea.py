@@ -1,4 +1,5 @@
 """Midea constants"""
+
 from __future__ import annotations
 
 from binascii import unhexlify
