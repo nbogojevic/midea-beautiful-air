@@ -1,4 +1,5 @@
 """Scans network for Midea appliances."""
+
 from __future__ import annotations
 
 import logging
@@ -68,7 +69,6 @@ class _MideaDiscovery:
         return [sd for sd in scanned_appliances if sd.is_identified(self._cloud)]
 
     def _broadcast_message(self, addresses: list[str]) -> None:
-
         for addr in addresses:
             try:
                 for port in DISCOVERY_PORTS:
@@ -142,7 +142,7 @@ class _MideaDiscovery:
                 " token=%s key=%s",
                 scanned,
                 Redacted(scanned.token),
-                Redacted(scanned.key)
+                Redacted(scanned.key),
             )
 
 

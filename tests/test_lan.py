@@ -1,4 +1,5 @@
 """Test local network communcation"""
+
 from binascii import unhexlify
 from contextlib import contextmanager
 from datetime import datetime
@@ -283,7 +284,9 @@ def test_get_appliance_state_set_state_non_existing(
     device = LanDevice(appliance_id="22222", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
     # with self.assertLogs("midea_beautiful.lan", logging.WARNING):
     caplog.clear()
-    mock_cloud.appliance_transparent_send.return_value = [b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"]  # noqa: E501
+    mock_cloud.appliance_transparent_send.return_value = [
+        b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    ]  # noqa: E501
 
     with caplog.at_level(logging.WARNING):
         device.set_state(cloud=mock_cloud, non_existing_property="12")
@@ -301,7 +304,6 @@ def test_get_appliance_state_lan(mock_cloud):
     mock_cloud.get_token.return_value = (token, key)
     broadcast_packet = "8207000a2c19000030303030303050303030303030305131413036383143304137443630303030300b6e65745f61315f374436300000000001000000040000000000a100000000000000a0681c0a7d60069fcd0300080103010000000000000000000000000000000000000000"  # noqa: E501
     with patch("socket.socket") as mock_socket:
-
         mock_socket.return_value.recv.return_value = handshake_response
         with patch("midea_beautiful.crypto.Security") as mock_security:
             mock_security.aes_decrypt.return_value = unhexlify(broadcast_packet)
@@ -480,11 +482,14 @@ def test_appliance_send_v2():
         appliance_id=str(12345), appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER
     )
     device.version = 2
-    with patch.object(
-        device,
-        "_request",
-        side_effect=[b"", b"", reply_aa],
-    ), at_sleep(0.001):
+    with (
+        patch.object(
+            device,
+            "_request",
+            side_effect=[b"", b"", reply_aa],
+        ),
+        at_sleep(0.001),
+    ):
         packets = device.appliance_send(b"\x00")
         assert len(packets) == 1
 
@@ -647,9 +652,7 @@ def test_appliance_apply_on_lan_multiple_replies():
     )
     reply_5a5a: Final = b"ZZ\x01\x11X\x00 \x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xe2\xc2\x03\x00\x00\x1d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x8b\x0c\x05\x8f=\xcbml\xff\x95\x16\xd1c\x9e\xc2\xcf\xa1\xdd\xe0\x82\\\xdc\x94\x1aR\x0eFV\xecq7\xff\x96\x0c{Vdt\xde\xe0\xd2}r\xb7>B\xde\xce"  # noqa: E501
 
-    with patch.object(
-        device, "appliance_send", side_effect=[[reply_5a5a, reply_5a5a]]
-    ):
+    with patch.object(device, "appliance_send", side_effect=[[reply_5a5a, reply_5a5a]]):
         device._online = False
         device.apply()
         assert device.online
@@ -685,6 +688,5 @@ def test_get_tcp_key():
     with pytest.raises(AuthenticationError) as ex:
         device._get_tcp_key(b"")
     assert (
-        ex.value.message
-        == "Failed to get TCP key for ****, cause tcp_key"  # noqa: E501
+        ex.value.message == "Failed to get TCP key for ****, cause tcp_key"  # noqa: E501
     )

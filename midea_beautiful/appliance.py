@@ -1,4 +1,5 @@
-""" Model for Midea dehumidifier appliances """
+"""Model for Midea dehumidifier appliances"""
+
 from __future__ import annotations
 
 import logging
@@ -18,7 +19,7 @@ from midea_beautiful.command import (
 )
 from midea_beautiful.exceptions import MideaError
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
-from midea_beautiful.util import is_very_verbose, Redacted, strtobool
+from midea_beautiful.util import Redacted, is_very_verbose, strtobool
 
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-instance-attributes
@@ -139,7 +140,7 @@ class Appliance:
             _LOGGER.warning("Invalid extended response %s", selected)
             return
         _dump_data(data[-1])
-        if not selected[9] in [2, 3, 4, 5]:
+        if selected[9] not in [2, 3, 4, 5]:
             _LOGGER.warning(
                 "Unknown extended response %x %s", selected[9], Redacted(selected, 10)
             )
@@ -196,6 +197,7 @@ class Appliance:
     def needs_refresh(self) -> bool:
         """Indicates if appliance needs refresh after apply command"""
         return False
+
     # pylint: enable=no-self-use
 
     def capabilities_command(self) -> MideaCommand:
@@ -220,12 +222,12 @@ class DehumidifierAppliance(Appliance):
         b"\x10\x02": "fan_speed",
         b"\x14\x02": "mode",
         b"\x17\x02": "filter",
-        b"\x1D\x02": "pump",
-        b"\x1E\x02": "ion",
-        b"\x1F\x02": "auto",
+        b"\x1d\x02": "pump",
+        b"\x1e\x02": "ion",
+        b"\x1f\x02": "auto",
         b"\x20\x02": "dry_clothes",
         b"\x24\x02": "light",
-        b"\x2D\x02": "water_level",
+        b"\x2d\x02": "water_level",
     }
 
     def __init__(self, appliance_id, appliance_type: str = "") -> None:
@@ -508,12 +510,12 @@ class AirConditionerAppliance(Appliance):
         b"\x18\x02": "no_fan_sense",
         b"\x19\x02": "ptc",
         b"\x1a\x02": "strong_fan",
-        b"\x1E\x02": "anion",
-        b"\x1F\x02": "humidity",
+        b"\x1e\x02": "anion",
+        b"\x1f\x02": "humidity",
         b"\x21\x02": "filter_check",
         b"\x22\x02": "fahrenheit",
         b"\x24\x02": "screen_display",
-        b"\x2A\x02": "strong_fan",
+        b"\x2a\x02": "strong_fan",
         b"\x2c\x02": "buzzer",
         b"\x30\x02": "energy_save_on_absence",
         b"\x32\x02": "fan_straight",
@@ -551,7 +553,6 @@ class AirConditionerAppliance(Appliance):
         self._show_screen: bool = True
         self._error: int = 0
 
-
     @staticmethod
     def supported(appliance_type: str | int) -> bool:
         lwr = str(appliance_type).lower()
@@ -572,7 +573,7 @@ class AirConditionerAppliance(Appliance):
         self.latest_data = data
         if len(data) > 0:
             self._online = True
-            if (data[0] == 0xc0):
+            if data[0] == 0xC0:
                 response = AirConditionerResponse(data)
                 _LOGGER.debug("AirConditionerResponse %s", response)
 
@@ -594,11 +595,7 @@ class AirConditionerAppliance(Appliance):
                 self.vertical_swing = response.vertical_swing
                 self.show_screen = response.show_screen
             else:
-                _LOGGER.debug(
-                    "Ignoring response type=%02x data=%s",
-                    data[0],
-                    data
-                )
+                _LOGGER.debug("Ignoring response type=%02x data=%s", data[0], data)
         else:
             self._online = False
 

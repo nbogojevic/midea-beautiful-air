@@ -1,4 +1,5 @@
 """Utility services for Midea library."""
+
 from __future__ import annotations
 
 from typing import Any, Final
@@ -22,6 +23,8 @@ def very_verbose(verbose: bool) -> None:
     """Activates/deactivates very verbose mode."""
     global _very_verbose
     _very_verbose = verbose
+
+
 # pylint: enable=global-statement,invalid-name
 
 

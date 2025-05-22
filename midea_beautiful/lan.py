@@ -1,4 +1,5 @@
 """Connects to Midea appliances on local network."""
+
 from __future__ import annotations
 
 import binascii
@@ -376,7 +377,6 @@ class LanDevice:
     def refresh(self, cloud: MideaCloud = None) -> None:
         """Refreshes appliance data from network or cloud"""
         with self._lock:
-
             cmd = self.state.refresh_command()
             responses = self._status(cmd, cloud)
             if responses:
@@ -996,7 +996,6 @@ def appliance_state(
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(timeout)
         for port in DISCOVERY_PORTS:
-
             try:
                 # Connect to the appliance
                 sock.connect((address, port))

@@ -4,7 +4,7 @@ This is a library that allows communication with Midea air conditioner and dehum
 [![Build Status](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-publish.yml)
 [![PyPI](https://img.shields.io/pypi/v/midea_beautiful_air.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_air/)
 
-This library allows discovering Midea air conditioners and dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English. 
+This library allows discovering Midea air conditioners and dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English.
 
 This library inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners and [barban-dev/midea_inventor_dehumidifier](https://github.com/barban-dev/midea_inventor_dehumidifier) cloud based functionality for dehumidifiers. This library may include verbatim or adapted portions of the code from those two projects.
 
@@ -14,7 +14,7 @@ Thanks also to [yitsushi's project](https://github.com/yitsushi/midea-air-condit
 
 ## Supported appliances
 
-The library works with Midea air conditioners and dehumidifiers supporting V2 and V3 protocol. 
+The library works with Midea air conditioners and dehumidifiers supporting V2 and V3 protocol.
 
 Some examples of supported dehumidifiers:
 
@@ -29,7 +29,7 @@ It may as well work with other Midea Wi-Fi air conditioners and dehumidifiers.
 
 ## Dehumidifier data
 
-The following dehumidifier data is accessible through this library: 
+The following dehumidifier data is accessible through this library:
 
 * on/off switch (boolean, can be set)
 * current relative humidity (read-only)
@@ -39,7 +39,7 @@ The following dehumidifier data is accessible through this library:
 * (an)ion mode status (boolean, can be set)
 * tank is full (boolean, read-only)
 * appliance name (read-only). Set through Midea mobile application.
-* appliance serial number (read-only) 
+* appliance serial number (read-only)
 * appliance IPv4 address (read-only)
 * token and key for local network access (read-only, only v3 appliances)
 * filter replacement indicator (boolean, read-only, if supported on appliance)
@@ -54,7 +54,7 @@ The following dehumidifier data is accessible through this library:
 
 ## Air Conditioner Data
 
-The following air conditioner data is accessible through this library: 
+The following air conditioner data is accessible through this library:
 
 * on/off switch (boolean, can be set)
 * target temperature(celsius, can be set)
@@ -72,19 +72,19 @@ The following air conditioner data is accessible through this library:
 * appliance characteristics, i.e. support for special modes, fan presets etc (read-only)
 * beep prompt (write-only)
 * appliance name (read-only). Set through Midea mobile application.
-* appliance serial number (read-only) 
+* appliance serial number (read-only)
 * appliance IPv4 address (read-only)
 * token and key for local network access (read-only, only v3 appliances)
 
 ## Discovery
 
-This library is able to discover appliances on local network. This is done by broadcasting UDP packets to port 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switches to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key (K1) combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key (K1) pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name). 
+This library is able to discover appliances on local network. This is done by broadcasting UDP packets to port 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switches to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key (K1) combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key (K1) pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name).
 
 Library connects to Midea cloud API using credentials from NetHome Plus mobile app. You can use other Midea app mobile applications if you obtain their application key and id. See [midea_beautiful/midea.py](midea_beautiful/midea.py) for some examples. Application key and application id must match, otherwise library won't be able to sign in.
 
-The discovery should work on Linux and Windows based systems, however as of 2022 it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs as it depends network capabilities. For example, a VM or a container needs to have rights to broadcast to physical network to make discovery work. One workaround, if physical network access is not possible, is to run discovery from non-virtualized environment host. 
+The discovery should work on Linux and Windows based systems, however as of 2022 it doesn't work in Windows Subsystem for Linux and may not work in Docker containers or VMs as it depends network capabilities. For example, a VM or a container needs to have rights to broadcast to physical network to make discovery work. One workaround, if physical network access is not possible, is to run discovery from non-virtualized environment host.
 
-If this discovery mechanism doesn't work on particular set-up, it is still possible to either target appliances directly using their IP address, when it is known, or to retrieve or set their status using cloud service. 
+If this discovery mechanism doesn't work on particular set-up, it is still possible to either target appliances directly using their IP address, when it is known, or to retrieve or set their status using cloud service.
 
 ### Network considerations
 
@@ -100,7 +100,7 @@ Library supports following protocols:
 
 ## Logging
 
-Credentials information like username, password or token keys are redacted by default. When using command line, pass `--no-redact` option to show them in the logs. You can use command line tool to display token and key (K1) data. 
+Credentials information like username, password or token keys are redacted by default. When using command line, pass `--no-redact` option to show them in the logs. You can use command line tool to display token and key (K1) data.
 
 
 ## Command Line Usage
@@ -260,7 +260,7 @@ Get appliance state:
 from midea_beautiful import appliance_state
 
 appliance = appliance_state(
-    address=192.0.2.2,  # APPLIANCE_IP_ADDRESS 
+    address=192.0.2.2,  # APPLIANCE_IP_ADDRESS
     token="TOKEN",  # TOKEN obtained from Midea API
     key="KEY",  # Token KEY obtained from Midea API
 )
@@ -280,9 +280,9 @@ cloud = connect_to_cloud(
             appname="MSmartHome"
         )
 
-appliance = appliance_state( 
+appliance = appliance_state(
     cloud=cloud,  # Account e-mail
-    id=appliance_id,  # Appliance id obtained from Midea API 
+    id=appliance_id,  # Appliance id obtained from Midea API
 )
 print(f"{appliance!r}")
 ```

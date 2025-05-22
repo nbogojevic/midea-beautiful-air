@@ -1,4 +1,5 @@
 """Test encryption functions"""
+
 import binascii
 from typing import Final
 

@@ -1,14 +1,15 @@
 """Tests for Midea commands"""
+
 from binascii import unhexlify
 from typing import Final
 
 import pytest
+
 from midea_beautiful.appliance import (
     AirConditionerAppliance,
     Appliance,
     DehumidifierAppliance,
 )
-
 from midea_beautiful.command import (
     AirConditionerResponse,
     AirConditionerSetCommand,

@@ -1,8 +1,9 @@
 """Fixtures and setup for tests."""
-from unittest.mock import patch
-import logging
-import pytest
 
+import logging
+from unittest.mock import patch
+
+import pytest
 from pytest_socket import disable_socket
 
 from midea_beautiful.util import clear_sensitive, very_verbose

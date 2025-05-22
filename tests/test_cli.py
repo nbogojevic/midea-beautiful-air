@@ -1,4 +1,5 @@
 """Test command line interface and global functions"""
+
 from argparse import Namespace
 import logging
 import sys
@@ -7,7 +8,7 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 import pytest_socket
 
-from midea_beautiful import connect_to_cloud, LanDevice, MideaCloud
+from midea_beautiful import LanDevice, MideaCloud, connect_to_cloud
 from midea_beautiful.cli import (
     _configure_argparser,
     _logs_install,
@@ -349,7 +350,9 @@ def test_set_command_not_existing(
     )
     _with_defaults(namespace)
 
-    mock_cloud.appliance_transparent_send.return_value = [b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"]  # noqa: E501
+    mock_cloud.appliance_transparent_send.return_value = [
+        b"012345678\02\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    ]  # noqa: E501
     with patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud):
         res = _run_set_command(namespace)
         assert len(caplog.records) == 1
@@ -390,7 +393,6 @@ def test_set_no_status(
     mock_cloud: MideaCloud,
     caplog: pytest.LogCaptureFixture,
 ):
-
     with (
         patch("midea_beautiful.cli.connect_to_cloud", return_value=mock_cloud),
         patch("midea_beautiful.cli.appliance_state", return_value=None),

@@ -1,4 +1,5 @@
 """Tests for Midea cloud client API"""
+
 import json
 from typing import Final
 from unittest.mock import patch

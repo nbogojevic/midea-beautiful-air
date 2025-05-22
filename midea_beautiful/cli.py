@@ -1,4 +1,5 @@
-""" Discover Midea Humidifiers on local network using command-line """
+"""Discover Midea Humidifiers on local network using command-line"""
+
 from __future__ import annotations
 
 from argparse import ArgumentParser, Namespace
