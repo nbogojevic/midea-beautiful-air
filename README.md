@@ -1,8 +1,9 @@
 This is a library that allows communication with Midea air conditioner and dehumidifier via the local area network.
 
 # midea-beautiful-air
-[![Build Status](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-publish.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-publish.yml)
+[![Run Project Tests](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-test.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-test.yml)
 [![PyPI](https://img.shields.io/pypi/v/midea_beautiful_air.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_air/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v0.json)](https://github.com/astral-sh/ruff)
 
 This library allows discovering Midea air conditioners and dehumidifiers on local network, getting their state and controlling then. The name comes from Chinese name for Midea (美的) which translates to _beautiful_ in English.
 
