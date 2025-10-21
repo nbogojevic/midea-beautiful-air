@@ -861,3 +861,14 @@ class AirConditionerResponse:
 
     def __str__(self) -> str:
         return str(self.__dict__)
+
+
+class TumbleDryerResponse:
+    """Response from tumble dryer queries"""
+
+    def __init__(self, data: ByteString) -> None:
+        # Placeholder implementation - needs to be filled based on actual protocol
+        self.data = data
+
+    def __str__(self) -> str:
+        return str(self.__dict__)

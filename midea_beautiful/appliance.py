@@ -16,6 +16,7 @@ from midea_beautiful.command import (
     DeviceCapabilitiesCommand,
     DeviceCapabilitiesCommandMore,
     MideaCommand,
+    TumbleDryerResponse,
 )
 from midea_beautiful.exceptions import MideaError
 from midea_beautiful.midea import AC_MAX_TEMPERATURE, AC_MIN_TEMPERATURE
@@ -881,3 +882,18 @@ class TumbleDryerAppliance(Appliance):
     @staticmethod
     def supported(appliance_type: str | int) -> bool:
         return appliance_type == 220
+
+    def process_response(self, data: bytes) -> None:
+        if is_very_verbose():
+            _LOGGER.debug(
+                "Processing response for dehumidifier id=%s data=%s",
+                Redacted(self._id, 4),
+                data,
+            )
+        self.latest_data = data
+        if len(data) > 0:
+            self._online = True
+            response = TumbleDryerResponse(data)
+            _LOGGER.debug("TumbleDryerResponse %s", response)
+        else:
+            self._online = False
