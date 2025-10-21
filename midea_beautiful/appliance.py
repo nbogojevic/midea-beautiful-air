@@ -75,6 +75,12 @@ class Appliance:
             return AirConditionerAppliance(
                 appliance_id=appliance_id, appliance_type=appliance_type
             )
+        if TumbleDryerAppliance.supported(appliance_type):
+            _LOGGER.debug("Creating TumbleDryerAppliance %s", Redacted(appliance_id, 4))
+            return TumbleDryerAppliance(
+                appliance_id=appliance_id, appliance_type=appliance_type
+            )
+
         _LOGGER.warning("Creating unsupported appliance %s", Redacted(appliance_id, 4))
         return Appliance(appliance_id, appliance_type)
 
@@ -862,3 +868,16 @@ class AirConditionerAppliance(Appliance):
                 self.capabilities,
             )
         )
+
+
+class TumbleDryerAppliance(Appliance):
+    def __init__(self, appliance_id, appliance_type: str = "") -> None:
+        super().__init__(appliance_id, appliance_type)
+
+    @property
+    def model(self) -> str:
+        return "Tumble dryer"
+
+    @staticmethod
+    def supported(appliance_type: str | int) -> bool:
+        return appliance_type == 220
