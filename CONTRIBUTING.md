@@ -84,6 +84,20 @@ Use [bump2version](https://pypi.org/project/bump2version/) bump the version:
 2. Bump the version: `bumpversion patch` or `bumpversion minor` or `bumpversion major`
 3. This will automatically update version numbers in configured files and create a commit with a tag
 
+## Publishing Version
+
+To publish a new version:
+
+1. Push tags to the repository: `git push --follow-tags`
+2. Create a release: `gh release create "$(git tag --list 'v*' --sort=-v:refname | head -n 1)" --title "$(git tag --list 'v*' --sort=-v:refname | head -n 1)" --generate-notes --verify-tag`
+
+Or use the following script:
+
+```shell
+git push --follow-tags
+tag="$(git tag --list 'v*' --sort=-v:refname | head -n 1)" && gh release create "$tag" --title "$tag" --generate-notes --verify-tag
+```
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under its MIT License.
