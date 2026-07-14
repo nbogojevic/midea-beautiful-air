@@ -12,7 +12,7 @@ from typing import Any, Sequence, cast
 
 from midea_beautiful import appliance_state, connect_to_cloud, find_appliances
 from midea_beautiful.appliance import AirConditionerAppliance, DehumidifierAppliance
-from midea_beautiful.cloud import MideaCloud
+from midea_beautiful.cloud import CLOUD_API_DEVICE_ID, MideaCloud
 from midea_beautiful.command import AirConditionerResponse, DehumidifierResponse
 from midea_beautiful.lan import LanDevice
 from midea_beautiful.midea import (
@@ -96,6 +96,8 @@ def _run_discover_command(args: Namespace) -> int:
         iotkey=args.iotkey,
         api_url=args.apiurl,
         proxied="v5" if args.proxied else None,
+        pushtoken=args.pushtoken,
+        device_id=args.deviceid,
     )
     for appliance in appliances:
         _output(appliance, args.credentials)
@@ -142,6 +144,8 @@ def _run_status_command(args: Namespace) -> int:
                 iotkey=args.iotkey,
                 api_url=args.apiurl,
                 proxied="v5" if args.proxied else None,
+                pushtoken=args.pushtoken,
+                device_id=args.deviceid,
             )
             appliance = appliance_state(
                 address=args.ip, cloud=cloud, use_cloud=args.cloud, appliance_id=args.id
@@ -243,6 +247,8 @@ def _run_set_command(args: Namespace) -> int:
                 iotkey=args.iotkey,
                 api_url=args.apiurl,
                 proxied="v5" if args.proxied else None,
+                pushtoken=args.pushtoken,
+                device_id=args.deviceid,
             )
 
             appliance = appliance_state(
@@ -298,6 +304,12 @@ def _add_standard_options(parser: ArgumentParser) -> None:
     parser.add_argument("--signkey", help="Midea sign key", default=DEFAULT_SIGNKEY)
     parser.add_argument(
         "--credentials", action="store_true", help="show credentials in output"
+    )
+    parser.add_argument(
+        "--pushtoken", help="Push token for notifications", default="", required=False
+    )
+    parser.add_argument(
+        "--deviceid", help="Device ID", default=CLOUD_API_DEVICE_ID, required=False
     )
     parser.add_argument(
         "--proxied",

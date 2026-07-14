@@ -46,6 +46,8 @@ def connect_to_cloud(
     api_url=DEFAULT_API_SERVER_URL,
     proxied=DEFAULT_PROXIED,
     sign_key=DEFAULT_SIGNKEY,
+    pushtoken: str | None = None,
+    device_id: str | None = None,
 ) -> MideaCloud:
     """Connects to Midea cloud API
 
@@ -60,6 +62,8 @@ def connect_to_cloud(
         api_url (str): URL of Midea API
         proxied (boolean): Is using proxied API
         sign_key (str): Midea signing key
+        pushtoken (str | None): Push token for notifications
+        device_id (str | None): Device ID
 
     Returns:
         MideaCloud: Interface to Midea cloud API
@@ -84,6 +88,8 @@ def connect_to_cloud(
         api_url=api_url,
         proxied=proxied,
         sign_key=sign_key,
+        pushtoken=pushtoken,
+        device_id=device_id,
     )
     cloud.authenticate()
     return cloud
@@ -105,6 +111,8 @@ def find_appliances(  # pylint: disable=too-many-arguments
     api_url=DEFAULT_API_SERVER_URL,
     proxied=DEFAULT_PROXIED,
     sign_key=DEFAULT_SIGNKEY,
+    pushtoken: str | None = None,
+    device_id: str | None = None,
 ) -> list[LanDevice]:
     """Finds appliances on local network
 
@@ -118,6 +126,8 @@ def find_appliances(  # pylint: disable=too-many-arguments
         If omitted, search all addresses (255.255.255.255). Defaults to None.
         appliances (list[LanDevice], optional): List of known appliances.
         Defaults to None.
+        pushtoken (str | None): Push token for notifications
+        device_id (str | None): Device ID
         retries (int): Number of times library should retry discovery.
         timeout (float): Time to wait for device reply.
 
@@ -147,6 +157,8 @@ def find_appliances(  # pylint: disable=too-many-arguments
             api_url=api_url,
             proxied=proxied,
             sign_key=sign_key,
+            pushtoken=pushtoken,
+            device_id=device_id,
         )
 
     addresses = addresses or ["255.255.255.255"]
