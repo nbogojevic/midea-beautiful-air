@@ -134,5 +134,8 @@ dmypy.json
 
 prof
 
+# ruff cache
+.ruff_cache/
+
 # Private tests
 private_tests/
