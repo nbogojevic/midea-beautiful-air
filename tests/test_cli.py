@@ -35,6 +35,8 @@ def _with_defaults(namespace: Namespace) -> Namespace:
     namespace.hmackey = DEFAULT_HMACKEY
     namespace.iotkey = DEFAULT_IOTKEY
     namespace.signkey = DEFAULT_SIGNKEY
+    namespace.pushtoken = None
+    namespace.deviceid = None
     namespace.proxied = False
     namespace.apiurl = DEFAULT_API_SERVER_URL
     return namespace
