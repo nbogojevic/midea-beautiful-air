@@ -48,6 +48,34 @@ Use [black](https://github.com/ambv/black) to make sure the code follows the sty
 
 Use [flake8](https://pypi.org/project/flake8/) for linting.
 
+## Setting Up Development Environment
+
+We recommend using [uv](https://docs.astral.sh/uv/) for dependency management and virtual environment creation:
+
+1. Install [uv](https://docs.astral.sh/uv/): Follow the [installation guide](https://docs.astral.sh/uv/#getting-started)
+2. Create a virtual environment: `uv venv`
+3. Activate the virtual environment: `source .venv/bin/activate` (on Windows: `.venv\Scripts\activate`)
+4. Install dependencies: `uv pip install -r requirements-test.txt`
+5. (Optional) Install the package in editable mode: `uv pip install -e .`
+
+## Install pre-commit checks
+
+To automatically run linting and formatting checks before each commit:
+
+1. Install [pre-commit](https://pre-commit.com/): `uv pip install pre-commit` (it is part of `requirements-dev.txt` dependencies)
+2. Install the git hooks: `pre-commit install`
+3. (Optional) Run against all files: `pre-commit run --all-files`
+
+The pre-commit hooks will now run automatically on each commit.
+
+## Bumping Version
+
+Use [bump2version](https://pypi.org/project/bump2version/) bump the version:
+
+1. Install bump2version: `uv pip install bump2version` (it is part of `requirements-dev.txt` dependencies)
+2. Bump the version: `bumpversion patch` or `bumpversion minor` or `bumpversion major`
+3. This will automatically update version numbers in configured files and create a commit with a tag
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under its MIT License.
