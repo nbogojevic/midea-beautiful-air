@@ -1,3 +1,17 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+*.swo
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
