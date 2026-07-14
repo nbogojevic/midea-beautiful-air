@@ -223,7 +223,7 @@ class LanDevice:
         self.port = other.port
         self.firmware_version = other.firmware_version
         self.protocol_version = other.protocol_version
-        self.udp_version = other.protocol_version
+        self.udp_version = other.udp_version
         self.serial_number = other.serial_number
         self.mac = other.mac
         self.ssid = other.ssid
@@ -816,7 +816,7 @@ class LanDevice:
                     )
                 if len(responses[-1]) > 10:
                     self.state.process_response_device_capabilities(
-                        responses[-1][10:], 0
+                        responses[-1][10:], 1
                     )
                 else:
                     _LOGGER.debug("Invalid B5 response %s", responses)
@@ -993,9 +993,13 @@ def appliance_state(
     if address:
         token = token or ""
         key = key or ""
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(timeout)
+        appliance = None
+        last_exception = None
+        last_port = None
         for port in DISCOVERY_PORTS:
+            last_port = port
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(timeout)
             try:
                 # Connect to the appliance
                 sock.connect((address, port))
@@ -1019,15 +1023,26 @@ def appliance_state(
                 _LOGGER.debug("Appliance %s", appliance)
                 break
             except socket.timeout as ex:
-                raise MideaNetworkError(
-                    f"Timeout while connecting to appliance {address}:{port}"
-                ) from ex
+                last_exception = ex
+                _LOGGER.debug(
+                    "Timeout while connecting to appliance %s:%d", address, port
+                )
             except socket.error as ex:
-                raise MideaNetworkError(
-                    f"Could not connect to appliance {address}:{port}"
-                ) from ex
+                last_exception = ex
+                _LOGGER.debug("Could not connect to appliance %s:%d", address, port)
             finally:
                 sock.close()
+
+        if appliance is None:
+            if isinstance(last_exception, socket.timeout):
+                raise MideaNetworkError(
+                    f"Timeout while connecting to appliance {address}:{last_port}"
+                ) from last_exception
+            if isinstance(last_exception, socket.error):
+                raise MideaNetworkError(
+                    f"Could not connect to appliance {address}:{last_port}"
+                ) from last_exception
+            raise MideaNetworkError(f"Could not connect to appliance {address}")
     elif appliance_id is not None:
         if use_cloud and cloud:
             appliance = LanDevice(

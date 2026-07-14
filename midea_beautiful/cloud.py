@@ -103,6 +103,8 @@ class MideaCloud:
         iot_key: str = DEFAULT_IOTKEY,
         hmac_key: str = DEFAULT_HMACKEY,
         proxied: str = DEFAULT_PROXIED,
+        pushtoken: str | None = None,
+        device_id: str | None = None,
     ) -> None:
         # Get this from any of the Midea based apps
         self._appkey = appkey or DEFAULT_APPKEY
@@ -111,7 +113,8 @@ class MideaCloud:
         self._iot_key = iot_key or DEFAULT_IOTKEY
         self._hmac_key = hmac_key or DEFAULT_HMACKEY
         self._proxied = proxied or DEFAULT_PROXIED
-        self._pushtoken = token_urlsafe(120)
+        self._pushtoken = pushtoken or token_urlsafe(120)
+        self._device_id = device_id or CLOUD_API_DEVICE_ID
         # Your email address for your Midea account
         self._account = account
         self._password = password
@@ -203,7 +206,7 @@ class MideaCloud:
                         "language": CLOUD_API_LANGUAGE,
                         "src": self._appid,
                         "stamp": datetime.now().strftime("%Y%m%d%H%M%S"),
-                        "deviceId": CLOUD_API_DEVICE_ID,
+                        "deviceId": self._device_id,
                     }
                 # Add the method parameters for the endpoint
                 data.update(args)
@@ -423,7 +426,7 @@ class MideaCloud:
                     "appKey": self._appkey,
                     "appVersion": _PROXIED_APP_VERSION,
                     "osVersion": _PROXIED_SYS_VERSION,
-                    "deviceId": CLOUD_API_DEVICE_ID,
+                    "deviceId": self._device_id,
                     "platform": "2",
                 },
                 "iotData": {

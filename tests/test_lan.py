@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 import socket
 from typing import Final
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from pytest import LogCaptureFixture
@@ -330,7 +330,7 @@ def test_get_appliance_state_socket_timeout(mock_cloud):
         with pytest.raises(MideaNetworkError) as ex:
             appliance_state(address="192.0.2.21", cloud=mock_cloud)
         assert (
-            ex.value.message == "Timeout while connecting to appliance 192.0.2.21:6445"
+            ex.value.message == "Timeout while connecting to appliance 192.0.2.21:20086"
         )
 
 
@@ -339,7 +339,49 @@ def test_get_appliance_state_socket_error(mock_cloud):
         mock_socket.return_value.connect.side_effect = socket.error("test")
         with pytest.raises(MideaNetworkError) as ex:
             appliance_state(address="192.0.2.22", cloud=mock_cloud)
-        assert ex.value.message == "Could not connect to appliance 192.0.2.22:6445"
+        assert ex.value.message == "Could not connect to appliance 192.0.2.22:20086"
+
+
+def test_identify_merges_capabilities_second_sequence():
+    device = LanDevice(appliance_id="12345", appliance_type=APPLIANCE_TYPE_DEHUMIDIFIER)
+    first_response = [b"01234567890ABCDEFGHIJ"]
+    second_response = [b"abcdefghijkLMNOPQRST"]
+
+    with patch.object(device, "_status", side_effect=[first_response, second_response]):
+        with patch.object(device, "refresh", return_value=None):
+            with patch.object(
+                device.state, "process_response_device_capabilities"
+            ) as process_caps:
+                device.identify(use_cloud=True)
+
+    assert process_caps.call_args_list == [
+        call(first_response[-1][10:], 0),
+        call(second_response[-1][10:], 1),
+    ]
+
+
+def test_get_appliance_state_retries_next_discovery_port(mock_cloud):
+    payload = bytearray(unhexlify(BROADCAST_PAYLOAD))
+    encrypted = Security().aes_encrypt(payload)
+    response = unhexlify(
+        "837000b8200f04035a5a0111a8007a80000000000000000000000000010203040506"
+        "0000000000000000000000000000"
+        f"{encrypted.hex()}"
+        "8c53d543ede4d8d26c2008f541b804dc5b24fc8c2735ead584edc8dda92b243d"
+    )
+
+    with patch("socket.socket") as mock_socket:
+        sock = mock_socket.return_value
+        sock.connect.side_effect = [socket.timeout("first"), None]
+        sock.recv.return_value = response
+        with patch.object(LanDevice, "identify", return_value=None):
+            appliance = appliance_state(address="192.0.2.23", cloud=mock_cloud)
+
+    assert appliance is not None
+    assert sock.connect.call_args_list == [
+        call(("192.0.2.23", 6445)),
+        call(("192.0.2.23", 20086)),
+    ]
 
 
 def test_request():
