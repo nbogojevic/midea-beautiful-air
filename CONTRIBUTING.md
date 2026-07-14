@@ -68,6 +68,14 @@ To automatically run linting and formatting checks before each commit:
 
 The pre-commit hooks will now run automatically on each commit.
 
+## Running Tests
+
+To run the test suite with verbose output, showing detailed information about each test and generate coverage report:
+
+```bash
+PYTHONPATH=. pytest -vv --cov
+```
+
 ## Bumping Version
 
 Use [bump2version](https://pypi.org/project/bump2version/) bump the version:
