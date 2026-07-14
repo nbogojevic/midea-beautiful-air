@@ -351,7 +351,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @vertical_swing.setter
     def vertical_swing(self, on_off: bool) -> None:
-        self.data[20] &= ~0b00100000  # Clear the sleep switch bit
+        self.data[20] &= ~0b00100000  # Clear the vertical swing bit
         self.data[20] |= 0b00100000 if on_off else 0
 
     @property
@@ -366,7 +366,7 @@ class DehumidifierSetCommand(MideaSequenceCommand):
 
     @property
     def tank_warning_level(self) -> int:
-        """Target humidity for dehumidifier"""
+        """Tank warning level for dehumidifier"""
         return self.data[23]
 
     @tank_warning_level.setter
@@ -752,7 +752,7 @@ class AirConditionerSetCommand(MideaSequenceCommand):
 
     @property
     def comfort_mode(self) -> bool:
-        """Activates frost protect"""
+        """Activates comfort mode"""
         return self.data[32] & 0b00000001 != 0
 
     @comfort_mode.setter

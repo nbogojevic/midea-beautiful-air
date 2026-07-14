@@ -727,7 +727,7 @@ class LanDevice:
         Works only with v3 appliances.
 
         Args:
-            cloud (CloudService): interface to Midea cloud API
+            cloud (MideaCloud): interface to Midea cloud API
 
         Returns:
             bool: True if successful

@@ -1,4 +1,4 @@
-"""Discover Midea Humidifiers on local network using command-line"""
+"""Discover Midea appliances (AC and dehumidifiers) on local network using command-line"""
 
 from __future__ import annotations
 

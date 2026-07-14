@@ -114,12 +114,12 @@ class Appliance:
 
     @property
     def type(self) -> str:
-        """Appliance type id (e.g. a1 is dehumidifier, ac is air conditioner"""
+        """Appliance type id (e.g. a1 is dehumidifier, ac is air conditioner)"""
         return self._type
 
     @property
     def model(self) -> str:
-        """Appliance type id (e.g. Dehumidifier, Air conditioner"""
+        """Appliance type id (e.g. a1 is dehumidifier, ac is air conditioner)"""
         return self._type
 
     @property
@@ -179,7 +179,7 @@ class Appliance:
 
     # pylint: disable=unused-argument,no-self-use
     def intercept_b5_property(self, data: bytes, index: int) -> int:
-        """Returns positive integer if properties was processed by implementation,
+        """Returns -1 if property was not processed by implementation,
         otherwise returns number of excess bytes processed on top of minimal
         4 for each property."""
         return -1
@@ -715,7 +715,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def frost_protect(self) -> bool:
-        """sleep frost protect on/off"""
+        """frost protect mode on/off"""
         return self._frost_protect
 
     @frost_protect.setter
@@ -724,7 +724,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def comfort_mode(self) -> bool:
-        """sleep comfort mode on/off"""
+        """comfort sleep mode on/off"""
         return self._comfort_mode
 
     @comfort_mode.setter
@@ -760,7 +760,7 @@ class AirConditionerAppliance(Appliance):
 
     @property
     def purifier(self) -> bool:
-        """dryer mode on/off"""
+        """purifier mode on/off"""
         return self._purifier
 
     @purifier.setter
