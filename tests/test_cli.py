@@ -30,7 +30,6 @@ from midea_beautiful.midea import (
 # pylint: disable=missing-function-docstring
 # pylint: disable=invalid-name line-too-long
 
-
 def _with_defaults(namespace: Namespace) -> Namespace:
     namespace.hmackey = DEFAULT_HMACKEY
     namespace.iotkey = DEFAULT_IOTKEY

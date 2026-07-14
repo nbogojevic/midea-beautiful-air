@@ -264,7 +264,6 @@ def test_aircon_temperature():
         ex.value.message == "Tried to set target temperature 44.0 out of allowed range"
     )
 
-
 def test_aircon_booleans():
     appliance = Appliance.instance("45", "ac")
     assert isinstance(appliance, AirConditionerAppliance)

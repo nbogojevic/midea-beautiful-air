@@ -141,7 +141,7 @@ class DehumidifierStatusCommand(MideaSequenceCommand):
                 0xAA,
                 # 1 command length: N+10
                 0x20,
-                # 2 appliance type 0xAC - airconditioning, 0xA1 - dehumidifier
+                # 2 appliance type 0xAC - air conditioner, 0xA1 - dehumidifier
                 0xA1,
                 # 3 Frame SYN CheckSum
                 0x00,
@@ -464,7 +464,7 @@ class AirConditionerStatusCommand(MideaSequenceCommand):
                 0xAA,
                 # 1 command length: N+10
                 0x20,
-                # 2 appliance type 0xAC - airconditioning, 0xA1 - dehumidifier
+                # 2 appliance type 0xAC - air conditioner, 0xA1 - dehumidifier
                 0xAC,
                 # 3 Frame SYN CheckSum
                 0x00,

@@ -1,4 +1,4 @@
-"""Test local network communcation"""
+"""Test local network communication"""
 
 from binascii import unhexlify
 from contextlib import contextmanager
