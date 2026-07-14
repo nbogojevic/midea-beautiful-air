@@ -1,6 +1,5 @@
-This is a library that allows communication with Midea air conditioner and dehumidifier via the local area network.
-
 # midea-beautiful-air
+
 [![Run Project Tests](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-test.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-test.yml)
 [![PyPI](https://img.shields.io/pypi/v/midea_beautiful_air.svg?maxAge=3600)](https://pypi.org/project/midea_beautiful_air/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v0.json)](https://github.com/astral-sh/ruff)
@@ -9,9 +8,7 @@ This library allows discovering Midea air conditioners and dehumidifiers on loca
 
 This library inspired from the repository at [mac-zhou/midea-msmart](https://github.com/mac-zhou/midea-msmart) which provides similar functionality for air conditioners and [barban-dev/midea_inventor_dehumidifier](https://github.com/barban-dev/midea_inventor_dehumidifier) cloud based functionality for dehumidifiers. This library may include verbatim or adapted portions of the code from those two projects.
 
-
 Thanks also to [yitsushi's project](https://github.com/yitsushi/midea-air-condition), [NeoAcheron's project](https://github.com/NeoAcheron/midea-ac-py), [andersonshatch's project](https://github.com/andersonshatch/midea-ac-py).
-
 
 ## Supported appliances
 
@@ -77,7 +74,7 @@ The following air conditioner data is accessible through this library:
 * appliance IPv4 address (read-only)
 * token and key for local network access (read-only, only v3 appliances)
 
-## Discovery
+## Appliance Discovery
 
 This library is able to discover appliances on local network. This is done by broadcasting UDP packets to port 6445. Appliances will respond to this broadcast with their description packet. Following discovery, communication switches to TCP over port 6444. This communication is encrypted, and, for appliances with version 3 firmware the library needs a token/key (K1) combination associated to each appliance. This can be either provided as arguments or retrieved from Midea app account. Once obtained, the token/key (K1) pair can be reused for an appliance multiple times. The library can also retrieve the list of registered appliances from Midea app account and obtain additional information for devices (eg. name).
 
@@ -102,7 +99,6 @@ Library supports following protocols:
 ## Logging
 
 Credentials information like username, password or token keys are redacted by default. When using command line, pass `--no-redact` option to show them in the logs. You can use command line tool to display token and key (K1) data.
-
 
 ## Command Line Usage
 
@@ -132,6 +128,7 @@ midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
 
 Show tokens used to connect to appliances via local network
+
 ```shell
 midea-beautiful-air-cli discover --account ACCOUNT_EMAIL --password PASSWORD --credentials
 ```
@@ -189,35 +186,48 @@ Set target relative humidity (0-100)
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --target-humidity 55
 ```
+
 Sets operating mode (number 1 to 4)
+
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --mode 1
 ```
+
 Turn on/off ion mode (0 or 1)
+
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --ion-mode 1
 ```
+
 Turn appliance on/off mode (0 or 1)
+
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --running 1
 ```
+
 Turn on/off pump (0 or 1)
+
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --pump 1
 ```
+
 Combinations of multiple settings
+
 ```shell
 midea-beautiful-air-cli set --ip APPLIANCE_IP_ADDRESS --token TOKEN --key KEY --fan-speed 60 --target-humidity 50
 ```
+
 Set target humidity through Midea cloud API (note the usage of `--id` and `--cloud` options)
+
 ```shell
 midea-beautiful-air-cli set --id APPLIANCE_ID --account ACCOUNT_EMAIL --password PASSWORD --target-humidity 55 --cloud
 ```
+
 Get list of all settable attributes:
+
 ```shell
 midea-beautiful-air-cli set --help
 ```
-
 
 ### Specifying log level
 
@@ -228,11 +238,15 @@ Set `DEBUG` level
 ```shell
 midea-beautiful-air-cli --log DEBUG discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
+
 Very verbose level (may contain confidential information)
+
 ```shell
 midea-beautiful-air-cli --log NOTSET discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
+
 Set `WARNING` level (default log level if option was not specified)
+
 ```shell
 midea-beautiful-air-cli --log WARNING discover --account ACCOUNT_EMAIL --password PASSWORD
 ```
@@ -268,7 +282,6 @@ appliance = appliance_state(
 print(f"{appliance!r}")
 ```
 
-
 Get appliance state from cloud:
 
 ```python
@@ -297,11 +310,9 @@ Library is automatically built, packaged and published to [PyPI](https://pypi.or
 * Some of values are not available on all appliances. Some appliances may acknowledge action which has no effect (e.g. ion mode)
 * Temperature sensor is often under-reporting real ambient temperature. This may be due to sensor proximity to cooling pipes of the humidifier, algorithm or electronics error. The under-reporting depends on the active mode, and stronger modes may result in larger offset from real temperature.
 
-
 ## See also
 
-* https://github.com/nbogojevic/homeassistant-midea-dehumidifier-lan
-
+* <https://github.com/nbogojevic/homeassistant-midea-dehumidifier-lan>
 
 ## Notice
 
