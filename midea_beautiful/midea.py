@@ -69,6 +69,13 @@ SUPPORTED_APPS: Final = {
         ),
         "proxied": "v5",
     },
+    "OS Comfort": {
+        "appkey": "02021a881e4d4b21d7fed806719e5440",
+        "appid": 1114,
+        "apiurl": "https://mapp.appsmb.com",
+        "signkey": "xhdiwjnchekd4d512chdjx5d8e4c394D2D7S",
+        "proxied": None,
+    },
 }
 
 # spell-checker: ignore unsubscriptable
