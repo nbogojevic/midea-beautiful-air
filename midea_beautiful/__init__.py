@@ -121,7 +121,7 @@ def find_appliances(  # pylint: disable=too-many-arguments
         appkey (str, optional): Midea mobile application key. Defaults to None.
         account (str, optional): User account. Defaults to None.
         password (str, optional): Account password. Defaults to None.
-        appid (str, optional): Midea mobile application key. Defaults to None.
+        appid (str, optional): Midea mobile application id. Defaults to None.
         addresses (list[str], optional): List of addresses to search.
         If omitted, search all addresses (255.255.255.255). Defaults to None.
         appliances (list[LanDevice], optional): List of known appliances.
@@ -132,7 +132,7 @@ def find_appliances(  # pylint: disable=too-many-arguments
         timeout (float): Time to wait for device reply.
 
     Returns:
-        list[LanDevice]: [description]
+        list[LanDevice]: list of found appliances
     """
     if appname is not None:
         app = SUPPORTED_APPS[appname]
