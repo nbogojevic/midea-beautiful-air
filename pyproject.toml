@@ -1,0 +1,11 @@
+# Minimal pyproject.toml. Packaging metadata lives in setup.py/setup.cfg.
+#
+# [dependency-groups] pins the ruff version for astral-sh/ruff-action in
+# .github/workflows/lint.yml (it auto-discovers the version from this table).
+# Keep in sync with the ruff-pre-commit rev in .pre-commit-config.yaml.
+[dependency-groups]
+dev = ["ruff==0.11.4"]
+
+[tool.ruff]
+# Fail fast if a different ruff version is used locally.
+required-version = "0.11.4"

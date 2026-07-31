@@ -21,3 +21,4 @@ jobs:
     steps:
         - uses: actions/checkout@v7.0.0
         - uses: astral-sh/ruff-action@v4.1.0
+          # Version is auto-discovered from [dependency-groups] in pyproject.toml
