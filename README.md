@@ -1,5 +1,10 @@
 # midea-beautiful-air
 
+> [!WARNING]
+> **This library is frozen**
+>
+> I have moved my own appliances to ESPHome and no longer have any Midea-compatible devices, so I can no longer develop or test this library. No new features will be added; only critical fixes will be considered.
+
 *Midea devices are now supported by [official integration](https://www.home-assistant.io/integrations/midea/).*
 
 [![Run Project Tests](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-test.yml/badge.svg)](https://github.com/nbogojevic/midea-beautiful-air/actions/workflows/python-test.yml)
